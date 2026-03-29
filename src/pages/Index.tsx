@@ -1,5 +1,5 @@
 import SearchBar from "@/components/SearchBar";
-import TrendingStocks from "@/components/TrendingStocks";
+import TradingViewMarketOverview from "@/components/TradingViewMarketOverview";
 import AdSlot from "@/components/AdSlot";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Compass, TrendingUp, Shield } from "lucide-react";
@@ -31,7 +31,7 @@ export default function Index() {
       </section>
 
       <section className="pb-12 w-full flex justify-center">
-        <TrendingStocks />
+        <TradingViewMarketOverview />
       </section>
 
       <section className="grid gap-4 px-4 pb-16 sm:grid-cols-3 max-w-4xl w-full">
