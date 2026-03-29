@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
@@ -22,6 +23,7 @@ interface StockMeta {
 export default function StockPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const { user } = useAuth();
+  const { t, isRtl } = useLanguage();
   const [inWatchlist, setInWatchlist] = useState(false);
   const [financials, setFinancials] = useState<FinancialData[]>([]);
   const [meta, setMeta] = useState<StockMeta | null>(null);
@@ -74,13 +76,13 @@ export default function StockPage() {
 
   const toggleWatchlist = async () => {
     if (!user) {
-      toast.error("Sign in to use watchlists");
+      toast.error(t("stock.signInWatchlist"));
       return;
     }
     if (inWatchlist) {
       await supabase.from("watchlist").delete().eq("user_id", user.id).eq("ticker", upperTicker);
       setInWatchlist(false);
-      toast.success("Removed from watchlist");
+      toast.success(t("stock.removedWatchlist"));
     } else {
       await supabase.from("watchlist").insert({
         user_id: user.id,
@@ -88,21 +90,22 @@ export default function StockPage() {
         name: stock?.name ?? meta?.name ?? upperTicker,
       });
       setInWatchlist(true);
-      toast.success("Added to watchlist");
+      toast.success(t("stock.addedWatchlist"));
     }
   };
 
   const isPositive = (meta?.change ?? 0) >= 0;
-  const displayName = stock?.name ?? meta?.name ?? upperTicker;
+  const displayName = isRtl
+    ? (stock?.nameHe ?? stock?.name ?? meta?.name ?? upperTicker)
+    : (stock?.name ?? meta?.name ?? upperTicker);
 
   return (
     <div className="container max-w-5xl py-8 space-y-6 animate-fade-in">
-      {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-display text-3xl font-bold">
-              {loading ? "Loading…" : displayName}
+              {loading ? t("stock.loading") : displayName}
             </h1>
             <Button
               variant="ghost"
@@ -119,18 +122,18 @@ export default function StockPage() {
           )}
         </div>
 
-        <div className="text-right">
+        <div className={isRtl ? "text-start" : "text-end"}>
           {meta ? (
             <>
               <p className="font-display text-3xl font-bold">
                 {meta.currency === "ILS" ? "₪" : "$"}{meta.price?.toFixed(2) ?? "—"}
               </p>
-              <div className={`flex items-center justify-end gap-1 text-sm font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
+              <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? "text-gain" : "text-loss"} ${isRtl ? "justify-start" : "justify-end"}`}>
                 {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                 {isPositive ? "+" : ""}{meta.change?.toFixed(2) ?? 0}%
               </div>
               {meta.marketCap && (
-                <p className="text-xs text-muted-foreground mt-1">Market Cap: {meta.marketCap}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("stock.marketCap")}: {meta.marketCap}</p>
               )}
             </>
           ) : !loading ? (
@@ -141,16 +144,14 @@ export default function StockPage() {
 
       {error && (
         <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          Failed to load financial data: {error}
+          {t("stock.failedLoad")}: {error}
         </div>
       )}
 
-      {/* Chart */}
       <TradingViewChart ticker={upperTicker} />
 
-      {/* Financials */}
       <div>
-        <h2 className="font-display text-xl font-semibold mb-3">Historical Financials (5Y)</h2>
+        <h2 className="font-display text-xl font-semibold mb-3">{t("stock.historicalData")}</h2>
         <FinancialsTable data={financials} loading={loading} />
       </div>
 

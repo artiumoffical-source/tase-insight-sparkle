@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, TrendingDown } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 import TASE_STOCKS, { TRENDING_TICKERS } from "@/data/tase-stocks";
 
 interface Quote {
@@ -14,6 +15,7 @@ export default function TrendingStocks() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -35,13 +37,10 @@ export default function TrendingStocks() {
   if (loading) {
     return (
       <div className="w-full max-w-4xl px-4">
-        <h2 className="font-display text-xl font-semibold mb-4">📈 Trending TASE Stocks</h2>
+        <h2 className="font-display text-xl font-semibold mb-4">{t("trending.title")}</h2>
         <div className="flex gap-3 overflow-x-auto pb-2">
-          {TRENDING_TICKERS.map((t) => (
-            <div
-              key={t}
-              className="min-w-[180px] rounded-xl border bg-card p-4 animate-pulse"
-            >
+          {TRENDING_TICKERS.map((tk) => (
+            <div key={tk} className="min-w-[180px] rounded-xl border bg-card p-4 animate-pulse">
               <div className="h-4 bg-muted rounded w-16 mb-2" />
               <div className="h-6 bg-muted rounded w-20 mb-1" />
               <div className="h-4 bg-muted rounded w-12" />
@@ -54,7 +53,7 @@ export default function TrendingStocks() {
 
   return (
     <div className="w-full max-w-4xl px-4">
-      <h2 className="font-display text-xl font-semibold mb-4">📈 Trending TASE Stocks</h2>
+      <h2 className="font-display text-xl font-semibold mb-4">{t("trending.title")}</h2>
       <div className="flex gap-3 overflow-x-auto pb-2">
         {quotes.map((q) => {
           const stock = getStock(q.ticker);
@@ -63,13 +62,13 @@ export default function TrendingStocks() {
             <button
               key={q.ticker}
               onClick={() => navigate(`/stock/${q.ticker}`)}
-              className="min-w-[180px] rounded-xl border bg-card p-4 text-left hover:border-primary/50 hover:shadow-md transition-all flex-shrink-0 group"
+              className="min-w-[180px] rounded-xl border bg-card p-4 text-start hover:border-primary/50 hover:shadow-md transition-all flex-shrink-0 group"
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="font-display font-bold text-sm">{q.ticker}</span>
                 <span className="text-xs text-muted-foreground">TASE</span>
               </div>
-              <p className="text-xs text-muted-foreground truncate mb-2">
+              <p className="text-xs text-muted-foreground truncate mb-1">
                 {stock?.name}
               </p>
               <p className="text-xs text-muted-foreground truncate mb-2" dir="rtl">
@@ -80,22 +79,13 @@ export default function TrendingStocks() {
                   <p className="font-display text-lg font-bold">
                     ₪{q.price.toFixed(2)}
                   </p>
-                  <div
-                    className={`flex items-center gap-1 text-xs font-medium ${
-                      isPositive ? "text-gain" : "text-loss"
-                    }`}
-                  >
-                    {isPositive ? (
-                      <TrendingUp className="h-3 w-3" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3" />
-                    )}
-                    {isPositive ? "+" : ""}
-                    {q.change.toFixed(2)}%
+                  <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
+                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {isPositive ? "+" : ""}{q.change.toFixed(2)}%
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Price unavailable</p>
+                <p className="text-xs text-muted-foreground">{t("trending.priceUnavailable")}</p>
               )}
             </button>
           );

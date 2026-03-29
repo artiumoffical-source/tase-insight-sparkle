@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface TradingViewChartProps {
   ticker: string;
@@ -6,11 +7,10 @@ interface TradingViewChartProps {
 
 export default function TradingViewChart({ ticker }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { lang } = useLanguage();
 
   useEffect(() => {
     if (!containerRef.current) return;
-
-    // Clear previous widget
     containerRef.current.innerHTML = "";
 
     const script = document.createElement("script");
@@ -24,7 +24,7 @@ export default function TradingViewChart({ ticker }: TradingViewChartProps) {
       timezone: "Asia/Jerusalem",
       theme: "dark",
       style: "1",
-      locale: "en",
+      locale: lang === "he" ? "he_IL" : "en",
       backgroundColor: "rgba(18, 20, 25, 1)",
       gridColor: "rgba(40, 44, 55, 0.3)",
       hide_top_toolbar: false,
@@ -36,11 +36,11 @@ export default function TradingViewChart({ ticker }: TradingViewChartProps) {
     });
 
     containerRef.current.appendChild(script);
-  }, [ticker]);
+  }, [ticker, lang]);
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-    <div ref={containerRef} className="tradingview-widget-container" style={{ height: 600, width: "100%" }}>
+      <div ref={containerRef} className="tradingview-widget-container" style={{ height: 600, width: "100%" }}>
         <div className="tradingview-widget-container__widget" style={{ height: "100%", width: "100%" }} />
       </div>
     </div>
