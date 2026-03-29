@@ -204,6 +204,14 @@ serve(async (req) => {
       console.log(`Cached fundamentals for ${ticker}`);
     }
 
+    // Also update logo_url in tase_symbols if we got one
+    if (result.meta.logoUrl) {
+      await supabase
+        .from("tase_symbols")
+        .update({ logo_url: result.meta.logoUrl })
+        .eq("ticker", ticker);
+    }
+
     return new Response(
       JSON.stringify(result),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
