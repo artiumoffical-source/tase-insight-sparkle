@@ -184,12 +184,12 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.watchlist": "Watchlist",
     "nav.signOut": "Sign Out",
     "nav.signIn": "Sign In",
-    "nav.brand": "TASE Insight",
+    "nav.brand": "AlphaMap",
 
-    "hero.badge": "Live TASE Data",
-    "hero.title1": "Israeli Market Intelligence,",
-    "hero.title2": "Simplified",
-    "hero.subtitle": "Financial data, interactive charts, and watchlists for every stock on the Tel Aviv Stock Exchange.",
+    "hero.badge": "Live Market Data",
+    "hero.title1": "Navigate the Markets with",
+    "hero.title2": "AlphaMap",
+    "hero.subtitle": "Professional data, real-time insights, and global financial intelligence.",
     "search.placeholder": "Search by company name or ticker...",
 
     "feature.financials.title": "5-Year Financials",
