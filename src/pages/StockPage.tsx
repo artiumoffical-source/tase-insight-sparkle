@@ -206,7 +206,7 @@ export default function StockPage() {
                 </button>
               </div>
             </div>
-            <FinancialsTable data={financials} loading={loading} />
+            <FinancialsTable data={financials} incomeStatement={incomeStatement} balanceSheet={balanceSheet} cashFlow={cashFlow} loading={loading} />
           </div>
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
