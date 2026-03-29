@@ -12,6 +12,32 @@ const FALLBACK_TICKERS = [
   "AZRG", "DSCT", "MZTF", "NICE", "BEZQ",
 ];
 
+function pickPrice(data: any): number {
+  return (
+    Number(data?.close) ||
+    Number(data?.last) ||
+    Number(data?.previousClose) ||
+    Number(data?.previous_close) ||
+    Number(data?.adjusted_close) ||
+    Number(data?.open) ||
+    0
+  );
+}
+
+function pickChange(data: any): number {
+  const cp = Number(data?.change_p);
+  if (cp && cp !== 0) return cp;
+  const changePercent = Number(data?.changePercent);
+  if (changePercent && changePercent !== 0) return changePercent;
+  // Manual calc from previousClose vs close
+  const close = Number(data?.close) || Number(data?.last) || 0;
+  const prev = Number(data?.previousClose) || Number(data?.previous_close) || 0;
+  if (prev > 0 && close > 0 && close !== prev) {
+    return ((close - prev) / prev) * 100;
+  }
+  return 0;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -28,7 +54,7 @@ serve(async (req) => {
       price: number; change: number;
     }> = [];
 
-    // Strategy 1: Real-time quotes for fallback tickers
+    // Strategy 1: Real-time quotes
     if (apiKey) {
       const results = await Promise.all(
         FALLBACK_TICKERS.map(async (ticker) => {
@@ -41,10 +67,11 @@ serve(async (req) => {
               return null;
             }
             const data = await resp.json();
-            const price = Number(data?.close) || Number(data?.previousClose) || Number(data?.open) || 0;
-            const change = Number(data?.change_p) || 0;
+            console.log(`RT ${ticker}:`, JSON.stringify(data));
+            const price = pickPrice(data);
+            const change = pickChange(data);
             if (price <= 0) return null;
-            return { ticker, price, change };
+            return { ticker, price, change: Math.round(change * 100) / 100 };
           } catch (e) {
             console.error(`Error fetching RT ${ticker}:`, e);
             return null;
@@ -56,7 +83,6 @@ serve(async (req) => {
       console.log(`Got valid RT data for ${valid.length}/${FALLBACK_TICKERS.length} tickers`);
 
       if (valid.length > 0) {
-        // Fetch names from tase_symbols
         const { data: symbols } = await supabase
           .from("tase_symbols")
           .select("ticker, name, logo_url")
@@ -77,7 +103,7 @@ serve(async (req) => {
       }
     }
 
-    // Strategy 2: DB fallback from tase_symbols if API failed entirely
+    // Strategy 2: DB fallback
     if (enriched.length === 0) {
       console.log("Using tase_symbols DB fallback");
       const { data: dbRows } = await supabase
@@ -96,7 +122,6 @@ serve(async (req) => {
       }
     }
 
-    // Sort for gainers & losers
     const sorted = [...enriched].sort((a, b) => b.change - a.change);
     const gainers = sorted.filter(s => s.change >= 0).slice(0, 5);
     const losersPool = sorted.filter(s => s.change < 0);
