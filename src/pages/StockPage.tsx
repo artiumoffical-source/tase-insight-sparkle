@@ -31,6 +31,7 @@ export default function StockPage() {
   const { t, isRtl } = useLanguage();
   const [inWatchlist, setInWatchlist] = useState(false);
   const [financials, setFinancials] = useState<FinancialData[]>([]);
+  const [keyMetrics, setKeyMetrics] = useState<KeyMetricsData | null>(null);
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
