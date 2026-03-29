@@ -120,7 +120,7 @@ export default function StockPage() {
     }
   };
 
-  const isPositive = (meta?.change ?? 0) >= 0;
+  
   const displayName = isRtl
     ? (stock?.nameHe ?? stock?.name ?? meta?.name ?? upperTicker)
     : (stock?.name ?? meta?.name ?? upperTicker);
