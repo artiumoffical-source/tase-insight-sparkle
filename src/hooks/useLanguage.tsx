@@ -365,6 +365,35 @@ const translations: Record<Language, Record<string, string>> = {
     "notFound.title": "404",
     "notFound.message": "Oops! Page not found",
     "notFound.back": "Return to Home",
+
+    // Footer
+    "footer.rights": "All rights reserved.",
+    "footer.privacy": "Privacy Policy",
+    "footer.terms": "Terms of Service",
+
+    // Privacy
+    "privacy.title": "Privacy Policy - AlphaMap",
+    "privacy.intro": "Welcome to AlphaMap. Your privacy is important to us.",
+    "privacy.collectTitle": "Information Collection",
+    "privacy.collectBody": "We collect technical information such as IP address and browser type during browsing. If you register, we store your email address.",
+    "privacy.cookiesTitle": "Cookies & Advertising",
+    "privacy.cookiesBody": "The site uses third-party cookies, including Google AdSense, for personalized advertising and traffic analysis (Google Analytics). Google may use cookies to display ads based on your previous visits to this or other websites.",
+    "privacy.manageCookiesTitle": "Cookie Management",
+    "privacy.manageCookiesBody": "You can opt out of personalized ads by visiting Google's ad settings.",
+    "privacy.securityTitle": "Security",
+    "privacy.securityBody": "We take standard measures to secure your information, but cannot guarantee absolute immunity from breaches.",
+
+    // Terms
+    "terms.title": "Terms of Service & Legal Disclaimer",
+    "terms.intro": "Use of the AlphaMap website is subject to the following terms:",
+    "terms.hostingTitle": "Hosting & Information",
+    "terms.hostingBody": "AlphaMap provides financial data, reports, and news for informational purposes only.",
+    "terms.noAdviceTitle": "No Financial Advice",
+    "terms.noAdviceBody": "The information on AlphaMap does not constitute investment advice, a recommendation to trade securities, or a substitute for professional advice tailored to your needs. All investment decisions are the sole responsibility of the user.",
+    "terms.accuracyTitle": "Data Accuracy",
+    "terms.accuracyBody": "We source data from external providers (EODHD). Despite our efforts, errors or delays may occur. AlphaMap is not responsible for any financial damage resulting from reliance on information on this site.",
+    "terms.ipTitle": "Intellectual Property",
+    "terms.ipBody": "The AlphaMap brand and website code are our private property. Do not copy or reproduce content without written permission.",
   },
 };
 
