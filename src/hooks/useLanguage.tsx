@@ -152,6 +152,19 @@ const translations: Record<Language, Record<string, string>> = {
     "cal.previous": "קודם",
     "nav.calendar": "יומן כלכלי",
 
+    // News
+    "news.marketPulse": "דופק השוק",
+    "news.liveNews": "חדשות בזמן אמת",
+    "news.sentiment": "סנטימנט",
+    "news.bullish": "חיובי",
+    "news.veryBullish": "חיובי מאוד",
+    "news.bearish": "שלילי",
+    "news.veryBearish": "שלילי מאוד",
+    "news.neutral": "ניטרלי",
+    "news.noNews": "אין חדשות זמינות.",
+    "news.unlockFull": "שחרר 15+ חדשות וסנטימנט",
+    "news.upgradeSentiment": "שדרג לפרימיום לניתוח סנטימנט",
+
     // 404
     "notFound.title": "404",
     "notFound.message": "אופס! הדף לא נמצא",
@@ -288,6 +301,19 @@ const translations: Record<Language, Record<string, string>> = {
     "cal.forecast": "Forecast",
     "cal.previous": "Previous",
     "nav.calendar": "Calendar",
+
+    // News
+    "news.marketPulse": "Market Pulse",
+    "news.liveNews": "Live News",
+    "news.sentiment": "Sentiment",
+    "news.bullish": "Bullish",
+    "news.veryBullish": "Very Bullish",
+    "news.bearish": "Bearish",
+    "news.veryBearish": "Very Bearish",
+    "news.neutral": "Neutral",
+    "news.noNews": "No news available.",
+    "news.unlockFull": "Unlock 15+ News & Sentiment",
+    "news.upgradeSentiment": "Upgrade to Premium for sentiment analysis",
 
     "notFound.title": "404",
     "notFound.message": "Oops! Page not found",
