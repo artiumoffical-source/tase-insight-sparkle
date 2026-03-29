@@ -35,6 +35,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tase_symbols: {
+        Row: {
+          currency: string | null
+          exchange: string
+          id: string
+          logo_url: string | null
+          name: string
+          name_he: string
+          ticker: string
+          type: string | null
+          updated_at: string
+        }
+        Insert: {
+          currency?: string | null
+          exchange?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          name_he?: string
+          ticker: string
+          type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          currency?: string | null
+          exchange?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          name_he?: string
+          ticker?: string
+          type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       watchlist: {
         Row: {
           created_at: string
