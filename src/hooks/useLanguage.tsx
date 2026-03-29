@@ -95,6 +95,19 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.noAccount": "אין לך חשבון?",
     "auth.checkEmail": "בדוק את האימייל שלך לאישור החשבון",
 
+    // Key Metrics
+    "metrics.title": "מדדים מרכזיים",
+    "metrics.upgrade": "שדרג כדי לראות מדדים מרכזיים",
+    "metrics.pe": "מכפיל רווח (P/E)",
+    "metrics.ps": "מכפיל מכירות (P/S)",
+    "metrics.pb": "מכפיל הון (P/B)",
+    "metrics.roe": "תשואה על ההון (ROE)",
+    "metrics.roa": "תשואה על הנכסים (ROA)",
+    "metrics.revGrowth5Y": "צמיחת הכנסות 5 שנים",
+    "metrics.revGrowth10Y": "צמיחת הכנסות 10 שנים",
+    "metrics.niMargin5Y": "מרווח רווח נקי 5 שנים",
+    "metrics.niMargin10Y": "מרווח רווח נקי 10 שנים",
+
     // Ad
     "ad.space": "מקום לפרסום",
     "ad.upgrade": "שדרג לפרימיום להסרת פרסומות",
@@ -179,6 +192,19 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.hasAccount": "Already have an account?",
     "auth.noAccount": "Don't have an account?",
     "auth.checkEmail": "Check your email to confirm your account",
+
+    // Key Metrics
+    "metrics.title": "Key Metrics",
+    "metrics.upgrade": "Upgrade to see Key Metrics",
+    "metrics.pe": "P/E Ratio",
+    "metrics.ps": "P/S Ratio",
+    "metrics.pb": "P/B Ratio",
+    "metrics.roe": "ROE",
+    "metrics.roa": "ROA",
+    "metrics.revGrowth5Y": "5Y Avg Revenue Growth",
+    "metrics.revGrowth10Y": "10Y Avg Revenue Growth",
+    "metrics.niMargin5Y": "5Y Avg Net Income Margin",
+    "metrics.niMargin10Y": "10Y Avg Net Income Margin",
 
     "ad.space": "Advertisement",
     "ad.upgrade": "Upgrade to Premium to remove ads",

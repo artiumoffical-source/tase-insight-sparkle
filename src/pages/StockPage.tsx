@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData } from "@/components/FinancialsTable";
+import KeyMetrics from "@/components/KeyMetrics";
+import type { KeyMetricsData } from "@/components/KeyMetrics";
 import AdSlot from "@/components/AdSlot";
 import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,7 @@ export default function StockPage() {
   const { t, isRtl } = useLanguage();
   const [inWatchlist, setInWatchlist] = useState(false);
   const [financials, setFinancials] = useState<FinancialData[]>([]);
+  const [keyMetrics, setKeyMetrics] = useState<KeyMetricsData | null>(null);
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +65,7 @@ export default function StockPage() {
       .then((data) => {
         setMeta(data.meta);
         setFinancials(data.financials ?? []);
+        setKeyMetrics(data.keyMetrics ?? null);
       })
       .catch((err) => {
         console.error("Failed to fetch financials:", err);
@@ -163,6 +167,13 @@ export default function StockPage() {
 
           {/* Mid-content ad between chart and table */}
           <AdSlot placement="banner" />
+
+          <KeyMetrics
+            data={keyMetrics}
+            isPremium={isPremium}
+            onUpgrade={() => setShowUpgrade(true)}
+            loading={loading}
+          />
 
           <div>
             <div className="flex items-center justify-between mb-3">
