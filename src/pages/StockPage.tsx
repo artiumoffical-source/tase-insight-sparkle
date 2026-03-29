@@ -126,7 +126,7 @@ export default function StockPage() {
           {meta ? (
             <>
               <p className="font-display text-3xl font-bold">
-                {meta.currency === "ILS" ? "₪" : "$"}{meta.price?.toFixed(2) ?? "—"}
+                ₪{meta.price?.toFixed(2) ?? "—"}
               </p>
               <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? "text-gain" : "text-loss"} ${isRtl ? "justify-start" : "justify-end"}`}>
                 {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
