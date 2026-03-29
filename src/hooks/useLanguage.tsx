@@ -88,8 +88,8 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.researchDev": "מחקר ופיתוח (R&D)",
 
     // Upgrade
-    "upgrade.title": "הצטרף ל-TASE Insight Premium",
-    "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות לבורסת תל אביב.",
+    "upgrade.title": "הצטרף ל-AlphaMap Premium",
+    "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות.",
     "upgrade.feat1": "דוחות כספיים רבעוניים",
     "upgrade.feat2": "חוויה ללא פרסומות",
     "upgrade.feat3": "תובנות וניתוחים מתקדמים",
