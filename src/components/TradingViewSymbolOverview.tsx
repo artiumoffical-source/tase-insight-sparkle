@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 
-interface TradingViewSymbolOverviewProps {
+interface Props {
   ticker: string;
 }
 
-export default function TradingViewSymbolOverview({ ticker }: TradingViewSymbolOverviewProps) {
+export default function TradingViewSymbolOverview({ ticker }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { lang } = useLanguage();
 
@@ -13,49 +13,69 @@ export default function TradingViewSymbolOverview({ ticker }: TradingViewSymbolO
     if (!containerRef.current) return;
     containerRef.current.innerHTML = "";
 
-    const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-overview.js";
-    script.type = "text/javascript";
-    script.async = true;
-    script.innerHTML = JSON.stringify({
-      symbols: [[`TASE:${ticker}|1D`]],
-      chartOnly: false,
+    const isHe = lang === "he";
+    const symbol = `TASE:${ticker}`;
+
+    // Symbol Info widget (price + change)
+    const infoDiv = document.createElement("div");
+    infoDiv.className = "tradingview-widget-container mb-1";
+    const infoWidget = document.createElement("div");
+    infoWidget.className = "tradingview-widget-container__widget";
+    infoDiv.appendChild(infoWidget);
+    const infoScript = document.createElement("script");
+    infoScript.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js";
+    infoScript.type = "text/javascript";
+    infoScript.async = true;
+    infoScript.innerHTML = JSON.stringify({
+      symbol,
+      width: "100%",
+      locale: isHe ? "he_IL" : "en",
+      colorTheme: "dark",
+      isTransparent: true,
+    });
+    infoDiv.appendChild(infoScript);
+
+    // Advanced Chart widget
+    const chartDiv = document.createElement("div");
+    chartDiv.className = "tradingview-widget-container";
+    chartDiv.id = `tv-chart-${ticker}`;
+    const chartWidget = document.createElement("div");
+    chartWidget.className = "tradingview-widget-container__widget";
+    chartWidget.style.height = "500px";
+    chartWidget.style.width = "100%";
+    chartDiv.appendChild(chartWidget);
+    const chartScript = document.createElement("script");
+    chartScript.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    chartScript.type = "text/javascript";
+    chartScript.async = true;
+    chartScript.innerHTML = JSON.stringify({
+      autosize: false,
       width: "100%",
       height: 500,
-      locale: lang === "he" ? "he_IL" : "en",
-      colorTheme: "dark",
-      autosize: false,
-      showVolume: true,
-      showMA: false,
-      hideDateRanges: false,
-      hideMarketStatus: false,
-      hideSymbolLogo: false,
-      scalePosition: "right",
-      scaleMode: "Normal",
-      fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif",
-      fontSize: "10",
-      noTimeScale: false,
-      valuesTracking: "1",
-      changeMode: "price-and-percent",
-      chartType: "area",
-      lineWidth: 2,
-      lineType: 0,
-      dateRanges: ["1d|1", "1m|30", "3m|60", "12m|1D", "60m|1W", "all|1M"],
-      lineColor: "rgba(34, 197, 94, 1)",
-      topColor: "rgba(34, 197, 94, 0.15)",
-      bottomColor: "rgba(34, 197, 94, 0)",
+      symbol,
+      interval: "D",
+      timezone: "Asia/Jerusalem",
+      theme: "dark",
+      style: "1",
+      locale: isHe ? "he_IL" : "en",
+      allow_symbol_change: false,
+      calendar: false,
+      support_host: "https://www.tradingview.com",
       backgroundColor: "rgba(18, 20, 25, 1)",
-      gridLineColor: "rgba(40, 44, 55, 0.3)",
+      gridColor: "rgba(40, 44, 55, 0.3)",
+      hide_side_toolbar: false,
+      withdateranges: true,
+      hide_volume: false,
     });
+    chartDiv.appendChild(chartScript);
 
-    containerRef.current.appendChild(script);
+    containerRef.current.appendChild(infoDiv);
+    containerRef.current.appendChild(chartDiv);
   }, [ticker, lang]);
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-      <div ref={containerRef} className="tradingview-widget-container" style={{ height: 500, width: "100%" }}>
-        <div className="tradingview-widget-container__widget" style={{ height: "100%", width: "100%" }} />
-      </div>
+      <div ref={containerRef} style={{ width: "100%" }} />
     </div>
   );
 }
