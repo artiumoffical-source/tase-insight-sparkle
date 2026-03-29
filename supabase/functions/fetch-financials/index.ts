@@ -25,6 +25,7 @@ interface StockMeta {
   change: number;
   marketCap: string;
   currency: string;
+  logoUrl: string | null;
 }
 
 function formatMarketCap(value: number): string {
