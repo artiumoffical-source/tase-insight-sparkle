@@ -75,6 +75,12 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.capex": "הוצאות הון (CapEx)",
     "fin.freeCashFlow": "תזרים מזומנים חופשי",
     "fin.cashFromOps": "תזרים מפעילות שוטפת",
+    "fin.interestIncome": "הכנסות ריבית",
+    "fin.nonInterestIncome": "הכנסות שאינן ריבית",
+    "fin.netPremiumsEarned": "פרמיות נטו שהורווחו",
+    "fin.totalDeposits": "סך פיקדונות",
+    "fin.totalInvestments": "סך השקעות",
+    "fin.researchDev": "מחקר ופיתוח (R&D)",
 
     // Upgrade
     "upgrade.title": "הצטרף ל-TASE Insight Premium",
