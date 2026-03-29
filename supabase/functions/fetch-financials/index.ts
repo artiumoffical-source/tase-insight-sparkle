@@ -190,7 +190,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     netIncomeMargin10Y: calcAvgMargin(rev10, ni10),
   };
 
-  return { meta, financials, keyMetrics };
+  return { meta, financials, keyMetrics, incomeStatement, balanceSheet, cashFlow };
 }
 
 serve(async (req) => {
