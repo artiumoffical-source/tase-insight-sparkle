@@ -23,6 +23,9 @@ const App = () => (
         <LanguageProvider>
           <AuthProvider>
             <Navbar />
+            <div className="w-full">
+              <AdSlot placement="leaderboard" className="my-3" />
+            </div>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/stock/:ticker" element={<StockPage />} />
