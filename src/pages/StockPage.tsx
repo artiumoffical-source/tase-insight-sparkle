@@ -75,7 +75,11 @@ export default function StockPage() {
         setIncomeStatement(data.incomeStatement ?? []);
         setBalanceSheet(data.balanceSheet ?? []);
         setCashFlow(data.cashFlow ?? []);
+        setQIncomeStatement(data.qIncomeStatement ?? []);
+        setQBalanceSheet(data.qBalanceSheet ?? []);
+        setQCashFlow(data.qCashFlow ?? []);
         setKeyMetrics(data.keyMetrics ?? null);
+        setSector(data.meta?.sector ?? "general");
       })
       .catch((err) => {
         console.error("Failed to fetch financials:", err);
