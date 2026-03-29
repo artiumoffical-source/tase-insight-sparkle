@@ -146,12 +146,12 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.annual": "Annual",
     "fin.quarterly": "Quarterly",
 
-    "upgrade.title": "Upgrade to Premium",
+    "upgrade.title": "Join TASE Insight Premium",
     "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced TASE insights.",
     "upgrade.feat1": "Quarterly financial reports",
     "upgrade.feat2": "Ad-free experience",
     "upgrade.feat3": "Advanced insights & analytics",
-    "upgrade.subscribe": "Subscribe Now",
+    "upgrade.signUpLogin": "Sign Up / Log In",
     "upgrade.comingSoon": "Coming Soon!",
     "upgrade.cancel": "Cancel anytime",
 

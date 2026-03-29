@@ -2,7 +2,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Crown, Zap, BarChart3, ShieldOff } from "lucide-react";
-import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface UpgradeModalProps {
   open: boolean;
