@@ -193,6 +193,19 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.noAccount": "Don't have an account?",
     "auth.checkEmail": "Check your email to confirm your account",
 
+    // Key Metrics
+    "metrics.title": "Key Metrics",
+    "metrics.upgrade": "Upgrade to see Key Metrics",
+    "metrics.pe": "P/E Ratio",
+    "metrics.ps": "P/S Ratio",
+    "metrics.pb": "P/B Ratio",
+    "metrics.roe": "ROE",
+    "metrics.roa": "ROA",
+    "metrics.revGrowth5Y": "5Y Avg Revenue Growth",
+    "metrics.revGrowth10Y": "10Y Avg Revenue Growth",
+    "metrics.niMargin5Y": "5Y Avg Net Income Margin",
+    "metrics.niMargin10Y": "10Y Avg Net Income Margin",
+
     "ad.space": "Advertisement",
     "ad.upgrade": "Upgrade to Premium to remove ads",
 
