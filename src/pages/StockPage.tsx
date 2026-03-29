@@ -5,7 +5,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
-import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow } from "@/components/FinancialsTable";
+import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
 import type { KeyMetricsData } from "@/components/KeyMetrics";
 import AdSlot from "@/components/AdSlot";
