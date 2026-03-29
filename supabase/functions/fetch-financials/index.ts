@@ -25,6 +25,7 @@ interface StockMeta {
   change: number;
   marketCap: string;
   currency: string;
+  logoUrl: string | null;
 }
 
 function formatMarketCap(value: number): string {
@@ -44,12 +45,16 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const general = data.General || {};
   const highlights = data.Highlights || {};
 
+  const rawLogo = general.LogoURL || null;
+  const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
+
   const meta: StockMeta = {
     name: general.Name || ticker,
     price: eodPrice?.price ?? 0,
     change: eodPrice?.change ?? 0,
     marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
     currency: general.CurrencyCode || "ILS",
+    logoUrl,
   };
 
   const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
@@ -197,6 +202,14 @@ serve(async (req) => {
       console.error("Cache upsert error:", upsertError);
     } else {
       console.log(`Cached fundamentals for ${ticker}`);
+    }
+
+    // Also update logo_url in tase_symbols if we got one
+    if (result.meta.logoUrl) {
+      await supabase
+        .from("tase_symbols")
+        .update({ logo_url: result.meta.logoUrl })
+        .eq("ticker", ticker);
     }
 
     return new Response(

@@ -11,6 +11,7 @@ import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { Star, TrendingUp, TrendingDown, Lock } from "lucide-react";
 import { toast } from "sonner";
+import StockLogo from "@/components/StockLogo";
 import TASE_STOCKS from "@/data/tase-stocks";
 
 interface StockMeta {
@@ -19,6 +20,7 @@ interface StockMeta {
   change: number;
   marketCap: string;
   currency: string;
+  logoUrl: string | null;
 }
 
 export default function StockPage() {
@@ -113,6 +115,7 @@ export default function StockPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-3">
+                <StockLogo name={displayName} logoUrl={meta?.logoUrl} size="lg" />
                 <h1 className="font-display text-3xl font-bold">
                   {loading ? t("stock.loading") : displayName}
                 </h1>
