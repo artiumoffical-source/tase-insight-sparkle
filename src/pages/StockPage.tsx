@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
-import TradingViewChart from "@/components/TradingViewChart";
+import TradingViewSymbolOverview from "@/components/TradingViewSymbolOverview";
 import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
