@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface WatchlistItem {
 
 export default function WatchlistPage() {
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function WatchlistPage() {
   const removeItem = async (id: string) => {
     await supabase.from("watchlist").delete().eq("id", id);
     setItems((prev) => prev.filter((i) => i.id !== id));
-    toast.success("Removed from watchlist");
+    toast.success(t("watchlist.removed"));
   };
 
   if (authLoading || loading) {
@@ -62,14 +64,14 @@ export default function WatchlistPage() {
     <div className="container max-w-3xl py-8 animate-fade-in">
       <div className="flex items-center gap-3 mb-6">
         <Star className="h-6 w-6 text-primary fill-primary" />
-        <h1 className="font-display text-2xl font-bold">My Watchlist</h1>
+        <h1 className="font-display text-2xl font-bold">{t("watchlist.title")}</h1>
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-xl border bg-card p-12 text-center">
-          <p className="text-muted-foreground mb-4">Your watchlist is empty.</p>
+          <p className="text-muted-foreground mb-4">{t("watchlist.empty")}</p>
           <Button asChild>
-            <Link to="/">Discover Stocks</Link>
+            <Link to="/">{t("watchlist.discover")}</Link>
           </Button>
         </div>
       ) : (
@@ -77,9 +79,9 @@ export default function WatchlistPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-b-border hover:bg-transparent">
-                <TableHead className="font-display">Ticker</TableHead>
-                <TableHead className="font-display">Name</TableHead>
-                <TableHead className="font-display text-right">Actions</TableHead>
+                <TableHead className="font-display">{t("watchlist.ticker")}</TableHead>
+                <TableHead className="font-display">{t("watchlist.name")}</TableHead>
+                <TableHead className="font-display text-end">{t("watchlist.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -91,7 +93,7 @@ export default function WatchlistPage() {
                     </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{item.name}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-end">
                     <Button variant="ghost" size="icon" onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-loss">
                       <Trash2 className="h-4 w-4" />
                     </Button>

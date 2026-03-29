@@ -1,3 +1,4 @@
+import { useLanguage } from "@/hooks/useLanguage";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export interface FinancialData {
@@ -23,6 +24,8 @@ function formatNum(value: number): string {
 }
 
 export default function FinancialsTable({ data, loading }: FinancialsTableProps) {
+  const { t } = useLanguage();
+
   if (loading) {
     return (
       <div className="rounded-xl border bg-card p-8">
@@ -38,7 +41,7 @@ export default function FinancialsTable({ data, loading }: FinancialsTableProps)
   if (!data.length) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-        No financial data available.
+        {t("stock.noData")}
       </div>
     );
   }
@@ -49,29 +52,29 @@ export default function FinancialsTable({ data, loading }: FinancialsTableProps)
         <Table>
           <TableHeader>
             <TableRow className="border-b-border hover:bg-transparent">
-              <TableHead className="font-display text-muted-foreground">Year</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Revenue</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Gross Profit</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Operating Inc.</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Net Income</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">D/E Ratio</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Cash & Equiv.</TableHead>
+              <TableHead className="font-display text-muted-foreground">{t("fin.year")}</TableHead>
+              <TableHead className="font-display text-muted-foreground text-end">{t("fin.revenue")}</TableHead>
+              <TableHead className="font-display text-muted-foreground text-end">{t("fin.grossProfit")}</TableHead>
+              <TableHead className="font-display text-muted-foreground text-end">{t("fin.operatingIncome")}</TableHead>
+              <TableHead className="font-display text-muted-foreground text-end">{t("fin.netIncome")}</TableHead>
+              <TableHead className="font-display text-muted-foreground text-end">{t("fin.deRatio")}</TableHead>
+              <TableHead className="font-display text-muted-foreground text-end">{t("fin.cash")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((row) => (
               <TableRow key={row.year} className="border-b-border">
                 <TableCell className="font-display font-semibold">{row.year}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.revenue)}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.grossProfit)}</TableCell>
-                <TableCell className={`text-right font-mono ${row.operatingIncome >= 0 ? "text-gain" : "text-loss"}`}>
+                <TableCell className="text-end font-mono">{formatNum(row.revenue)}</TableCell>
+                <TableCell className="text-end font-mono">{formatNum(row.grossProfit)}</TableCell>
+                <TableCell className={`text-end font-mono ${row.operatingIncome >= 0 ? "text-gain" : "text-loss"}`}>
                   {formatNum(row.operatingIncome)}
                 </TableCell>
-                <TableCell className={`text-right font-mono ${row.netIncome >= 0 ? "text-gain" : "text-loss"}`}>
+                <TableCell className={`text-end font-mono ${row.netIncome >= 0 ? "text-gain" : "text-loss"}`}>
                   {formatNum(row.netIncome)}
                 </TableCell>
-                <TableCell className="text-right font-mono">{row.debtToEquity.toFixed(2)}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.cashAndEquiv)}</TableCell>
+                <TableCell className="text-end font-mono">{row.debtToEquity.toFixed(2)}</TableCell>
+                <TableCell className="text-end font-mono">{formatNum(row.cashAndEquiv)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
