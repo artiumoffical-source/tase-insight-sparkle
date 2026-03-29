@@ -119,7 +119,6 @@ export default function StockPage() {
                 <h1 className="font-display text-3xl font-bold">
                   {loading ? t("stock.loading") : displayName}
                 </h1>
-                </h1>
                 <Button
                   variant="ghost"
                   size="icon"
