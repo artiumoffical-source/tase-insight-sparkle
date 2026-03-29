@@ -18,7 +18,8 @@ export default function TradingViewChart({ ticker }: TradingViewChartProps) {
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      autosize: true,
+      width: "100%",
+      height: 600,
       symbol: `TASE:${ticker}`,
       interval: "D",
       timezone: "Asia/Jerusalem",
