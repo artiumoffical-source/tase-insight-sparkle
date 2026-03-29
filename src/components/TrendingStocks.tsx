@@ -134,13 +134,17 @@ export default function TrendingStocks() {
                 <p className="text-xs text-muted-foreground truncate mb-2">
                   {q.name}
                 </p>
-                <p className="font-display text-lg font-bold">
-                  ₪{q.price.toFixed(2)}
-                </p>
-                <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
-                  {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {isPositive ? "+" : ""}{q.change.toFixed(2)}%
-                </div>
+                {q.price > 0 && (
+                  <p className="font-display text-lg font-bold">
+                    ₪{q.price.toFixed(2)}
+                  </p>
+                )}
+                {(q.price > 0 || q.change !== 0) && (
+                  <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
+                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {isPositive ? "+" : ""}{q.change.toFixed(2)}%
+                  </div>
+                )}
               </button>
             );
           })
