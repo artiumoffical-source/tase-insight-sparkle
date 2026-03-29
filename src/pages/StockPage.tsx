@@ -7,8 +7,9 @@ import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData } from "@/components/FinancialsTable";
 import AdSlot from "@/components/AdSlot";
+import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
-import { Star, TrendingUp, TrendingDown } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Lock } from "lucide-react";
 import { toast } from "sonner";
 import TASE_STOCKS from "@/data/tase-stocks";
 
@@ -29,6 +30,11 @@ export default function StockPage() {
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  // TODO: Replace with real premium check from user profile/subscription
+  const isPremium = false;
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
 
   const stock = TASE_STOCKS.find((s) => s.ticker === upperTicker);
@@ -157,9 +163,34 @@ export default function StockPage() {
           <AdSlot placement="banner" />
 
           <div>
-            <h2 className="font-display text-xl font-semibold mb-3">{t("stock.historicalData")}</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display text-xl font-semibold">{t("stock.historicalData")}</h2>
+              <div className="flex items-center rounded-lg border bg-secondary/30 overflow-hidden text-sm">
+                <button
+                  onClick={() => setPeriod("annual")}
+                  className={`px-3 py-1.5 font-medium transition-colors ${period === "annual" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {t("fin.annual")}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!isPremium) {
+                      setShowUpgrade(true);
+                    } else {
+                      setPeriod("quarterly");
+                    }
+                  }}
+                  className={`px-3 py-1.5 font-medium transition-colors flex items-center gap-1.5 ${period === "quarterly" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {t("fin.quarterly")}
+                  {!isPremium && <Lock className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
             <FinancialsTable data={financials} loading={loading} />
           </div>
+
+          <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
 
         {/* Desktop sidebar ad */}

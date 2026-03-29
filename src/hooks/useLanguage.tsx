@@ -56,6 +56,18 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.netIncome": "רווח נקי",
     "fin.deRatio": "יחס חוב/הון",
     "fin.cash": "מזומנים ושווי מזומנים",
+    "fin.annual": "שנתי",
+    "fin.quarterly": "רבעוני",
+
+    // Upgrade
+    "upgrade.title": "שדרג לפרימיום",
+    "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות לבורסת תל אביב.",
+    "upgrade.feat1": "דוחות כספיים רבעוניים",
+    "upgrade.feat2": "חוויה ללא פרסומות",
+    "upgrade.feat3": "תובנות וניתוחים מתקדמים",
+    "upgrade.subscribe": "הירשם עכשיו",
+    "upgrade.comingSoon": "בקרוב!",
+    "upgrade.cancel": "ניתן לבטל בכל עת",
 
     // Watchlist page
     "watchlist.title": "רשימת המעקב שלי",
@@ -131,6 +143,17 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.netIncome": "Net Income",
     "fin.deRatio": "D/E Ratio",
     "fin.cash": "Cash & Equiv.",
+    "fin.annual": "Annual",
+    "fin.quarterly": "Quarterly",
+
+    "upgrade.title": "Upgrade to Premium",
+    "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced TASE insights.",
+    "upgrade.feat1": "Quarterly financial reports",
+    "upgrade.feat2": "Ad-free experience",
+    "upgrade.feat3": "Advanced insights & analytics",
+    "upgrade.subscribe": "Subscribe Now",
+    "upgrade.comingSoon": "Coming Soon!",
+    "upgrade.cancel": "Cancel anytime",
 
     "watchlist.title": "My Watchlist",
     "watchlist.empty": "Your watchlist is empty.",
