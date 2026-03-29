@@ -56,6 +56,18 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.netIncome": "רווח נקי",
     "fin.deRatio": "יחס חוב/הון",
     "fin.cash": "מזומנים ושווי מזומנים",
+    "fin.annual": "שנתי",
+    "fin.quarterly": "רבעוני",
+
+    // Upgrade
+    "upgrade.title": "שדרג לפרימיום",
+    "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות לבורסת תל אביב.",
+    "upgrade.feat1": "דוחות כספיים רבעוניים",
+    "upgrade.feat2": "חוויה ללא פרסומות",
+    "upgrade.feat3": "תובנות וניתוחים מתקדמים",
+    "upgrade.subscribe": "הירשם עכשיו",
+    "upgrade.comingSoon": "בקרוב!",
+    "upgrade.cancel": "ניתן לבטל בכל עת",
 
     // Watchlist page
     "watchlist.title": "רשימת המעקב שלי",
