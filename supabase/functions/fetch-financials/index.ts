@@ -45,12 +45,16 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const general = data.General || {};
   const highlights = data.Highlights || {};
 
+  const rawLogo = general.LogoURL || null;
+  const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
+
   const meta: StockMeta = {
     name: general.Name || ticker,
     price: eodPrice?.price ?? 0,
     change: eodPrice?.change ?? 0,
     marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
     currency: general.CurrencyCode || "ILS",
+    logoUrl,
   };
 
   const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
