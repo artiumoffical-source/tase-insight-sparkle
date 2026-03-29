@@ -1,4 +1,5 @@
 import { useLanguage } from "@/hooks/useLanguage";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AdSlotProps {
   placement: "leaderboard" | "banner" | "sidebar";
@@ -7,7 +8,6 @@ interface AdSlotProps {
 
 export default function AdSlot({ placement, className = "" }: AdSlotProps) {
   const { t } = useLanguage();
-  const { useAuth } = require("@/hooks/useAuth");
   const { user } = useAuth();
 
   // Hide ads for logged-in (premium) users
