@@ -130,46 +130,25 @@ export default function StockPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6" style={{ direction: isRtl ? "rtl" : "ltr" }}>
         {/* Main content */}
         <div className="space-y-6 min-w-0">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <StockLogo name={displayName} logoUrl={meta?.logoUrl} size="lg" />
             <div>
-              <div className="flex items-center gap-3">
-                <StockLogo name={displayName} logoUrl={meta?.logoUrl} size="lg" />
-                <h1 className="font-display text-3xl font-bold">
-                  {loading ? t("stock.loading") : displayName}
-                </h1>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleWatchlist}
-                  className={inWatchlist ? "text-primary" : "text-muted-foreground"}
-                >
-                  <Star className={`h-5 w-5 ${inWatchlist ? "fill-current" : ""}`} />
-                </Button>
-              </div>
+              <h1 className="font-display text-3xl font-bold">
+                {loading ? t("stock.loading") : displayName}
+              </h1>
               <p className="text-sm text-muted-foreground mt-1">TASE: {upperTicker}</p>
               {stock && (
                 <p className="text-sm text-muted-foreground" dir="rtl">{stock.nameHe}</p>
               )}
             </div>
-
-            <div className={isRtl ? "text-start" : "text-end"}>
-              {meta ? (
-                <>
-                  <p className="font-display text-3xl font-bold">
-                    ₪{meta.price?.toFixed(2) ?? "—"}
-                  </p>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? "text-gain" : "text-loss"} ${isRtl ? "justify-start" : "justify-end"}`}>
-                    {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                    {isPositive ? "+" : ""}{meta.change?.toFixed(2) ?? 0}%
-                  </div>
-                  {meta.marketCap && (
-                    <p className="text-xs text-muted-foreground mt-1">{t("stock.marketCap")}: {meta.marketCap}</p>
-                  )}
-                </>
-              ) : !loading ? (
-                <p className="text-muted-foreground">—</p>
-              ) : null}
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleWatchlist}
+              className={`ms-auto ${inWatchlist ? "text-primary" : "text-muted-foreground"}`}
+            >
+              <Star className={`h-5 w-5 ${inWatchlist ? "fill-current" : ""}`} />
+            </Button>
           </div>
 
           {error && (
@@ -178,7 +157,7 @@ export default function StockPage() {
             </div>
           )}
 
-          <TradingViewChart ticker={upperTicker} />
+          <TradingViewSymbolOverview ticker={upperTicker} />
 
           {/* Mid-content ad between chart and table */}
           <AdSlot placement="banner" />
