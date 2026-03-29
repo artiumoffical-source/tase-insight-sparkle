@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      cached_fundamentals: {
+        Row: {
+          data: Json
+          id: string
+          last_updated: string
+          ticker: string
+        }
+        Insert: {
+          data?: Json
+          id?: string
+          last_updated?: string
+          ticker: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          last_updated?: string
+          ticker?: string
+        }
+        Relationships: []
+      }
       watchlist: {
         Row: {
           created_at: string
