@@ -35,6 +35,8 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Trending
     "trending.title": "📈 מניות מובילות בבורסה",
+    "trending.gainers": "המרוויחות",
+    "trending.losers": "המפסידות",
     "trending.priceUnavailable": "מחיר לא זמין",
 
     // Stock page
