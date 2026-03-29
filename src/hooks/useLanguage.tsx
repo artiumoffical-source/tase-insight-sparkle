@@ -75,6 +75,12 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.capex": "הוצאות הון (CapEx)",
     "fin.freeCashFlow": "תזרים מזומנים חופשי",
     "fin.cashFromOps": "תזרים מפעילות שוטפת",
+    "fin.interestIncome": "הכנסות ריבית",
+    "fin.nonInterestIncome": "הכנסות שאינן ריבית",
+    "fin.netPremiumsEarned": "פרמיות נטו שהורווחו",
+    "fin.totalDeposits": "סך פיקדונות",
+    "fin.totalInvestments": "סך השקעות",
+    "fin.researchDev": "מחקר ופיתוח (R&D)",
 
     // Upgrade
     "upgrade.title": "הצטרף ל-TASE Insight Premium",
@@ -193,6 +199,12 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.capex": "CapEx",
     "fin.freeCashFlow": "Free Cash Flow",
     "fin.cashFromOps": "Cash from Operations",
+    "fin.interestIncome": "Interest Income",
+    "fin.nonInterestIncome": "Non-Interest Income",
+    "fin.netPremiumsEarned": "Net Premiums Earned",
+    "fin.totalDeposits": "Total Deposits",
+    "fin.totalInvestments": "Total Investments",
+    "fin.researchDev": "R&D Expenses",
 
     "upgrade.title": "Join TASE Insight Premium",
     "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced TASE insights.",

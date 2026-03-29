@@ -5,7 +5,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
-import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow } from "@/components/FinancialsTable";
+import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
 import type { KeyMetricsData } from "@/components/KeyMetrics";
 import AdSlot from "@/components/AdSlot";
@@ -35,6 +35,10 @@ export default function StockPage() {
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheetRow[]>([]);
   const [cashFlow, setCashFlow] = useState<CashFlowRow[]>([]);
   const [keyMetrics, setKeyMetrics] = useState<KeyMetricsData | null>(null);
+  const [qIncomeStatement, setQIncomeStatement] = useState<IncomeStatementRow[]>([]);
+  const [qBalanceSheet, setQBalanceSheet] = useState<BalanceSheetRow[]>([]);
+  const [qCashFlow, setQCashFlow] = useState<CashFlowRow[]>([]);
+  const [sector, setSector] = useState<SectorType>("general");
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +75,11 @@ export default function StockPage() {
         setIncomeStatement(data.incomeStatement ?? []);
         setBalanceSheet(data.balanceSheet ?? []);
         setCashFlow(data.cashFlow ?? []);
+        setQIncomeStatement(data.qIncomeStatement ?? []);
+        setQBalanceSheet(data.qBalanceSheet ?? []);
+        setQCashFlow(data.qCashFlow ?? []);
         setKeyMetrics(data.keyMetrics ?? null);
+        setSector(data.meta?.sector ?? "general");
       })
       .catch((err) => {
         console.error("Failed to fetch financials:", err);
@@ -179,6 +187,7 @@ export default function StockPage() {
             isPremium={isPremium}
             onUpgrade={() => setShowUpgrade(true)}
             loading={loading}
+            sector={sector}
           />
 
           <div>
@@ -206,7 +215,14 @@ export default function StockPage() {
                 </button>
               </div>
             </div>
-            <FinancialsTable data={financials} incomeStatement={incomeStatement} balanceSheet={balanceSheet} cashFlow={cashFlow} loading={loading} />
+            <FinancialsTable
+              data={financials}
+              incomeStatement={period === "quarterly" ? qIncomeStatement : incomeStatement}
+              balanceSheet={period === "quarterly" ? qBalanceSheet : balanceSheet}
+              cashFlow={period === "quarterly" ? qCashFlow : cashFlow}
+              loading={loading}
+              sector={sector}
+            />
           </div>
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
