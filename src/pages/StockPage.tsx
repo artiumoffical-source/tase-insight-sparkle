@@ -20,6 +20,7 @@ interface StockMeta {
   change: number;
   marketCap: string;
   currency: string;
+  logoUrl: string | null;
 }
 
 export default function StockPage() {
