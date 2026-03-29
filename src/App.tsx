@@ -24,7 +24,6 @@ const App = () => {
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <LanguageProvider>
           <AuthProvider>
             <Navbar />
             <div className="w-full">
@@ -39,7 +38,6 @@ const App = () => {
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
-        </LanguageProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
