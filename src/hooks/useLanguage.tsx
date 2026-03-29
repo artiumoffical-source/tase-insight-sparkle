@@ -84,6 +84,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Ad
     "ad.space": "מקום לפרסום",
+    "ad.upgrade": "שדרג לפרימיום להסרת פרסומות",
 
     // 404
     "notFound.title": "404",
