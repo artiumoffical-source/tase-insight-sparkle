@@ -53,9 +53,36 @@ function isCacheFresh(lastUpdated: string): boolean {
   return now - updated < CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 }
 
-function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }): { meta: StockMeta; financials: FinancialRow[] } {
+function calcAvgGrowth(values: number[]): number | null {
+  if (values.length < 2) return null;
+  let totalGrowth = 0;
+  let count = 0;
+  for (let i = 1; i < values.length; i++) {
+    if (values[i - 1] !== 0) {
+      totalGrowth += (values[i] - values[i - 1]) / Math.abs(values[i - 1]);
+      count++;
+    }
+  }
+  return count > 0 ? (totalGrowth / count) * 100 : null;
+}
+
+function calcAvgMargin(revenues: number[], netIncomes: number[]): number | null {
+  if (revenues.length === 0) return null;
+  let total = 0;
+  let count = 0;
+  for (let i = 0; i < revenues.length; i++) {
+    if (revenues[i] !== 0) {
+      total += netIncomes[i] / revenues[i];
+      count++;
+    }
+  }
+  return count > 0 ? (total / count) * 100 : null;
+}
+
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }): { meta: StockMeta; financials: FinancialRow[]; keyMetrics: KeyMetrics } {
   const general = data.General || {};
   const highlights = data.Highlights || {};
+  const valuation = data.Valuation || {};
 
   const rawLogo = general.LogoURL || null;
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
@@ -72,11 +99,13 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
   const balanceSheets = data.Financials?.Balance_Sheet?.yearly || {};
 
-  const years = Object.keys(incomeStatements)
-    .sort((a, b) => b.localeCompare(a))
-    .slice(0, 5);
+  const allYears = Object.keys(incomeStatements)
+    .sort((a, b) => a.localeCompare(b));
 
-  const financials: FinancialRow[] = years.map((dateKey) => {
+  const years5 = allYears.slice(-5);
+  const years10 = allYears.slice(-10);
+
+  const financials: FinancialRow[] = years5.slice().reverse().map((dateKey) => {
     const income = incomeStatements[dateKey] || {};
     const balance = balanceSheets[dateKey] || {};
 
@@ -96,7 +125,24 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     };
   });
 
-  return { meta, financials };
+  const rev5 = years5.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
+  const ni5 = years5.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
+  const rev10 = years10.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
+  const ni10 = years10.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
+
+  const keyMetrics: KeyMetrics = {
+    peRatio: valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null),
+    psRatio: valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null,
+    pbRatio: valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null,
+    roe: highlights.ReturnOnEquityTTM ? parseFloat(highlights.ReturnOnEquityTTM) * 100 : null,
+    roa: highlights.ReturnOnAssetsTTM ? parseFloat(highlights.ReturnOnAssetsTTM) * 100 : null,
+    revenueGrowth5Y: calcAvgGrowth(rev5),
+    revenueGrowth10Y: calcAvgGrowth(rev10),
+    netIncomeMargin5Y: calcAvgMargin(rev5, ni5),
+    netIncomeMargin10Y: calcAvgMargin(rev10, ni10),
+  };
+
+  return { meta, financials, keyMetrics };
 }
 
 serve(async (req) => {
