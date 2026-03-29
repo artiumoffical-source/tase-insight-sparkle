@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { signOut } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Star, LogOut, User, Globe } from "lucide-react";
+import { BarChart3, Star, LogOut, User, Globe, CalendarDays } from "lucide-react";
 
 export default function Navbar() {
   const { user, loading } = useAuth();
