@@ -318,6 +318,10 @@ const translations: Record<Language, Record<string, string>> = {
     "news.noNews": "No news available.",
     "news.unlockFull": "Unlock 15+ News & Sentiment",
     "news.upgradeSentiment": "Upgrade to Premium for sentiment analysis",
+    "news.noContent": "No content available.",
+    "news.readOriginal": "Read original source",
+    "news.upgradeReader": "Upgrade to Premium for AI-powered translations and full reader",
+    "news.upgradeCta": "Upgrade to Premium",
 
     "notFound.title": "404",
     "notFound.message": "Oops! Page not found",
