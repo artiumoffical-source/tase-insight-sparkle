@@ -158,22 +158,22 @@ serve(async (req) => {
       );
     }
 
-    // 2. Cache miss or stale — fetch from EODHD
-    console.log(`Cache MISS for ${ticker}, fetching from EODHD...`);
-
-    // Fetch fundamentals and real-time EOD price in parallel
-    const [resp, eodResp] = await Promise.all([
-      fetch(`https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`),
-      fetch(`https://eodhd.com/api/eod/${ticker}.TA?api_token=${apiKey}&fmt=json&order=d&limit=2`),
-    ]);
+    // 2. Cache miss or stale — fetch fundamentals from EODHD
+    console.log(`Cache MISS for ${ticker}, fetching fundamentals from EODHD...`);
+    const resp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`);
 
     if (!resp.ok) {
       const text = await resp.text();
       console.error("EODHD fundamentals error:", resp.status, text);
       if (cached) {
         console.log(`Returning stale cache for ${ticker}`);
+        const cachedMeta = (cached.data as any)?.meta ?? {};
+        const staleResult = {
+          meta: { ...cachedMeta, price: eodPrice?.price ?? cachedMeta.price ?? 0, change: eodPrice?.change ?? cachedMeta.change ?? 0 },
+          financials: (cached.data as any)?.financials ?? [],
+        };
         return new Response(
-          JSON.stringify(cached.data),
+          JSON.stringify(staleResult),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -181,24 +181,6 @@ serve(async (req) => {
         JSON.stringify({ error: "Failed to fetch data from EODHD", status: resp.status }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    // Parse EOD price
-    let eodPrice: { price: number; change: number } | undefined;
-    if (eodResp.ok) {
-      try {
-        const eodData = await eodResp.json();
-        if (Array.isArray(eodData) && eodData.length > 0) {
-          const latest = eodData[0];
-          const previous = eodData.length > 1 ? eodData[1] : null;
-          const price = latest.close ?? 0;
-          const prevClose = previous?.close ?? price;
-          const change = prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0;
-          eodPrice = { price, change };
-        }
-      } catch (e) {
-        console.error("EOD price parse error:", e);
-      }
     }
 
     const rawData = await resp.json();
