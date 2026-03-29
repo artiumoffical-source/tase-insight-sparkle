@@ -13,6 +13,7 @@ import WatchlistPage from "./pages/WatchlistPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
