@@ -1,5 +1,6 @@
 import SearchBar from "@/components/SearchBar";
 import TradingViewMarketOverview from "@/components/TradingViewMarketOverview";
+import TradingViewTickerTape from "@/components/TradingViewTickerTape";
 import AdSlot from "@/components/AdSlot";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Compass, TrendingUp, Shield } from "lucide-react";
