@@ -199,6 +199,12 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.capex": "CapEx",
     "fin.freeCashFlow": "Free Cash Flow",
     "fin.cashFromOps": "Cash from Operations",
+    "fin.interestIncome": "Interest Income",
+    "fin.nonInterestIncome": "Non-Interest Income",
+    "fin.netPremiumsEarned": "Net Premiums Earned",
+    "fin.totalDeposits": "Total Deposits",
+    "fin.totalInvestments": "Total Investments",
+    "fin.researchDev": "R&D Expenses",
 
     "upgrade.title": "Join TASE Insight Premium",
     "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced TASE insights.",
