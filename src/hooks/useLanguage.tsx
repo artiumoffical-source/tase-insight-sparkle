@@ -153,6 +153,7 @@ const translations: Record<Language, Record<string, string>> = {
     "upgrade.feat2": "Ad-free experience",
     "upgrade.feat3": "Advanced insights & analytics",
     "upgrade.signUpLogin": "Sign Up / Log In",
+    "upgrade.stripeSoon": "Pay with Stripe (Coming Soon)",
     "upgrade.comingSoon": "Coming Soon!",
     "upgrade.cancel": "Cancel anytime",
 
