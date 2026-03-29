@@ -43,6 +43,7 @@ export type Database = {
           logo_url: string | null
           name: string
           name_he: string
+          security_id: string | null
           ticker: string
           type: string | null
           updated_at: string
@@ -54,6 +55,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_he?: string
+          security_id?: string | null
           ticker: string
           type?: string | null
           updated_at?: string
@@ -65,6 +67,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_he?: string
+          security_id?: string | null
           ticker?: string
           type?: string | null
           updated_at?: string
