@@ -40,14 +40,14 @@ function isCacheFresh(lastUpdated: string): boolean {
   return now - updated < CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 }
 
-function parseFundamentals(data: any, ticker: string): { meta: StockMeta; financials: FinancialRow[] } {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }): { meta: StockMeta; financials: FinancialRow[] } {
   const general = data.General || {};
   const highlights = data.Highlights || {};
 
   const meta: StockMeta = {
     name: general.Name || ticker,
-    price: highlights.WallStreetTargetPrice || 0,
-    change: highlights.QuarterlyRevenueGrowthYOY || 0,
+    price: eodPrice?.price ?? 0,
+    change: eodPrice?.change ?? 0,
     marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
     currency: general.CurrencyCode || "ILS",
   };
@@ -117,27 +117,63 @@ serve(async (req) => {
       .eq("ticker", ticker)
       .maybeSingle();
 
+    // For fundamentals (financials), use cache. But always fetch fresh price.
+    let cachedFinancials: FinancialRow[] | null = null;
     if (cached && isCacheFresh(cached.last_updated)) {
-      console.log(`Cache HIT for ${ticker}`);
+      console.log(`Cache HIT for ${ticker} fundamentals`);
+      cachedFinancials = (cached.data as any)?.financials ?? null;
+    }
+
+    // Always fetch fresh EOD price
+    let eodPrice: { price: number; change: number } | undefined;
+    try {
+      const eodResp = await fetch(
+        `https://eodhd.com/api/eod/${ticker}.TA?api_token=${apiKey}&fmt=json&order=d&limit=2`
+      );
+      if (eodResp.ok) {
+        const eodData = await eodResp.json();
+        if (Array.isArray(eodData) && eodData.length > 0) {
+          const latest = eodData[0];
+          const previous = eodData.length > 1 ? eodData[1] : null;
+          const price = latest.close ?? 0;
+          const prevClose = previous?.close ?? price;
+          const change = prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+          eodPrice = { price, change };
+        }
+      }
+    } catch (e) {
+      console.error("EOD price fetch error:", e);
+    }
+
+    if (cachedFinancials) {
+      // Return cached fundamentals with fresh price
+      const cachedMeta = (cached!.data as any)?.meta ?? {};
+      const freshResult = {
+        meta: { ...cachedMeta, price: eodPrice?.price ?? cachedMeta.price ?? 0, change: eodPrice?.change ?? cachedMeta.change ?? 0 },
+        financials: cachedFinancials,
+      };
       return new Response(
-        JSON.stringify(cached.data),
+        JSON.stringify(freshResult),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 2. Cache miss or stale — fetch from EODHD
-    console.log(`Cache MISS for ${ticker}, fetching from EODHD...`);
-    const apiUrl = `https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`;
-    const resp = await fetch(apiUrl);
+    // 2. Cache miss or stale — fetch fundamentals from EODHD
+    console.log(`Cache MISS for ${ticker}, fetching fundamentals from EODHD...`);
+    const resp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`);
 
     if (!resp.ok) {
       const text = await resp.text();
-      console.error("EODHD error:", resp.status, text);
-      // If we have stale cache, return it rather than error
+      console.error("EODHD fundamentals error:", resp.status, text);
       if (cached) {
         console.log(`Returning stale cache for ${ticker}`);
+        const cachedMeta = (cached.data as any)?.meta ?? {};
+        const staleResult = {
+          meta: { ...cachedMeta, price: eodPrice?.price ?? cachedMeta.price ?? 0, change: eodPrice?.change ?? cachedMeta.change ?? 0 },
+          financials: (cached.data as any)?.financials ?? [],
+        };
         return new Response(
-          JSON.stringify(cached.data),
+          JSON.stringify(staleResult),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -148,7 +184,7 @@ serve(async (req) => {
     }
 
     const rawData = await resp.json();
-    const result = parseFundamentals(rawData, ticker);
+    const result = parseFundamentals(rawData, ticker, eodPrice);
 
     // 3. Upsert cache
     const { error: upsertError } = await supabase
