@@ -11,7 +11,7 @@ import type { KeyMetricsData } from "@/components/KeyMetrics";
 import AdSlot from "@/components/AdSlot";
 import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
-import { Star } from "lucide-react";
+import { Star, Lock } from "lucide-react";
 import { toast } from "sonner";
 import StockLogo from "@/components/StockLogo";
 import StockNewsSidebar from "@/components/StockNewsSidebar";
