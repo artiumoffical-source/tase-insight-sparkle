@@ -151,7 +151,7 @@ export default function StockPage() {
 
       {/* Financials */}
       <div>
-        <h2 className="font-display text-xl font-semibold mb-3">Historical Financials (5Y)</h2>
+        <h2 className="font-display text-xl font-semibold mb-3">Historical Price Data (5Y)</h2>
         <FinancialsTable data={financials} loading={loading} />
       </div>
 
