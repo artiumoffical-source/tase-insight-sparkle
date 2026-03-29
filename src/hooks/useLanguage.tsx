@@ -66,6 +66,7 @@ const translations: Record<Language, Record<string, string>> = {
     "upgrade.feat2": "חוויה ללא פרסומות",
     "upgrade.feat3": "תובנות וניתוחים מתקדמים",
     "upgrade.signUpLogin": "הרשמה / התחברות",
+    "upgrade.stripeSoon": "שלם עם Stripe (בקרוב)",
     "upgrade.comingSoon": "בקרוב!",
     "upgrade.cancel": "ניתן לבטל בכל עת",
 
@@ -152,6 +153,7 @@ const translations: Record<Language, Record<string, string>> = {
     "upgrade.feat2": "Ad-free experience",
     "upgrade.feat3": "Advanced insights & analytics",
     "upgrade.signUpLogin": "Sign Up / Log In",
+    "upgrade.stripeSoon": "Pay with Stripe (Coming Soon)",
     "upgrade.comingSoon": "Coming Soon!",
     "upgrade.cancel": "Cancel anytime",
 

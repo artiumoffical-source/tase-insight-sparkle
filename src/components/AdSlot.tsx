@@ -10,8 +10,9 @@ export default function AdSlot({ placement, className = "" }: AdSlotProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  // Hide ads for logged-in (premium) users
-  if (user) return null;
+  // Only hide ads for the premium user
+  const isPremium = user?.email === "artiumoffical@gmail.com";
+  if (isPremium) return null;
 
   const sizeClasses: Record<string, string> = {
     leaderboard: "h-[90px] max-w-[728px] mx-auto w-full",
