@@ -6,6 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData } from "@/components/FinancialsTable";
+import KeyMetrics from "@/components/KeyMetrics";
+import type { KeyMetricsData } from "@/components/KeyMetrics";
 import AdSlot from "@/components/AdSlot";
 import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
