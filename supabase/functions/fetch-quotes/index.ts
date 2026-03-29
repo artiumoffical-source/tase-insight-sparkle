@@ -13,8 +13,8 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const tickers = url.searchParams.get("tickers"); // comma-separated e.g. "LUMI,POLI,ICL"
-    if (!tickers || !/^[A-Z0-9,]{1,100}$/.test(tickers)) {
+    const tickers = url.searchParams.get("tickers");
+    if (!tickers || !/^[A-Z0-9,]{1,200}$/.test(tickers)) {
       return new Response(JSON.stringify({ error: "Invalid tickers param" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -29,33 +29,60 @@ serve(async (req) => {
       });
     }
 
-    const tickerList = tickers.split(",").slice(0, 10);
+    const tickerList = tickers.split(",").slice(0, 20);
 
-    // Fetch real-time (EOD) quotes for each ticker in parallel
     const results = await Promise.all(
       tickerList.map(async (t) => {
+        const symbol = t.includes(".") ? t : `${t}.TA`;
         try {
-          const symbol = t.includes(".") ? t : `${t}.TA`;
-          const resp = await fetch(
+          // Try real-time first
+          const rtResp = await fetch(
             `https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`
           );
-          if (!resp.ok) {
-            const text = await resp.text();
-            console.error(`EODHD real-time error for ${t}:`, resp.status, text);
-            return { ticker: t, price: 0, change: 0, error: true };
+          if (rtResp.ok) {
+            const data = await rtResp.json();
+            const rawPrice = Number(data?.close) || Number(data?.previousClose) || Number(data?.open) || 0;
+            const change = Number(data?.change_p) || 0;
+            if (rawPrice > 0) {
+              // TASE prices from EODHD are in agorot — divide by 100 for NIS
+              const price = rawPrice > 1000 ? rawPrice / 100 : rawPrice;
+              return { ticker: t, price, change, error: false };
+            }
           }
-          const data = await resp.json();
-          console.log(`EODHD RT ${t}:`, JSON.stringify(data));
-          const price = Number(data?.close) || Number(data?.previousClose) || Number(data?.open) || 0;
-          const change = Number(data?.change_p) || 0;
-          if (price <= 0) {
-            return { ticker: t, price: 0, change: 0, error: true };
-          }
-          return { ticker: t, price, change, error: false };
-        } catch (e) {
-          console.error(`Error fetching ${t}:`, e);
-          return { ticker: t, price: 0, change: 0, error: true };
+        } catch {
+          // Fall through to EOD
         }
+
+        try {
+          // Fallback: EOD (end-of-day) endpoint
+          const eodResp = await fetch(
+            `https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&fmt=json&order=d&limit=2`
+          );
+          if (eodResp.ok) {
+            const days = await eodResp.json();
+            if (Array.isArray(days) && days.length > 0) {
+              const latest = days[0];
+              const prev = days.length > 1 ? days[1] : null;
+              const rawPrice = Number(latest.adjusted_close) || Number(latest.close) || 0;
+              const price = rawPrice > 1000 ? rawPrice / 100 : rawPrice;
+              let change = 0;
+              if (prev) {
+                const prevPrice = Number(prev.adjusted_close) || Number(prev.close) || 0;
+                if (prevPrice > 0) {
+                  change = ((rawPrice - (prevPrice > 1000 ? prevPrice : prevPrice * 100)) / (prevPrice > 1000 ? prevPrice : prevPrice * 100)) * 100;
+                  // Recalculate cleanly
+                  const prevNis = prevPrice > 1000 ? prevPrice / 100 : prevPrice;
+                  change = ((price - prevNis) / prevNis) * 100;
+                }
+              }
+              return { ticker: t, price, change: Math.round(change * 100) / 100, date: latest.date, error: false };
+            }
+          }
+        } catch {
+          // Fall through
+        }
+
+        return { ticker: t, price: 0, change: 0, error: true };
       })
     );
 
