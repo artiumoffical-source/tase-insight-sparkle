@@ -35,6 +35,10 @@ export default function StockPage() {
   const [balanceSheet, setBalanceSheet] = useState<BalanceSheetRow[]>([]);
   const [cashFlow, setCashFlow] = useState<CashFlowRow[]>([]);
   const [keyMetrics, setKeyMetrics] = useState<KeyMetricsData | null>(null);
+  const [qIncomeStatement, setQIncomeStatement] = useState<IncomeStatementRow[]>([]);
+  const [qBalanceSheet, setQBalanceSheet] = useState<BalanceSheetRow[]>([]);
+  const [qCashFlow, setQCashFlow] = useState<CashFlowRow[]>([]);
+  const [sector, setSector] = useState<SectorType>("general");
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
