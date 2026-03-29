@@ -115,9 +115,7 @@ export default function TrendingStocks() {
       )}
 
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8">{t("trending.priceUnavailable")}</p>
-        ) : (
+        {items.length === 0 ? null : (
           items.map((q) => {
             const isPositive = q.change >= 0;
             return (
