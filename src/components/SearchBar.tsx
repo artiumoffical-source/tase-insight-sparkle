@@ -36,8 +36,8 @@ export default function SearchBar() {
       // Use ilike for English searches, or textSearch for Hebrew
       const { data, error } = await supabase
         .from("tase_symbols")
-        .select("ticker, name, name_he, logo_url")
-        .or(`ticker.ilike.%${q}%,name.ilike.%${q}%,name_he.ilike.%${q}%`)
+        .select("ticker, name, name_he, logo_url, security_id")
+        .or(`ticker.ilike.%${q}%,name.ilike.%${q}%,name_he.ilike.%${q}%,security_id.ilike.%${q}%`)
         .limit(8);
 
       if (error) {
