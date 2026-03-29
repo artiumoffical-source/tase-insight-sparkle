@@ -60,12 +60,12 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.quarterly": "רבעוני",
 
     // Upgrade
-    "upgrade.title": "שדרג לפרימיום",
+    "upgrade.title": "הצטרף ל-TASE Insight Premium",
     "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות לבורסת תל אביב.",
     "upgrade.feat1": "דוחות כספיים רבעוניים",
     "upgrade.feat2": "חוויה ללא פרסומות",
     "upgrade.feat3": "תובנות וניתוחים מתקדמים",
-    "upgrade.subscribe": "הירשם עכשיו",
+    "upgrade.signUpLogin": "הרשמה / התחברות",
     "upgrade.comingSoon": "בקרוב!",
     "upgrade.cancel": "ניתן לבטל בכל עת",
 
