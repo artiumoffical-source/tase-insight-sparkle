@@ -302,6 +302,19 @@ const translations: Record<Language, Record<string, string>> = {
     "cal.previous": "Previous",
     "nav.calendar": "Calendar",
 
+    // News
+    "news.marketPulse": "Market Pulse",
+    "news.liveNews": "Live News",
+    "news.sentiment": "Sentiment",
+    "news.bullish": "Bullish",
+    "news.veryBullish": "Very Bullish",
+    "news.bearish": "Bearish",
+    "news.veryBearish": "Very Bearish",
+    "news.neutral": "Neutral",
+    "news.noNews": "No news available.",
+    "news.unlockFull": "Unlock 15+ News & Sentiment",
+    "news.upgradeSentiment": "Upgrade to Premium for sentiment analysis",
+
     "notFound.title": "404",
     "notFound.message": "Oops! Page not found",
     "notFound.back": "Return to Home",
