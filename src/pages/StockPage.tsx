@@ -168,6 +168,13 @@ export default function StockPage() {
           {/* Mid-content ad between chart and table */}
           <AdSlot placement="banner" />
 
+          <KeyMetrics
+            data={keyMetrics}
+            isPremium={isPremium}
+            onUpgrade={() => setShowUpgrade(true)}
+            loading={loading}
+          />
+
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-display text-xl font-semibold">{t("stock.historicalData")}</h2>
