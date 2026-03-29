@@ -164,6 +164,10 @@ const translations: Record<Language, Record<string, string>> = {
     "news.noNews": "אין חדשות זמינות.",
     "news.unlockFull": "שחרר 15+ חדשות וסנטימנט",
     "news.upgradeSentiment": "שדרג לפרימיום לניתוח סנטימנט",
+    "news.noContent": "אין תוכן זמין.",
+    "news.readOriginal": "קרא את המקור",
+    "news.upgradeReader": "שדרג לפרימיום לתרגומים אוטומטיים וקריאה מלאה",
+    "news.upgradeCta": "שדרג לפרימיום",
 
     // 404
     "notFound.title": "404",
