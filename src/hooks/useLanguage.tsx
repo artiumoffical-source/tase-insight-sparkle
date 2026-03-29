@@ -37,7 +37,10 @@ const translations: Record<Language, Record<string, string>> = {
     "trending.title": "📈 מניות מובילות בבורסה",
     "trending.gainers": "המרוויחות",
     "trending.losers": "המפסידות",
-    "trending.priceUnavailable": "מחיר לא זמין",
+    "trending.priceUnavailable": "אין נתונים זמינים כרגע",
+    "trending.marketOpen": "הבורסה פתוחה",
+    "trending.marketClosed": "הבורסה סגורה",
+    "trending.lastTradingDay": "נתונים מיום המסחר האחרון",
 
     // Stock page
     "stock.historicalData": "דוחות כספיים היסטוריים (5 שנים)",
@@ -199,7 +202,10 @@ const translations: Record<Language, Record<string, string>> = {
     "trending.title": "📈 Trending TASE Stocks",
     "trending.gainers": "Top Gainers",
     "trending.losers": "Top Losers",
-    "trending.priceUnavailable": "Price unavailable",
+    "trending.priceUnavailable": "No data available",
+    "trending.marketOpen": "Market Open",
+    "trending.marketClosed": "Market Closed",
+    "trending.lastTradingDay": "Data from last trading day",
 
     "stock.historicalData": "Historical Financials (5Y)",
     "stock.mockData": "Mock Data",
