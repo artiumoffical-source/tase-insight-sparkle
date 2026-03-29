@@ -2,11 +2,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export interface FinancialData {
   year: string;
-  avgClose: number;
-  high: number;
-  low: number;
-  avgVolume: number;
-  tradingDays: number;
+  revenue: number;
+  grossProfit: number;
+  operatingIncome: number;
+  netIncome: number;
+  debtToEquity: number;
+  cashAndEquiv: number;
 }
 
 interface FinancialsTableProps {
@@ -37,7 +38,7 @@ export default function FinancialsTable({ data, loading }: FinancialsTableProps)
   if (!data.length) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
-        No historical data available.
+        No financial data available.
       </div>
     );
   }
@@ -49,22 +50,28 @@ export default function FinancialsTable({ data, loading }: FinancialsTableProps)
           <TableHeader>
             <TableRow className="border-b-border hover:bg-transparent">
               <TableHead className="font-display text-muted-foreground">Year</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Avg Close (₪)</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">High (₪)</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Low (₪)</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Avg Volume</TableHead>
-              <TableHead className="font-display text-muted-foreground text-right">Trading Days</TableHead>
+              <TableHead className="font-display text-muted-foreground text-right">Revenue</TableHead>
+              <TableHead className="font-display text-muted-foreground text-right">Gross Profit</TableHead>
+              <TableHead className="font-display text-muted-foreground text-right">Operating Inc.</TableHead>
+              <TableHead className="font-display text-muted-foreground text-right">Net Income</TableHead>
+              <TableHead className="font-display text-muted-foreground text-right">D/E Ratio</TableHead>
+              <TableHead className="font-display text-muted-foreground text-right">Cash & Equiv.</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.map((row) => (
               <TableRow key={row.year} className="border-b-border">
                 <TableCell className="font-display font-semibold">{row.year}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.avgClose)}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.high)}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.low)}</TableCell>
-                <TableCell className="text-right font-mono">{formatNum(row.avgVolume)}</TableCell>
-                <TableCell className="text-right font-mono">{row.tradingDays}</TableCell>
+                <TableCell className="text-right font-mono">{formatNum(row.revenue)}</TableCell>
+                <TableCell className="text-right font-mono">{formatNum(row.grossProfit)}</TableCell>
+                <TableCell className={`text-right font-mono ${row.operatingIncome >= 0 ? "text-gain" : "text-loss"}`}>
+                  {formatNum(row.operatingIncome)}
+                </TableCell>
+                <TableCell className={`text-right font-mono ${row.netIncome >= 0 ? "text-gain" : "text-loss"}`}>
+                  {formatNum(row.netIncome)}
+                </TableCell>
+                <TableCell className="text-right font-mono">{row.debtToEquity.toFixed(2)}</TableCell>
+                <TableCell className="text-right font-mono">{formatNum(row.cashAndEquiv)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
