@@ -68,6 +68,9 @@ export default function StockPage() {
       .then((data) => {
         setMeta(data.meta);
         setFinancials(data.financials ?? []);
+        setIncomeStatement(data.incomeStatement ?? []);
+        setBalanceSheet(data.balanceSheet ?? []);
+        setCashFlow(data.cashFlow ?? []);
         setKeyMetrics(data.keyMetrics ?? null);
       })
       .catch((err) => {
