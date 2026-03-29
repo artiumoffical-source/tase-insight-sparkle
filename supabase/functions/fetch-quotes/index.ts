@@ -36,25 +36,18 @@ serve(async (req) => {
       tickerList.map(async (t) => {
         try {
           const resp = await fetch(
-            `https://eodhd.com/api/eod/${t}.TA?api_token=${apiKey}&fmt=json&order=d&limit=2`
+            `https://eodhd.com/api/real-time/${t}.TA?api_token=${apiKey}&fmt=json`
           );
           if (!resp.ok) {
             const text = await resp.text();
-            console.error(`EODHD error for ${t}:`, resp.status, text);
+            console.error(`EODHD real-time error for ${t}:`, resp.status, text);
             return { ticker: t, price: 0, change: 0, error: true };
           }
           const data = await resp.json();
-          if (!Array.isArray(data) || data.length === 0) {
+          if (!data || data.close == null) {
             return { ticker: t, price: 0, change: 0, error: true };
           }
-
-          const latest = data[0];
-          const previous = data.length > 1 ? data[1] : null;
-          const price = latest.close ?? 0;
-          const prevClose = previous?.close ?? price;
-          const change = prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0;
-
-          return { ticker: t, price, change, error: false };
+          return { ticker: t, price: Number(data.close), change: Number(data.change_p ?? 0), error: false };
         } catch (e) {
           console.error(`Error fetching ${t}:`, e);
           return { ticker: t, price: 0, change: 0, error: true };
