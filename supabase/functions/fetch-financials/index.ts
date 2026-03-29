@@ -40,14 +40,14 @@ function isCacheFresh(lastUpdated: string): boolean {
   return now - updated < CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 }
 
-function parseFundamentals(data: any, ticker: string): { meta: StockMeta; financials: FinancialRow[] } {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }): { meta: StockMeta; financials: FinancialRow[] } {
   const general = data.General || {};
   const highlights = data.Highlights || {};
 
   const meta: StockMeta = {
     name: general.Name || ticker,
-    price: highlights.WallStreetTargetPrice || 0,
-    change: highlights.QuarterlyRevenueGrowthYOY || 0,
+    price: eodPrice?.price ?? 0,
+    change: eodPrice?.change ?? 0,
     marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
     currency: general.CurrencyCode || "ILS",
   };
