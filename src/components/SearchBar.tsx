@@ -11,6 +11,7 @@ interface SymbolRow {
   name: string;
   name_he: string;
   logo_url: string | null;
+  security_id: string | null;
 }
 
 export default function SearchBar() {
