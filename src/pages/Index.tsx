@@ -1,6 +1,6 @@
 import SearchBar from "@/components/SearchBar";
-import TradingViewMarketOverview from "@/components/TradingViewMarketOverview";
-import TradingViewTickerTape from "@/components/TradingViewTickerTape";
+import NativeTickerTape from "@/components/NativeTickerTape";
+import NativeMarketTables from "@/components/NativeMarketTables";
 import AdSlot from "@/components/AdSlot";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Compass, TrendingUp, Shield } from "lucide-react";
@@ -16,7 +16,7 @@ export default function Index() {
 
   return (
     <div className="flex flex-col items-center">
-      <TradingViewTickerTape />
+      <NativeTickerTape />
 
       <section className="flex flex-col items-center justify-center gap-8 px-4 pt-20 pb-16 text-center">
         <div className="flex items-center gap-2 rounded-full border bg-secondary px-4 py-1.5 text-xs text-muted-foreground">
@@ -34,7 +34,7 @@ export default function Index() {
       </section>
 
       <section className="pb-12 w-full flex justify-center">
-        <TradingViewMarketOverview />
+        <NativeMarketTables />
       </section>
 
       <section className="grid gap-4 px-4 pb-16 sm:grid-cols-3 max-w-4xl w-full">
