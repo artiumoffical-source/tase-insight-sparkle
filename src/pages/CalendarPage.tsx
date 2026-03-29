@@ -106,16 +106,11 @@ export default function CalendarPage() {
 
     const { from, to } = getDateRange(effectiveFilter);
 
-    supabase.functions
-      .invoke("fetch-calendar", { body: null, headers: {}, method: "GET" })
-      .then(() => {})
-      .catch(() => {});
-
-    // Use direct URL since we need query params
-    const url = `https://xgnsbnzassrdswydlxuh.supabase.co/functions/v1/fetch-calendar?from=${from}&to=${to}`;
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const url = `https://${projectId}.supabase.co/functions/v1/fetch-calendar?from=${from}&to=${to}`;
     fetch(url, {
       headers: {
-        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhnbnNibnphc3NyZHN3eWRseHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3ODIxNDgsImV4cCI6MjA5MDM1ODE0OH0.b4bHYUJcD_xIigdAQBw3UDsICjtdavAZTrXnv49JXlQ",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       },
     })
       .then((r) => r.json())
