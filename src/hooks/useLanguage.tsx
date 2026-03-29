@@ -197,6 +197,8 @@ const translations: Record<Language, Record<string, string>> = {
     "feature.watchlist.desc": "Track your favourite stocks in one place",
 
     "trending.title": "📈 Trending TASE Stocks",
+    "trending.gainers": "Top Gainers",
+    "trending.losers": "Top Losers",
     "trending.priceUnavailable": "Price unavailable",
 
     "stock.historicalData": "Historical Financials (5Y)",
