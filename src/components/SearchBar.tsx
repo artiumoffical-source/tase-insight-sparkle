@@ -2,33 +2,22 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-
-// Common TASE stocks for quick suggestions
-const POPULAR_STOCKS = [
-  { ticker: "TEVA", name: "Teva Pharmaceutical" },
-  { ticker: "LUMI", name: "Bank Leumi" },
-  { ticker: "DSCT", name: "Bank Discount" },
-  { ticker: "HARL", name: "Harel Insurance" },
-  { ticker: "POLI", name: "Bank Hapoalim" },
-  { ticker: "ICL", name: "ICL Group" },
-  { ticker: "NICE", name: "NICE Systems" },
-  { ticker: "BEZQ", name: "Bezeq" },
-  { ticker: "ELCO", name: "Elco Holdings" },
-  { ticker: "AZRG", name: "Azrieli Group" },
-];
+import TASE_STOCKS from "@/data/tase-stocks";
 
 export default function SearchBar() {
   const [query, setQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const navigate = useNavigate();
 
-  const filtered = query.length > 0
-    ? POPULAR_STOCKS.filter(
-        (s) =>
-          s.ticker.toLowerCase().includes(query.toLowerCase()) ||
-          s.name.toLowerCase().includes(query.toLowerCase())
-      )
-    : [];
+  const filtered =
+    query.length > 0
+      ? TASE_STOCKS.filter(
+          (s) =>
+            s.ticker.toLowerCase().includes(query.toLowerCase()) ||
+            s.name.toLowerCase().includes(query.toLowerCase()) ||
+            s.nameHe.includes(query)
+        ).slice(0, 8)
+      : [];
 
   const handleSelect = (ticker: string) => {
     setQuery("");
@@ -57,8 +46,9 @@ export default function SearchBar() {
           }}
           onFocus={() => setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-          placeholder="Search by company name or ticker..."
+          placeholder="חפש לפי שם חברה או טיקר... / Search by name or ticker..."
           className="h-14 pl-12 pr-4 text-base bg-secondary border-border rounded-xl focus:ring-2 focus:ring-primary"
+          dir="auto"
         />
       </div>
 
@@ -71,9 +61,16 @@ export default function SearchBar() {
               onMouseDown={() => handleSelect(stock.ticker)}
               className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-secondary transition-colors"
             >
-              <div>
-                <span className="font-display font-semibold">{stock.ticker}</span>
-                <span className="ml-2 text-sm text-muted-foreground">{stock.name}</span>
+              <div className="flex items-center gap-3">
+                <span className="font-display font-semibold text-sm bg-primary/10 text-primary px-2 py-0.5 rounded">
+                  {stock.ticker}
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{stock.name}</span>
+                  <span className="text-xs text-muted-foreground" dir="rtl">
+                    {stock.nameHe}
+                  </span>
+                </div>
               </div>
               <span className="text-xs text-muted-foreground">TASE</span>
             </button>
