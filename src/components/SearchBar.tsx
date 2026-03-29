@@ -105,17 +105,19 @@ export default function SearchBar() {
             >
               <div className="flex items-center gap-3">
                 <StockLogo name={stock.name} logoUrl={stock.logo_url} size="sm" />
-                <span className="font-display font-semibold text-sm bg-primary/10 text-primary px-2 py-0.5 rounded">
-                  {stock.ticker}
-                </span>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{isRtl ? (stock.name_he || stock.name) : stock.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {isRtl ? stock.name : (stock.name_he || "")}
-                  </span>
+                  <span className="text-sm font-medium">{stock.name_he || stock.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-display font-semibold text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                      {stock.ticker}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{stock.name_he ? stock.name : ""}</span>
+                    {stock.security_id && (
+                      <span className="text-[10px] text-muted-foreground">#{stock.security_id}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground">TASE</span>
             </button>
           ))}
         </div>
