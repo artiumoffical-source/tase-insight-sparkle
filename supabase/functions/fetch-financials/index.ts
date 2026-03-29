@@ -257,10 +257,15 @@ serve(async (req) => {
 
     if (cachedFinancials) {
       // Return cached fundamentals with fresh price
-      const cachedMeta = (cached!.data as any)?.meta ?? {};
+      const cachedData = cached!.data as any;
+      const cachedMeta = cachedData?.meta ?? {};
       const freshResult = {
         meta: { ...cachedMeta, price: eodPrice?.price ?? cachedMeta.price ?? 0, change: eodPrice?.change ?? cachedMeta.change ?? 0 },
         financials: cachedFinancials,
+        incomeStatement: cachedData?.incomeStatement ?? [],
+        balanceSheet: cachedData?.balanceSheet ?? [],
+        cashFlow: cachedData?.cashFlow ?? [],
+        keyMetrics: cachedData?.keyMetrics ?? null,
       };
       return new Response(
         JSON.stringify(freshResult),
@@ -278,9 +283,14 @@ serve(async (req) => {
       if (cached) {
         console.log(`Returning stale cache for ${ticker}`);
         const cachedMeta = (cached.data as any)?.meta ?? {};
+        const cachedData = cached.data as any;
         const staleResult = {
           meta: { ...cachedMeta, price: eodPrice?.price ?? cachedMeta.price ?? 0, change: eodPrice?.change ?? cachedMeta.change ?? 0 },
-          financials: (cached.data as any)?.financials ?? [],
+          financials: cachedData?.financials ?? [],
+          incomeStatement: cachedData?.incomeStatement ?? [],
+          balanceSheet: cachedData?.balanceSheet ?? [],
+          cashFlow: cachedData?.cashFlow ?? [],
+          keyMetrics: cachedData?.keyMetrics ?? null,
         };
         return new Response(
           JSON.stringify(staleResult),
