@@ -3,6 +3,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function translateTexts(texts: string[], lovableKey: string): Promise<string[]> {
+  try {
+    const prompt = `Translate the following English texts to Hebrew. Return ONLY a JSON array of translated strings, same order, no extra text.\n\n${JSON.stringify(texts)}`;
+    
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          { role: "system", content: "You are a professional English-to-Hebrew translator for financial news. Return ONLY a JSON array of translated strings." },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Translation API error:", res.status);
+      return texts; // fallback to original
+    }
+
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content ?? "";
+    // Extract JSON array from response
+    const match = content.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed) && parsed.length === texts.length) {
+        return parsed;
+      }
+    }
+    return texts;
+  } catch (err) {
+    console.error("Translation error:", err);
+    return texts;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -18,7 +59,7 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get("EODHD_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "API key not configured" }), {
+      return new Response(JSON.stringify({ error: "EODHD API key not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -42,13 +83,48 @@ Deno.serve(async (req) => {
 
     const items = (Array.isArray(articles) ? articles : []).map((a: any) => ({
       title: a.title ?? "",
+      titleHe: "", // will be filled by translation
+      content: a.content ?? a.text ?? a.summary ?? "",
+      contentHe: "",
       url: a.link ?? a.url ?? "",
       source: a.source ?? "",
       date: a.date ?? "",
+      image: a.image ?? a.banner_image ?? null,
       sentiment: typeof a.sentiment === "object"
         ? (a.sentiment?.polarity ?? a.sentiment?.score ?? 0)
         : (typeof a.sentiment === "number" ? a.sentiment : 0),
     }));
+
+    // Translate titles and content summaries to Hebrew
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey && items.length > 0) {
+      // Translate titles
+      const titles = items.map((i: any) => i.title).filter(Boolean);
+      if (titles.length > 0) {
+        const translatedTitles = await translateTexts(titles, lovableKey);
+        let tIdx = 0;
+        for (const item of items) {
+          if (item.title) {
+            item.titleHe = translatedTitles[tIdx] ?? item.title;
+            tIdx++;
+          }
+        }
+      }
+
+      // Translate content summaries (first 200 chars each to save tokens)
+      const summaries = items.map((i: any) => (i.content || "").slice(0, 300)).filter(Boolean);
+      if (summaries.length > 0) {
+        const translatedContent = await translateTexts(summaries, lovableKey);
+        let cIdx = 0;
+        for (const item of items) {
+          const snippet = (item.content || "").slice(0, 300);
+          if (snippet) {
+            item.contentHe = translatedContent[cIdx] ?? "";
+            cIdx++;
+          }
+        }
+      }
+    }
 
     // Calculate average sentiment
     const scores = items.map((i: any) => Number(i.sentiment) || 0);
