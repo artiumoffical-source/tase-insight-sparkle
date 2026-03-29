@@ -1,12 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3 } from "lucide-react";
 
 const LEGEND_HE = [
   { index: "ת\"א 35", desc: "35 החברות הגדולות בבורסה" },
   { index: "ת\"א 125", desc: "125 החברות המובילות" },
-  { index: "ת\"א 90", desc: "90 חברות ביניים" },
   { index: "ת\"א בנקים", desc: "מדד הבנקים" },
   { index: "ת\"א נדל\"ן", desc: "מדד הנדל\"ן" },
 ];
@@ -14,7 +12,6 @@ const LEGEND_HE = [
 const LEGEND_EN = [
   { index: "TA-35", desc: "Top 35 companies on TASE" },
   { index: "TA-125", desc: "Top 125 companies" },
-  { index: "TA-90", desc: "90 mid-cap companies" },
   { index: "TA-Banks", desc: "Banking sector index" },
   { index: "TA-Real Estate", desc: "Real estate sector index" },
 ];
@@ -30,61 +27,51 @@ export default function TradingViewMarketOverview() {
     const isHe = lang === "he";
 
     const script = document.createElement("script");
-    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js";
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-market-quotes.js";
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      colorTheme: "dark",
-      dateRange: "1D",
-      showChart: false,
-      locale: isHe ? "he_IL" : "en",
-      largeChartUrl: "",
-      isTransparent: true,
-      showSymbolLogo: true,
-      showFloatingTooltip: false,
       width: "100%",
-      height: 460,
-      plotLineColorGrowing: "hsl(153, 69%, 48%)",
-      plotLineColorFalling: "hsl(0, 84%, 60%)",
-      gridLineColor: "rgba(40, 44, 55, 0.3)",
-      scaleFontColor: "rgba(209, 212, 220, 0.7)",
-      belowLineFillColorGrowing: "rgba(34, 197, 94, 0.08)",
-      belowLineFillColorFalling: "rgba(239, 68, 68, 0.08)",
-      belowLineFillColorGrowingBottom: "rgba(34, 197, 94, 0)",
-      belowLineFillColorFallingBottom: "rgba(239, 68, 68, 0)",
-      symbolActiveColor: "rgba(34, 197, 94, 0.12)",
-      tabs: [
+      height: 420,
+      symbolsGroups: [
         {
-          title: isHe ? "מדדים" : "Indices",
+          name: isHe ? "מדדים" : "Indices",
+          originalName: "Indices",
           symbols: [
-            { s: "TASE:TA35", d: isHe ? "ת\"א 35" : "TA-35" },
-            { s: "TASE:TA125", d: isHe ? "ת\"א 125" : "TA-125" },
-            { s: "TASE:TA90", d: isHe ? "ת\"א 90" : "TA-90" },
-            { s: "TASE:TABANK", d: isHe ? "ת\"א בנקים" : "TA-Banks" },
-            { s: "TASE:TAREAL", d: isHe ? "ת\"א נדל\"ן" : "TA-Real Estate" },
+            { name: "TASE:TA35", displayName: isHe ? "ת\"א 35" : "TA-35" },
+            { name: "TASE:TA125", displayName: isHe ? "ת\"א 125" : "TA-125" },
+            { name: "TASE:TA90", displayName: isHe ? "ת\"א 90" : "TA-90" },
+            { name: "TASE:TABANK", displayName: isHe ? "ת\"א בנקים" : "TA-Banks" },
+            { name: "TASE:TAREAL", displayName: isHe ? "ת\"א נדל\"ן" : "TA-Real Estate" },
           ],
         },
         {
-          title: isHe ? "מרוויחות" : "Top Gainers",
+          name: isHe ? "מרוויחות" : "Top Gainers",
+          originalName: "Top Gainers",
           symbols: [
-            { s: "TASE:LUMI", d: isHe ? "לאומי" : "Leumi" },
-            { s: "TASE:POLI", d: isHe ? "פועלים" : "Poalim" },
-            { s: "TASE:TEVA", d: isHe ? "טבע" : "Teva" },
-            { s: "TASE:ICL", d: "ICL" },
-            { s: "TASE:ESLT", d: isHe ? "אלביט" : "Elbit" },
+            { name: "TASE:LUMI", displayName: isHe ? "לאומי" : "Leumi" },
+            { name: "TASE:POLI", displayName: isHe ? "פועלים" : "Poalim" },
+            { name: "TASE:TEVA", displayName: isHe ? "טבע" : "Teva" },
+            { name: "TASE:ICL", displayName: "ICL" },
+            { name: "TASE:ESLT", displayName: isHe ? "אלביט" : "Elbit" },
           ],
         },
         {
-          title: isHe ? "מפסידות" : "Top Losers",
+          name: isHe ? "מפסידות" : "Top Losers",
+          originalName: "Top Losers",
           symbols: [
-            { s: "TASE:NICE", d: "Nice" },
-            { s: "TASE:BEZQ", d: isHe ? "בזק" : "Bezeq" },
-            { s: "TASE:AZRG", d: isHe ? "עזריאלי" : "Azrieli" },
-            { s: "TASE:DSCT", d: isHe ? "דיסקונט" : "Discount" },
-            { s: "TASE:MZTF", d: isHe ? "מזרחי" : "Mizrahi" },
+            { name: "TASE:NICE", displayName: "Nice" },
+            { name: "TASE:BEZQ", displayName: isHe ? "בזק" : "Bezeq" },
+            { name: "TASE:AZRG", displayName: isHe ? "עזריאלי" : "Azrieli" },
+            { name: "TASE:DSCT", displayName: isHe ? "דיסקונט" : "Discount" },
+            { name: "TASE:MZTF", displayName: isHe ? "מזרחי" : "Mizrahi" },
           ],
         },
       ],
+      showSymbolLogo: true,
+      isTransparent: true,
+      colorTheme: "dark",
+      locale: isHe ? "he_IL" : "en",
     });
 
     containerRef.current.appendChild(script);
@@ -93,43 +80,41 @@ export default function TradingViewMarketOverview() {
   const legend = isRtl ? LEGEND_HE : LEGEND_EN;
 
   return (
-    <div className="w-full max-w-5xl px-4" dir={isRtl ? "rtl" : "ltr"}>
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="pb-3 pt-5 px-6">
-          <CardTitle className="flex items-center gap-2.5 font-display text-xl">
-            <BarChart3 className="h-5 w-5 text-primary" />
+    <div className="w-full max-w-[800px] px-4" dir={isRtl ? "rtl" : "ltr"}>
+      <div className="rounded-2xl border border-border/40 bg-card/40 backdrop-blur-md shadow-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 px-6 pt-5 pb-3">
+          <BarChart3 className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-lg font-semibold tracking-tight">
             {isRtl ? "מבט מהיר על הבורסה" : "TASE Market Overview"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <div
-            ref={containerRef}
-            className="tradingview-widget-container"
-            style={{ height: 460, width: "100%" }}
-          >
-            <div
-              className="tradingview-widget-container__widget"
-              style={{ height: "100%", width: "100%" }}
-            />
-          </div>
-        </CardContent>
+          </h2>
+        </div>
 
-        {/* Index Legend */}
-        <div className="px-6 py-4 border-t border-border/40">
-          <p className="text-xs font-medium text-muted-foreground mb-2.5">
-            {isRtl ? "מקרא מדדים" : "Index Legend"}
-          </p>
-          <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+        {/* Widget */}
+        <div
+          ref={containerRef}
+          className="tradingview-widget-container"
+          style={{ height: 420, width: "100%" }}
+        >
+          <div
+            className="tradingview-widget-container__widget"
+            style={{ height: "100%", width: "100%" }}
+          />
+        </div>
+
+        {/* Legend */}
+        <div className="px-6 py-3.5 border-t border-border/30">
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
             {legend.map((l) => (
-              <span key={l.index} className="text-xs text-muted-foreground/80">
-                <span className="font-semibold text-foreground/70">{l.index}</span>
+              <span key={l.index} className="text-[11px] text-muted-foreground/70">
+                <span className="font-semibold text-foreground/60">{l.index}</span>
                 {" — "}
                 {l.desc}
               </span>
             ))}
           </div>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
