@@ -51,7 +51,7 @@ export default function SearchBar() {
             s.name.toLowerCase().includes(q) ||
             s.nameHe.includes(query)
         ).slice(0, 8);
-        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null })));
+        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null, security_id: null })));
       } else {
         setResults(data ?? []);
         setDbReady(true);
