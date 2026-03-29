@@ -128,7 +128,7 @@ export default function TrendingStocks() {
                   <StockLogo name={q.name} logoUrl={q.logoUrl} size="sm" />
                   <div className="min-w-0 flex-1">
                     <span className="font-display font-bold text-sm">{q.ticker}</span>
-                    <span className="text-[10px] text-muted-foreground ms-1.5">TASE</span>
+                    
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground truncate mb-2">
