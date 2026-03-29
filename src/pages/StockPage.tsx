@@ -11,6 +11,7 @@ import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { Star, TrendingUp, TrendingDown, Lock } from "lucide-react";
 import { toast } from "sonner";
+import StockLogo from "@/components/StockLogo";
 import TASE_STOCKS from "@/data/tase-stocks";
 
 interface StockMeta {
