@@ -9,7 +9,7 @@ export default function Index() {
 
   const FEATURES = [
     { icon: TrendingUp, title: t("feature.financials.title"), desc: t("feature.financials.desc") },
-    { icon: BarChart3, title: t("feature.charts.title"), desc: t("feature.charts.desc") },
+    { icon: Compass, title: t("feature.charts.title"), desc: t("feature.charts.desc") },
     { icon: Shield, title: t("feature.watchlist.title"), desc: t("feature.watchlist.desc") },
   ];
 

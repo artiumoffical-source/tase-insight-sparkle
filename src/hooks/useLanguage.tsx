@@ -250,8 +250,8 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.totalInvestments": "Total Investments",
     "fin.researchDev": "R&D Expenses",
 
-    "upgrade.title": "Join TASE Insight Premium",
-    "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced TASE insights.",
+    "upgrade.title": "Join AlphaMap Premium",
+    "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced market insights.",
     "upgrade.feat1": "Quarterly financial reports",
     "upgrade.feat2": "Ad-free experience",
     "upgrade.feat3": "Advanced insights & analytics",
