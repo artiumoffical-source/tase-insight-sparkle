@@ -1,9 +1,9 @@
 import { useLanguage } from "@/hooks/useLanguage";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Lock, ExternalLink, Globe, Languages } from "lucide-react";
 import { useState } from "react";
+import AdSlot from "@/components/AdSlot";
 
 export interface NewsArticle {
   title: string;
@@ -34,7 +34,6 @@ export default function NewsReaderModal({ article, open, onOpenChange, isPremium
   const displayTitle = showHebrew && article.titleHe ? article.titleHe : article.title;
   const displayContent = showHebrew && article.contentHe ? article.contentHe : article.content;
   const hasTranslation = !!article.titleHe;
-  const sentimentBadge = article.sentiment > 0.15 ? "bullish" : article.sentiment < -0.15 ? "bearish" : "neutral";
 
   const formattedDate = (() => {
     try {
@@ -83,20 +82,6 @@ export default function NewsReaderModal({ article, open, onOpenChange, isPremium
                   {showHebrew ? "הצג מקור (אנגלית)" : "הצג תרגום (עברית)"}
                 </Button>
               )}
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className={
-                    sentimentBadge === "bullish"
-                      ? "border-green-500/50 text-green-500"
-                      : sentimentBadge === "bearish"
-                        ? "border-red-500/50 text-red-500"
-                        : "border-muted-foreground/50 text-muted-foreground"
-                  }
-                >
-                  {t(`news.${sentimentBadge}`)}
-                </Badge>
-              </div>
             </div>
 
             {/* Title */}
@@ -114,6 +99,11 @@ export default function NewsReaderModal({ article, open, onOpenChange, isPremium
               <span>{formattedDate}</span>
             </div>
           </SheetHeader>
+
+          {/* Sponsored Ad */}
+          <div className="mb-6">
+            <AdSlot placement="banner" className="!h-[60px]" />
+          </div>
 
           {/* Content */}
           <div className="relative">
