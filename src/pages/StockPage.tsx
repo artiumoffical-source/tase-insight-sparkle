@@ -229,12 +229,18 @@ export default function StockPage() {
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
 
-        {/* Desktop sidebar ad */}
+        {/* Desktop sidebar: News + Ad */}
         <aside className="hidden lg:block">
-          <div className="sticky top-24">
-            <AdSlot placement="sidebar" />
+          <div className="sticky top-24 space-y-4">
+            <StockNewsSidebar ticker={upperTicker} isPremium={isPremium} onUpgrade={() => setShowUpgrade(true)} />
+            {!isPremium && <AdSlot placement="sidebar" />}
           </div>
         </aside>
+
+        {/* Mobile: News below financials */}
+        <div className="lg:hidden">
+          <StockNewsSidebar ticker={upperTicker} isPremium={isPremium} onUpgrade={() => setShowUpgrade(true)} />
+        </div>
       </div>
     </div>
   );
