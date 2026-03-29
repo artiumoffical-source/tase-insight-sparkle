@@ -178,6 +178,35 @@ const translations: Record<Language, Record<string, string>> = {
     "notFound.title": "404",
     "notFound.message": "אופס! הדף לא נמצא",
     "notFound.back": "חזרה לדף הבית",
+
+    // Footer
+    "footer.rights": "כל הזכויות שמורות.",
+    "footer.privacy": "מדיניות פרטיות",
+    "footer.terms": "תנאי שימוש",
+
+    // Privacy
+    "privacy.title": "מדיניות פרטיות - AlphaMap",
+    "privacy.intro": "ברוכים הבאים ל-AlphaMap. הפרטיות שלך חשובה לנו.",
+    "privacy.collectTitle": "איסוף מידע",
+    "privacy.collectBody": "אנו אוספים מידע טכני כגון כתובת IP וסוג דפדפן בעת הגלישה. במידה ונרשמת לאתר, אנו שומרים את כתובת האימייל שלך.",
+    "privacy.cookiesTitle": "עוגיות (Cookies) ופרסום",
+    "privacy.cookiesBody": "האתר משתמש בעוגיות של צד שלישי, כולל Google AdSense, לצורך הצגת פרסומות מותאמות אישית וניתוח תנועת גולשים (Google Analytics). גוגל עשויה להשתמש בעוגיות כדי להציג מודעות המבוססות על ביקוריך הקודמים באתר זה או באתרים אחרים.",
+    "privacy.manageCookiesTitle": "ניהול עוגיות",
+    "privacy.manageCookiesBody": "באפשרותך לבטל את השימוש במודעות מותאמות אישית על ידי ביקור בהגדרות המודעות של גוגל.",
+    "privacy.securityTitle": "אבטחה",
+    "privacy.securityBody": "אנו נוקטים באמצעים מקובלים לאבטחת המידע שלך, אך איננו יכולים להבטיח חסינות מוחלטת מפני פריצות.",
+
+    // Terms
+    "terms.title": "תנאי שימוש ודיסקליימר משפטי",
+    "terms.intro": "השימוש באתר AlphaMap כפוף לתנאים הבאים:",
+    "terms.hostingTitle": "אירוח ומידע",
+    "terms.hostingBody": "AlphaMap מספקת נתונים פיננסיים, דוחות וחדשות למטרות אינפורמטיביות בלבד.",
+    "terms.noAdviceTitle": "אי ייעוץ פיננסי",
+    "terms.noAdviceBody": "אין לראות במידע המופיע באתר AlphaMap משום ייעוץ השקעות, המלצה לביצוע פעולות בניירות ערך, או תחליף לייעוץ מקצועי המותאם לצרכיך האישיים. כל החלטת השקעה היא באחריות המשתמש בלבד.",
+    "terms.accuracyTitle": "דיוק הנתונים",
+    "terms.accuracyBody": "אנו שואבים נתונים מספקים חיצוניים (EODHD). למרות מאמצינו, ייתכנו טעויות או עיכובים בנתונים. AlphaMap אינה אחראית לכל נזק כספי שייגרם כתוצאה מהסתמכות על המידע באתר.",
+    "terms.ipTitle": "קניין רוחני",
+    "terms.ipBody": "המותג AlphaMap והקוד של האתר הם רכושנו הפרטי. אין להעתיק או לשכפל תוכן ללא אישור בכתב.",
   },
   en: {
     "nav.home": "Home",
@@ -336,6 +365,35 @@ const translations: Record<Language, Record<string, string>> = {
     "notFound.title": "404",
     "notFound.message": "Oops! Page not found",
     "notFound.back": "Return to Home",
+
+    // Footer
+    "footer.rights": "All rights reserved.",
+    "footer.privacy": "Privacy Policy",
+    "footer.terms": "Terms of Service",
+
+    // Privacy
+    "privacy.title": "Privacy Policy - AlphaMap",
+    "privacy.intro": "Welcome to AlphaMap. Your privacy is important to us.",
+    "privacy.collectTitle": "Information Collection",
+    "privacy.collectBody": "We collect technical information such as IP address and browser type during browsing. If you register, we store your email address.",
+    "privacy.cookiesTitle": "Cookies & Advertising",
+    "privacy.cookiesBody": "The site uses third-party cookies, including Google AdSense, for personalized advertising and traffic analysis (Google Analytics). Google may use cookies to display ads based on your previous visits to this or other websites.",
+    "privacy.manageCookiesTitle": "Cookie Management",
+    "privacy.manageCookiesBody": "You can opt out of personalized ads by visiting Google's ad settings.",
+    "privacy.securityTitle": "Security",
+    "privacy.securityBody": "We take standard measures to secure your information, but cannot guarantee absolute immunity from breaches.",
+
+    // Terms
+    "terms.title": "Terms of Service & Legal Disclaimer",
+    "terms.intro": "Use of the AlphaMap website is subject to the following terms:",
+    "terms.hostingTitle": "Hosting & Information",
+    "terms.hostingBody": "AlphaMap provides financial data, reports, and news for informational purposes only.",
+    "terms.noAdviceTitle": "No Financial Advice",
+    "terms.noAdviceBody": "The information on AlphaMap does not constitute investment advice, a recommendation to trade securities, or a substitute for professional advice tailored to your needs. All investment decisions are the sole responsibility of the user.",
+    "terms.accuracyTitle": "Data Accuracy",
+    "terms.accuracyBody": "We source data from external providers (EODHD). Despite our efforts, errors or delays may occur. AlphaMap is not responsible for any financial damage resulting from reliance on information on this site.",
+    "terms.ipTitle": "Intellectual Property",
+    "terms.ipBody": "The AlphaMap brand and website code are our private property. Do not copy or reproduce content without written permission.",
   },
 };
 
