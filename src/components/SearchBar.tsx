@@ -11,6 +11,7 @@ interface SymbolRow {
   name: string;
   name_he: string;
   logo_url: string | null;
+  security_id: string | null;
 }
 
 export default function SearchBar() {
@@ -35,8 +36,8 @@ export default function SearchBar() {
       // Use ilike for English searches, or textSearch for Hebrew
       const { data, error } = await supabase
         .from("tase_symbols")
-        .select("ticker, name, name_he, logo_url")
-        .or(`ticker.ilike.%${q}%,name.ilike.%${q}%,name_he.ilike.%${q}%`)
+        .select("ticker, name, name_he, logo_url, security_id")
+        .or(`ticker.ilike.%${q}%,name.ilike.%${q}%,name_he.ilike.%${q}%,security_id.ilike.%${q}%`)
         .limit(8);
 
       if (error) {
@@ -50,7 +51,7 @@ export default function SearchBar() {
             s.name.toLowerCase().includes(q) ||
             s.nameHe.includes(query)
         ).slice(0, 8);
-        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null })));
+        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null, security_id: null })));
       } else {
         setResults(data ?? []);
         setDbReady(true);
@@ -104,17 +105,19 @@ export default function SearchBar() {
             >
               <div className="flex items-center gap-3">
                 <StockLogo name={stock.name} logoUrl={stock.logo_url} size="sm" />
-                <span className="font-display font-semibold text-sm bg-primary/10 text-primary px-2 py-0.5 rounded">
-                  {stock.ticker}
-                </span>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{isRtl ? (stock.name_he || stock.name) : stock.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {isRtl ? stock.name : (stock.name_he || "")}
-                  </span>
+                  <span className="text-sm font-medium">{stock.name_he || stock.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-display font-semibold text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                      {stock.ticker}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{stock.name_he ? stock.name : ""}</span>
+                    {stock.security_id && (
+                      <span className="text-[10px] text-muted-foreground">#{stock.security_id}</span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground">TASE</span>
             </button>
           ))}
         </div>

@@ -1,0 +1,1 @@
+ALTER TABLE public.tase_symbols ADD COLUMN IF NOT EXISTS security_id text DEFAULT NULL;

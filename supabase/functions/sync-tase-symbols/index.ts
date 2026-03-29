@@ -66,10 +66,11 @@ serve(async (req) => {
       .map((s: any) => ({
         ticker: s.Code,
         name: s.Name || s.Code,
-        name_he: "", // EODHD doesn't provide Hebrew names
+        name_he: "",
         type: s.Type || null,
         currency: s.Currency || "ILS",
         exchange: "TA",
+        security_id: s.ISIN || s.Isin || null,
         updated_at: new Date().toISOString(),
       }));
 
