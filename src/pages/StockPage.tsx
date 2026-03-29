@@ -215,7 +215,14 @@ export default function StockPage() {
                 </button>
               </div>
             </div>
-            <FinancialsTable data={financials} incomeStatement={incomeStatement} balanceSheet={balanceSheet} cashFlow={cashFlow} loading={loading} />
+            <FinancialsTable
+              data={financials}
+              incomeStatement={period === "quarterly" ? qIncomeStatement : incomeStatement}
+              balanceSheet={period === "quarterly" ? qBalanceSheet : balanceSheet}
+              cashFlow={period === "quarterly" ? qCashFlow : cashFlow}
+              loading={loading}
+              sector={sector}
+            />
           </div>
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
