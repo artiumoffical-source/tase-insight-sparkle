@@ -40,7 +40,7 @@ export default function TradingViewChart({ ticker }: TradingViewChartProps) {
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
-      <div ref={containerRef} className="tradingview-widget-container" style={{ height: 600, width: "100%" }}>
+    <div ref={containerRef} className="tradingview-widget-container" style={{ height: 600, width: "100%" }}>
         <div className="tradingview-widget-container__widget" style={{ height: "100%", width: "100%" }} />
       </div>
     </div>
