@@ -89,8 +89,8 @@ export default function SearchBar() {
           onFocus={() => setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
           placeholder={t("search.placeholder")}
-          className={`h-14 text-base bg-secondary border-border rounded-xl focus:ring-2 focus:ring-primary ${isRtl ? "pr-12 pl-4" : "pl-12 pr-4"}`}
-          dir="auto"
+          className={`h-14 text-base bg-secondary border-border rounded-xl focus:ring-2 focus:ring-primary ${isRtl ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left"}`}
+          dir={isRtl ? "rtl" : "ltr"}
         />
       </div>
 
