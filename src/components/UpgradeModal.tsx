@@ -48,7 +48,7 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
           className="w-full font-display text-base"
           onClick={() => {
             onOpenChange(false);
-            window.location.href = "/auth";
+            navigate("/auth");
           }}
         >
           {t("upgrade.signUpLogin")}
