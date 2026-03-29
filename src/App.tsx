@@ -6,12 +6,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import AdSlot from "@/components/AdSlot";
 import Index from "./pages/Index";
 import StockPage from "./pages/StockPage";
 import WatchlistPage from "./pages/WatchlistPage";
 import AuthPage from "./pages/AuthPage";
 import CalendarPage from "./pages/CalendarPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/NotFound";
 
 
