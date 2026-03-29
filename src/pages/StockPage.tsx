@@ -35,8 +35,7 @@ export default function StockPage() {
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  // TODO: Replace with real premium check from user profile/subscription
-  const isPremium = false;
+  const isPremium = !!user;
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
 
   const stock = TASE_STOCKS.find((s) => s.ticker === upperTicker);
