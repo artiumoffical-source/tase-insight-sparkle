@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import type { User } from "@supabase/supabase-js";
 
 export async function getUser(): Promise<User | null> {
@@ -7,9 +8,8 @@ export async function getUser(): Promise<User | null> {
 }
 
 export async function signInWithGoogle() {
-  return supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.origin },
+  return lovable.auth.signInWithOAuth("google", {
+    redirect_uri: window.location.origin,
   });
 }
 
