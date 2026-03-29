@@ -135,6 +135,23 @@ const translations: Record<Language, Record<string, string>> = {
     "ad.space": "מקום לפרסום",
     "ad.upgrade": "שדרג לפרימיום להסרת פרסומות",
 
+    // Calendar
+    "cal.title": "יומן כלכלי — ישראל",
+    "cal.today": "היום",
+    "cal.tomorrow": "מחר",
+    "cal.thisWeek": "השבוע",
+    "cal.macroTitle": "אירועים מאקרו-כלכליים",
+    "cal.earningsTitle": "יומן דוחות חברות",
+    "cal.noMacro": "אין אירועים מאקרו לתאריך זה.",
+    "cal.noEarnings": "אין דוחות חברות לתאריך זה.",
+    "cal.time": "שעה",
+    "cal.event": "אירוע",
+    "cal.importance": "חשיבות",
+    "cal.actual": "בפועל",
+    "cal.forecast": "תחזית",
+    "cal.previous": "קודם",
+    "nav.calendar": "יומן כלכלי",
+
     // 404
     "notFound.title": "404",
     "notFound.message": "אופס! הדף לא נמצא",
