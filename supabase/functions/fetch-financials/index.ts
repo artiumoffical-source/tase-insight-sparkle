@@ -105,6 +105,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const years5 = allYears.slice(-5);
   const years10 = allYears.slice(-10);
 
+  const cashFlowStatements = data.Financials?.Cash_Flow?.yearly || {};
+
   const financials: FinancialRow[] = years5.slice().reverse().map((dateKey) => {
     const income = incomeStatements[dateKey] || {};
     const balance = balanceSheets[dateKey] || {};
@@ -125,6 +127,52 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     };
   });
 
+  // Income Statement rows
+  const incomeStatement = years5.slice().reverse().map((dateKey) => {
+    const inc = incomeStatements[dateKey] || {};
+    return {
+      year: dateKey.substring(0, 4),
+      revenue: parseFloat(inc.totalRevenue) || 0,
+      costOfRevenue: parseFloat(inc.costOfRevenue) || 0,
+      grossProfit: parseFloat(inc.grossProfit) || 0,
+      operatingIncome: parseFloat(inc.operatingIncome) || 0,
+      netIncome: parseFloat(inc.netIncome) || 0,
+      ebitda: parseFloat(inc.ebitda) || 0,
+      eps: parseFloat(inc.dilutedEPS || inc.basicEPS) || 0,
+    };
+  });
+
+  // Balance Sheet rows
+  const balanceSheet = years5.slice().reverse().map((dateKey) => {
+    const bal = balanceSheets[dateKey] || {};
+    const totalDebtVal = (parseFloat(bal.shortLongTermDebt) || 0) + (parseFloat(bal.longTermDebt) || 0);
+    return {
+      year: dateKey.substring(0, 4),
+      totalAssets: parseFloat(bal.totalAssets) || 0,
+      totalLiabilities: parseFloat(bal.totalLiab) || 0,
+      totalEquity: parseFloat(bal.totalStockholderEquity) || 0,
+      cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
+      totalDebt: totalDebtVal,
+      inventory: parseFloat(bal.inventory) || 0,
+    };
+  });
+
+  // Cash Flow rows
+  const cashFlow = years5.slice().reverse().map((dateKey) => {
+    const cf = cashFlowStatements[dateKey] || {};
+    const inc = incomeStatements[dateKey] || {};
+    const capex = Math.abs(parseFloat(cf.capitalExpenditures) || 0);
+    const opsFlow = parseFloat(cf.totalCashFromOperatingActivities) || 0;
+    return {
+      year: dateKey.substring(0, 4),
+      netIncome: parseFloat(inc.netIncome) || 0,
+      depreciation: parseFloat(cf.depreciation) || 0,
+      capex,
+      freeCashFlow: parseFloat(cf.freeCashFlow) || (opsFlow - capex),
+      cashFromOperations: opsFlow,
+    };
+  });
+
   const rev5 = years5.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni5 = years5.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
   const rev10 = years10.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
@@ -142,7 +190,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     netIncomeMargin10Y: calcAvgMargin(rev10, ni10),
   };
 
-  return { meta, financials, keyMetrics };
+  return { meta, financials, keyMetrics, incomeStatement, balanceSheet, cashFlow };
 }
 
 serve(async (req) => {

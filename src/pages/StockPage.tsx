@@ -5,7 +5,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
 import FinancialsTable from "@/components/FinancialsTable";
-import type { FinancialData } from "@/components/FinancialsTable";
+import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
 import type { KeyMetricsData } from "@/components/KeyMetrics";
 import AdSlot from "@/components/AdSlot";
@@ -31,6 +31,9 @@ export default function StockPage() {
   const { t, isRtl } = useLanguage();
   const [inWatchlist, setInWatchlist] = useState(false);
   const [financials, setFinancials] = useState<FinancialData[]>([]);
+  const [incomeStatement, setIncomeStatement] = useState<IncomeStatementRow[]>([]);
+  const [balanceSheet, setBalanceSheet] = useState<BalanceSheetRow[]>([]);
+  const [cashFlow, setCashFlow] = useState<CashFlowRow[]>([]);
   const [keyMetrics, setKeyMetrics] = useState<KeyMetricsData | null>(null);
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +68,9 @@ export default function StockPage() {
       .then((data) => {
         setMeta(data.meta);
         setFinancials(data.financials ?? []);
+        setIncomeStatement(data.incomeStatement ?? []);
+        setBalanceSheet(data.balanceSheet ?? []);
+        setCashFlow(data.cashFlow ?? []);
         setKeyMetrics(data.keyMetrics ?? null);
       })
       .catch((err) => {
@@ -200,7 +206,7 @@ export default function StockPage() {
                 </button>
               </div>
             </div>
-            <FinancialsTable data={financials} loading={loading} />
+            <FinancialsTable data={financials} incomeStatement={incomeStatement} balanceSheet={balanceSheet} cashFlow={cashFlow} loading={loading} />
           </div>
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
