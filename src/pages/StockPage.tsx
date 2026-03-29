@@ -65,6 +65,7 @@ export default function StockPage() {
       .then((data) => {
         setMeta(data.meta);
         setFinancials(data.financials ?? []);
+        setKeyMetrics(data.keyMetrics ?? null);
       })
       .catch((err) => {
         console.error("Failed to fetch financials:", err);
