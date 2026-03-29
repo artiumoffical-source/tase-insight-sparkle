@@ -2,18 +2,22 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
-import TASE_STOCKS, { TRENDING_TICKERS } from "@/data/tase-stocks";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import StockLogo from "@/components/StockLogo";
 
-interface Quote {
+interface TrendingStock {
   ticker: string;
+  name: string;
+  logoUrl: string | null;
   price: number;
   change: number;
-  error: boolean;
 }
 
 export default function TrendingStocks() {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [gainers, setGainers] = useState<TrendingStock[]>([]);
+  const [losers, setLosers] = useState<TrendingStock[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"gainers" | "losers">("gainers");
   const navigate = useNavigate();
   const { t } = useLanguage();
 
@@ -22,25 +26,27 @@ export default function TrendingStocks() {
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
     fetch(
-      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${TRENDING_TICKERS.join(",")}`,
+      `https://${projectId}.supabase.co/functions/v1/fetch-market-trends`,
       { headers: { apikey: anonKey, "Content-Type": "application/json" } }
     )
       .then((res) => res.json())
-      .then((data) => setQuotes(data.quotes ?? []))
-      .catch((err) => console.error("Failed to fetch quotes:", err))
+      .then((data) => {
+        setGainers(data.gainers ?? []);
+        setLosers(data.losers ?? []);
+      })
+      .catch((err) => console.error("Failed to fetch market trends:", err))
       .finally(() => setLoading(false));
   }, []);
 
-  const getStock = (ticker: string) =>
-    TASE_STOCKS.find((s) => s.ticker === ticker);
+  const items = tab === "gainers" ? gainers : losers;
 
   if (loading) {
     return (
       <div className="w-full max-w-4xl px-4">
         <h2 className="font-display text-xl font-semibold mb-4">{t("trending.title")}</h2>
         <div className="flex gap-3 overflow-x-auto pb-2">
-          {TRENDING_TICKERS.map((tk) => (
-            <div key={tk} className="min-w-[180px] rounded-xl border bg-card p-4 animate-pulse">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="min-w-[180px] rounded-xl border bg-card p-4 animate-pulse">
               <div className="h-4 bg-muted rounded w-16 mb-2" />
               <div className="h-6 bg-muted rounded w-20 mb-1" />
               <div className="h-4 bg-muted rounded w-12" />
@@ -53,43 +59,52 @@ export default function TrendingStocks() {
 
   return (
     <div className="w-full max-w-4xl px-4">
-      <h2 className="font-display text-xl font-semibold mb-4">{t("trending.title")}</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-display text-xl font-semibold">{t("trending.title")}</h2>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "gainers" | "losers")}>
+          <TabsList className="h-8">
+            <TabsTrigger value="gainers" className="text-xs px-3 py-1">
+              {t("trending.gainers")}
+            </TabsTrigger>
+            <TabsTrigger value="losers" className="text-xs px-3 py-1">
+              {t("trending.losers")}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
       <div className="flex gap-3 overflow-x-auto pb-2">
-        {quotes.map((q) => {
-          const stock = getStock(q.ticker);
-          const isPositive = q.change >= 0;
-          return (
-            <button
-              key={q.ticker}
-              onClick={() => navigate(`/stock/${q.ticker}`)}
-              className="min-w-[180px] rounded-xl border bg-card p-4 text-start hover:border-primary/50 hover:shadow-md transition-all flex-shrink-0 group"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-display font-bold text-sm">{q.ticker}</span>
-                <span className="text-xs text-muted-foreground">TASE</span>
-              </div>
-              <p className="text-xs text-muted-foreground truncate mb-1">
-                {stock?.name}
-              </p>
-              <p className="text-xs text-muted-foreground truncate mb-2" dir="rtl">
-                {stock?.nameHe}
-              </p>
-              {!q.error ? (
-                <>
-                  <p className="font-display text-lg font-bold">
-                    ₪{q.price.toFixed(2)}
-                  </p>
-                  <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
-                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {isPositive ? "+" : ""}{q.change.toFixed(2)}%
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t("trending.priceUnavailable")}</p>
+        ) : (
+          items.map((q) => {
+            const isPositive = q.change >= 0;
+            return (
+              <button
+                key={q.ticker}
+                onClick={() => navigate(`/stock/${q.ticker}`)}
+                className="min-w-[180px] rounded-xl border bg-card p-4 text-start hover:border-primary/50 hover:shadow-md transition-all flex-shrink-0 group"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <StockLogo name={q.name} logoUrl={q.logoUrl} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <span className="font-display font-bold text-sm">{q.ticker}</span>
+                    <span className="text-[10px] text-muted-foreground ms-1.5">TASE</span>
                   </div>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">{t("trending.priceUnavailable")}</p>
-              )}
-            </button>
-          );
-        })}
+                </div>
+                <p className="text-xs text-muted-foreground truncate mb-2">
+                  {q.name}
+                </p>
+                <p className="font-display text-lg font-bold">
+                  ₪{q.price.toFixed(2)}
+                </p>
+                <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
+                  {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {isPositive ? "+" : ""}{q.change.toFixed(2)}%
+                </div>
+              </button>
+            );
+          })
+        )}
       </div>
     </div>
   );
