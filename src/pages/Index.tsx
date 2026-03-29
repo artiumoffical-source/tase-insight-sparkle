@@ -2,7 +2,7 @@ import SearchBar from "@/components/SearchBar";
 import TrendingStocks from "@/components/TrendingStocks";
 import AdSlot from "@/components/AdSlot";
 import { useLanguage } from "@/hooks/useLanguage";
-import { BarChart3, TrendingUp, Shield } from "lucide-react";
+import { Compass, TrendingUp, Shield } from "lucide-react";
 
 export default function Index() {
   const { t } = useLanguage();
