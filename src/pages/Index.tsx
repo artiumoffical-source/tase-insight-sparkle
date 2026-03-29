@@ -1,4 +1,5 @@
 import SearchBar from "@/components/SearchBar";
+import TrendingStocks from "@/components/TrendingStocks";
 import AdSlot from "@/components/AdSlot";
 import { BarChart3, TrendingUp, Shield } from "lucide-react";
 
@@ -25,6 +26,11 @@ export default function Index() {
           Financial data, interactive charts, and watchlists for every stock on the Tel Aviv Stock Exchange.
         </p>
         <SearchBar />
+      </section>
+
+      {/* Trending Stocks */}
+      <section className="pb-12 w-full flex justify-center">
+        <TrendingStocks />
       </section>
 
       {/* Features */}
