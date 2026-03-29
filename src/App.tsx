@@ -38,8 +38,11 @@ const App = () => {
               <Route path="/watchlist" element={<WatchlistPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            <Footer />
           </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

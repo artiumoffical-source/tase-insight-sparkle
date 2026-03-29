@@ -178,6 +178,35 @@ const translations: Record<Language, Record<string, string>> = {
     "notFound.title": "404",
     "notFound.message": "אופס! הדף לא נמצא",
     "notFound.back": "חזרה לדף הבית",
+
+    // Footer
+    "footer.rights": "כל הזכויות שמורות.",
+    "footer.privacy": "מדיניות פרטיות",
+    "footer.terms": "תנאי שימוש",
+
+    // Privacy
+    "privacy.title": "מדיניות פרטיות - AlphaMap",
+    "privacy.intro": "ברוכים הבאים ל-AlphaMap. הפרטיות שלך חשובה לנו.",
+    "privacy.collectTitle": "איסוף מידע",
+    "privacy.collectBody": "אנו אוספים מידע טכני כגון כתובת IP וסוג דפדפן בעת הגלישה. במידה ונרשמת לאתר, אנו שומרים את כתובת האימייל שלך.",
+    "privacy.cookiesTitle": "עוגיות (Cookies) ופרסום",
+    "privacy.cookiesBody": "האתר משתמש בעוגיות של צד שלישי, כולל Google AdSense, לצורך הצגת פרסומות מותאמות אישית וניתוח תנועת גולשים (Google Analytics). גוגל עשויה להשתמש בעוגיות כדי להציג מודעות המבוססות על ביקוריך הקודמים באתר זה או באתרים אחרים.",
+    "privacy.manageCookiesTitle": "ניהול עוגיות",
+    "privacy.manageCookiesBody": "באפשרותך לבטל את השימוש במודעות מותאמות אישית על ידי ביקור בהגדרות המודעות של גוגל.",
+    "privacy.securityTitle": "אבטחה",
+    "privacy.securityBody": "אנו נוקטים באמצעים מקובלים לאבטחת המידע שלך, אך איננו יכולים להבטיח חסינות מוחלטת מפני פריצות.",
+
+    // Terms
+    "terms.title": "תנאי שימוש ודיסקליימר משפטי",
+    "terms.intro": "השימוש באתר AlphaMap כפוף לתנאים הבאים:",
+    "terms.hostingTitle": "אירוח ומידע",
+    "terms.hostingBody": "AlphaMap מספקת נתונים פיננסיים, דוחות וחדשות למטרות אינפורמטיביות בלבד.",
+    "terms.noAdviceTitle": "אי ייעוץ פיננסי",
+    "terms.noAdviceBody": "אין לראות במידע המופיע באתר AlphaMap משום ייעוץ השקעות, המלצה לביצוע פעולות בניירות ערך, או תחליף לייעוץ מקצועי המותאם לצרכיך האישיים. כל החלטת השקעה היא באחריות המשתמש בלבד.",
+    "terms.accuracyTitle": "דיוק הנתונים",
+    "terms.accuracyBody": "אנו שואבים נתונים מספקים חיצוניים (EODHD). למרות מאמצינו, ייתכנו טעויות או עיכובים בנתונים. AlphaMap אינה אחראית לכל נזק כספי שייגרם כתוצאה מהסתמכות על המידע באתר.",
+    "terms.ipTitle": "קניין רוחני",
+    "terms.ipBody": "המותג AlphaMap והקוד של האתר הם רכושנו הפרטי. אין להעתיק או לשכפל תוכן ללא אישור בכתב.",
   },
   en: {
     "nav.home": "Home",
