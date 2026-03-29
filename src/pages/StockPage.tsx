@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import TradingViewChart from "@/components/TradingViewChart";
-import FinancialsTable, { type FinancialData } from "@/components/FinancialsTable";
+import FinancialsTable from "@/components/FinancialsTable";
+import type { FinancialData } from "@/components/FinancialsTable";
 import AdSlot from "@/components/AdSlot";
 import { Button } from "@/components/ui/button";
 import { Star, TrendingUp, TrendingDown } from "lucide-react";
@@ -150,7 +151,7 @@ export default function StockPage() {
 
       {/* Financials */}
       <div>
-        <h2 className="font-display text-xl font-semibold mb-3">Historical Financials (5Y)</h2>
+        <h2 className="font-display text-xl font-semibold mb-3">Historical Price Data (5Y)</h2>
         <FinancialsTable data={financials} loading={loading} />
       </div>
 
