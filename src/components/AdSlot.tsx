@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -9,23 +10,47 @@ interface AdSlotProps {
 export default function AdSlot({ placement, className = "" }: AdSlotProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const adRef = useRef<HTMLDivElement>(null);
 
-  // Only hide ads for the premium user
   const isPremium = user?.email === "artiumoffical@gmail.com";
-  if (isPremium) return null;
 
-  const sizeClasses: Record<string, string> = {
-    leaderboard: "h-[90px] max-w-[728px] mx-auto w-full",
-    banner: "h-[90px] w-full",
-    sidebar: "w-full h-[600px]",
+  const adFormats: Record<string, { style: React.CSSProperties; containerClass: string }> = {
+    leaderboard: {
+      style: { display: "block", width: "100%", height: "90px", maxWidth: "728px" },
+      containerClass: "h-[90px] max-w-[728px] mx-auto w-full",
+    },
+    banner: {
+      style: { display: "block", width: "100%", height: "90px" },
+      containerClass: "h-[90px] w-full",
+    },
+    sidebar: {
+      style: { display: "block", width: "100%", height: "600px" },
+      containerClass: "w-full h-[600px]",
+    },
   };
 
+  useEffect(() => {
+    if (isPremium) return;
+    try {
+      ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
+    } catch {
+      // AdSense not loaded yet
+    }
+  }, [isPremium]);
+
+  if (isPremium) return null;
+
+  const { style, containerClass } = adFormats[placement];
+
   return (
-    <div
-      className={`rounded-lg border border-dashed border-border/50 bg-secondary/20 flex flex-col items-center justify-center gap-1 text-muted-foreground/60 ${sizeClasses[placement]} ${className}`}
-    >
-      <span className="text-xs font-medium tracking-wide uppercase">{t("ad.space")}</span>
-      <span className="text-[10px]">{t("ad.upgrade")}</span>
+    <div className={`${containerClass} ${className}`} ref={adRef}>
+      <ins
+        className="adsbygoogle"
+        style={style}
+        data-ad-client="ca-pub-7502989047307633"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
     </div>
   );
 }
