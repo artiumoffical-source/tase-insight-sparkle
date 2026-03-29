@@ -16,13 +16,13 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.watchlist": "רשימת מעקב",
     "nav.signOut": "התנתק",
     "nav.signIn": "התחבר",
-    "nav.brand": "TASE Insight",
+    "nav.brand": "AlphaMap",
 
     // Homepage hero
-    "hero.badge": "נתוני TASE בזמן אמת",
-    "hero.title1": "מודיעין שוק ישראלי,",
-    "hero.title2": "בפשטות",
-    "hero.subtitle": "נתונים פיננסיים, גרפים אינטראקטיביים ורשימות מעקב לכל מניה בבורסת תל אביב.",
+    "hero.badge": "נתוני בורסה בזמן אמת",
+    "hero.title1": "נווט בשווקים עם",
+    "hero.title2": "AlphaMap",
+    "hero.subtitle": "נתונים מקצועיים, תובנות בזמן אמת ומודיעין פיננסי גלובלי.",
     "search.placeholder": "חפש לפי שם חברה או טיקר...",
 
     // Features
