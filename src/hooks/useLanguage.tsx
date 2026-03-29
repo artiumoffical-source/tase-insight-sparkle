@@ -202,7 +202,10 @@ const translations: Record<Language, Record<string, string>> = {
     "trending.title": "📈 Trending TASE Stocks",
     "trending.gainers": "Top Gainers",
     "trending.losers": "Top Losers",
-    "trending.priceUnavailable": "Price unavailable",
+    "trending.priceUnavailable": "No data available",
+    "trending.marketOpen": "Market Open",
+    "trending.marketClosed": "Market Closed",
+    "trending.lastTradingDay": "Data from last trading day",
 
     "stock.historicalData": "Historical Financials (5Y)",
     "stock.mockData": "Mock Data",
