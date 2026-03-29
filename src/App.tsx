@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import StockPage from "./pages/StockPage";
 import WatchlistPage from "./pages/WatchlistPage";
 import AuthPage from "./pages/AuthPage";
+import CalendarPage from "./pages/CalendarPage";
 import NotFound from "./pages/NotFound";
 
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/stock/:ticker" element={<StockPage />} />
               <Route path="/watchlist" element={<WatchlistPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

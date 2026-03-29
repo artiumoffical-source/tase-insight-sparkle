@@ -35,6 +35,13 @@ export default function Navbar() {
             <Link to="/">{t("nav.home")}</Link>
           </Button>
 
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/calendar" className="flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5" />
+              {t("nav.calendar")}
+            </Link>
+          </Button>
+
           {user && (
             <Button variant="ghost" size="sm" asChild>
               <Link to="/watchlist" className="flex items-center gap-1.5">
