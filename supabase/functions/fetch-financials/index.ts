@@ -1,10 +1,86 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const CACHE_MAX_AGE_DAYS = 30;
+
+interface FinancialRow {
+  year: string;
+  revenue: number;
+  grossProfit: number;
+  operatingIncome: number;
+  netIncome: number;
+  debtToEquity: number;
+  cashAndEquiv: number;
+}
+
+interface StockMeta {
+  name: string;
+  price: number;
+  change: number;
+  marketCap: string;
+  currency: string;
+}
+
+function formatMarketCap(value: number): string {
+  if (value >= 1e12) return `${(value / 1e12).toFixed(1)}T`;
+  if (value >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+  if (value >= 1e6) return `${(value / 1e6).toFixed(0)}M`;
+  return String(value);
+}
+
+function isCacheFresh(lastUpdated: string): boolean {
+  const updated = new Date(lastUpdated).getTime();
+  const now = Date.now();
+  return now - updated < CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+}
+
+function parseFundamentals(data: any, ticker: string): { meta: StockMeta; financials: FinancialRow[] } {
+  const general = data.General || {};
+  const highlights = data.Highlights || {};
+
+  const meta: StockMeta = {
+    name: general.Name || ticker,
+    price: highlights.WallStreetTargetPrice || 0,
+    change: highlights.QuarterlyRevenueGrowthYOY || 0,
+    marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
+    currency: general.CurrencyCode || "ILS",
+  };
+
+  const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
+  const balanceSheets = data.Financials?.Balance_Sheet?.yearly || {};
+
+  const years = Object.keys(incomeStatements)
+    .sort((a, b) => b.localeCompare(a))
+    .slice(0, 5);
+
+  const financials: FinancialRow[] = years.map((dateKey) => {
+    const income = incomeStatements[dateKey] || {};
+    const balance = balanceSheets[dateKey] || {};
+
+    const totalEquity = parseFloat(balance.totalStockholderEquity) || 1;
+    const totalDebt =
+      (parseFloat(balance.shortLongTermDebt) || 0) +
+      (parseFloat(balance.longTermDebt) || 0);
+
+    return {
+      year: dateKey.substring(0, 4),
+      revenue: parseFloat(income.totalRevenue) || 0,
+      grossProfit: parseFloat(income.grossProfit) || 0,
+      operatingIncome: parseFloat(income.operatingIncome) || 0,
+      netIncome: parseFloat(income.netIncome) || 0,
+      debtToEquity: totalEquity !== 0 ? totalDebt / totalEquity : 0,
+      cashAndEquiv: parseFloat(balance.cash) || parseFloat(balance.cashAndShortTermInvestments) || 0,
+    };
+  });
+
+  return { meta, financials };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -29,95 +105,67 @@ serve(async (req) => {
       });
     }
 
-    const symbol = `${ticker}.TA`;
+    // Initialize Supabase client with service role for cache writes
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch real-time quote
-    const rtResp = await fetch(
-      `https://eodhd.com/api/real-time/${encodeURIComponent(symbol)}?api_token=${apiKey}&fmt=json`
-    );
+    // 1. Check cache first
+    const { data: cached } = await supabase
+      .from("cached_fundamentals")
+      .select("data, last_updated")
+      .eq("ticker", ticker)
+      .maybeSingle();
 
-    // Fetch historical EOD data (last ~5 years for yearly aggregation)
-    const fiveYearsAgo = new Date();
-    fiveYearsAgo.setFullYear(fiveYearsAgo.getFullYear() - 5);
-    const fromDate = fiveYearsAgo.toISOString().split("T")[0];
-
-    const eodResp = await fetch(
-      `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}?api_token=${apiKey}&fmt=json&from=${fromDate}&order=d`
-    );
-
-    // Process real-time data for meta
-    let meta = { name: ticker, price: 0, change: 0, marketCap: "", currency: "ILS" };
-    if (rtResp.ok) {
-      const rt = await rtResp.json();
-      meta = {
-        name: ticker,
-        price: rt.close ?? rt.previousClose ?? 0,
-        change: rt.change_p ?? 0,
-        marketCap: "",
-        currency: "ILS",
-      };
-    } else {
-      await rtResp.text(); // consume body
+    if (cached && isCacheFresh(cached.last_updated)) {
+      console.log(`Cache HIT for ${ticker}`);
+      return new Response(
+        JSON.stringify(cached.data),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Process EOD data into yearly summaries
-    const financials: Array<{
-      year: string;
-      avgClose: number;
-      high: number;
-      low: number;
-      avgVolume: number;
-      tradingDays: number;
-    }> = [];
+    // 2. Cache miss or stale — fetch from EODHD
+    console.log(`Cache MISS for ${ticker}, fetching from EODHD...`);
+    const apiUrl = `https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`;
+    const resp = await fetch(apiUrl);
 
-    if (eodResp.ok) {
-      const eodData = await eodResp.json();
-      if (Array.isArray(eodData) && eodData.length > 0) {
-        // If no real-time data, use latest EOD for meta
-        if (meta.price === 0) {
-          const latest = eodData[0];
-          const prev = eodData.length > 1 ? eodData[1] : null;
-          meta.price = latest.close ?? 0;
-          meta.change = prev?.close
-            ? ((latest.close - prev.close) / prev.close) * 100
-            : 0;
-        }
-
-        // Group by year
-        const byYear: Record<string, typeof eodData> = {};
-        for (const row of eodData) {
-          const year = row.date?.substring(0, 4);
-          if (year) {
-            if (!byYear[year]) byYear[year] = [];
-            byYear[year].push(row);
-          }
-        }
-
-        const sortedYears = Object.keys(byYear).sort((a, b) => b.localeCompare(a)).slice(0, 5);
-        for (const year of sortedYears) {
-          const rows = byYear[year];
-          const closes = rows.map((r: any) => r.close ?? 0).filter((v: number) => v > 0);
-          const highs = rows.map((r: any) => r.high ?? 0);
-          const lows = rows.map((r: any) => r.low ?? 0).filter((v: number) => v > 0);
-          const volumes = rows.map((r: any) => r.volume ?? 0);
-
-          financials.push({
-            year,
-            avgClose: closes.length > 0 ? closes.reduce((a: number, b: number) => a + b, 0) / closes.length : 0,
-            high: Math.max(...highs),
-            low: lows.length > 0 ? Math.min(...lows) : 0,
-            avgVolume: volumes.length > 0 ? volumes.reduce((a: number, b: number) => a + b, 0) / volumes.length : 0,
-            tradingDays: rows.length,
-          });
-        }
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error("EODHD error:", resp.status, text);
+      // If we have stale cache, return it rather than error
+      if (cached) {
+        console.log(`Returning stale cache for ${ticker}`);
+        return new Response(
+          JSON.stringify(cached.data),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch data from EODHD", status: resp.status }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const rawData = await resp.json();
+    const result = parseFundamentals(rawData, ticker);
+
+    // 3. Upsert cache
+    const { error: upsertError } = await supabase
+      .from("cached_fundamentals")
+      .upsert(
+        { ticker, data: result, last_updated: new Date().toISOString() },
+        { onConflict: "ticker" }
+      );
+
+    if (upsertError) {
+      console.error("Cache upsert error:", upsertError);
     } else {
-      const text = await eodResp.text();
-      console.error("EODHD EOD error:", eodResp.status, text);
+      console.log(`Cached fundamentals for ${ticker}`);
     }
 
     return new Response(
-      JSON.stringify({ meta, financials }),
+      JSON.stringify(result),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

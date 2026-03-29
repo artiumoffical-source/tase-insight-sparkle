@@ -19,37 +19,18 @@ interface StockMeta {
   currency: string;
 }
 
-// Mock 5-year financials until EODHD fundamentals plan is available
-function generateMockFinancials(ticker: string): FinancialData[] {
-  const seed = ticker.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const baseRevenue = ((seed % 50) + 5) * 1e8;
-
-  return ["2024", "2023", "2022", "2021", "2020"].map((year, i) => {
-    const factor = 1 - i * 0.06 + (((seed * (i + 1)) % 20) - 10) / 100;
-    const revenue = baseRevenue * factor;
-    const grossProfit = revenue * (0.3 + ((seed % 20) / 100));
-    const operatingIncome = grossProfit * (0.4 + ((seed % 15) / 100));
-    const netIncome = operatingIncome * (0.7 + ((seed % 10) / 100));
-    const debtToEquity = 0.3 + ((seed + i) % 20) / 10;
-    const cashAndEquiv = revenue * (0.1 + ((seed % 12) / 100));
-
-    return { year, revenue, grossProfit, operatingIncome, netIncome, debtToEquity, cashAndEquiv };
-  });
-}
-
 export default function StockPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const { user } = useAuth();
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [financials, setFinancials] = useState<FinancialData[]>([]);
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
 
   const stock = TASE_STOCKS.find((s) => s.ticker === upperTicker);
-  const financials = generateMockFinancials(upperTicker);
 
-  // Fetch live price from edge function
   useEffect(() => {
     if (!upperTicker) return;
     setLoading(true);
@@ -69,15 +50,17 @@ export default function StockPage() {
         }
         return res.json();
       })
-      .then((data) => setMeta(data.meta))
+      .then((data) => {
+        setMeta(data.meta);
+        setFinancials(data.financials ?? []);
+      })
       .catch((err) => {
-        console.error("Failed to fetch stock data:", err);
+        console.error("Failed to fetch financials:", err);
         setError(err.message || "Failed to load data");
       })
       .finally(() => setLoading(false));
   }, [upperTicker]);
 
-  // Check watchlist status
   useEffect(() => {
     if (!user) return;
     supabase
@@ -140,12 +123,15 @@ export default function StockPage() {
           {meta ? (
             <>
               <p className="font-display text-3xl font-bold">
-                ₪{meta.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "—"}
+                {meta.currency === "ILS" ? "₪" : "$"}{meta.price?.toFixed(2) ?? "—"}
               </p>
               <div className={`flex items-center justify-end gap-1 text-sm font-medium ${isPositive ? "text-gain" : "text-loss"}`}>
                 {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                 {isPositive ? "+" : ""}{meta.change?.toFixed(2) ?? 0}%
               </div>
+              {meta.marketCap && (
+                <p className="text-xs text-muted-foreground mt-1">Market Cap: {meta.marketCap}</p>
+              )}
             </>
           ) : !loading ? (
             <p className="text-muted-foreground">—</p>
@@ -155,23 +141,19 @@ export default function StockPage() {
 
       {error && (
         <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-          Failed to load price data: {error}
+          Failed to load financial data: {error}
         </div>
       )}
 
       {/* Chart */}
       <TradingViewChart ticker={upperTicker} />
 
-      {/* Financials (mock data) */}
+      {/* Financials */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="font-display text-xl font-semibold">Historical Financials (5Y)</h2>
-          <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">Mock Data</span>
-        </div>
-        <FinancialsTable data={financials} loading={false} />
+        <h2 className="font-display text-xl font-semibold mb-3">Historical Financials (5Y)</h2>
+        <FinancialsTable data={financials} loading={loading} />
       </div>
 
-      {/* Ad */}
       <AdSlot placement="banner" />
     </div>
   );
