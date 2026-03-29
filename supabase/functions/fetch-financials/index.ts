@@ -19,6 +19,18 @@ interface FinancialRow {
   cashAndEquiv: number;
 }
 
+interface KeyMetrics {
+  peRatio: number | null;
+  psRatio: number | null;
+  pbRatio: number | null;
+  roe: number | null;
+  roa: number | null;
+  revenueGrowth5Y: number | null;
+  revenueGrowth10Y: number | null;
+  netIncomeMargin5Y: number | null;
+  netIncomeMargin10Y: number | null;
+}
+
 interface StockMeta {
   name: string;
   price: number;
