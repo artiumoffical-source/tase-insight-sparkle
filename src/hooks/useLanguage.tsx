@@ -37,7 +37,10 @@ const translations: Record<Language, Record<string, string>> = {
     "trending.title": "📈 מניות מובילות בבורסה",
     "trending.gainers": "המרוויחות",
     "trending.losers": "המפסידות",
-    "trending.priceUnavailable": "מחיר לא זמין",
+    "trending.priceUnavailable": "אין נתונים זמינים כרגע",
+    "trending.marketOpen": "הבורסה פתוחה",
+    "trending.marketClosed": "הבורסה סגורה",
+    "trending.lastTradingDay": "נתונים מיום המסחר האחרון",
 
     // Stock page
     "stock.historicalData": "דוחות כספיים היסטוריים (5 שנים)",
