@@ -16,13 +16,13 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.watchlist": "רשימת מעקב",
     "nav.signOut": "התנתק",
     "nav.signIn": "התחבר",
-    "nav.brand": "TASE Insight",
+    "nav.brand": "AlphaMap",
 
     // Homepage hero
-    "hero.badge": "נתוני TASE בזמן אמת",
-    "hero.title1": "מודיעין שוק ישראלי,",
-    "hero.title2": "בפשטות",
-    "hero.subtitle": "נתונים פיננסיים, גרפים אינטראקטיביים ורשימות מעקב לכל מניה בבורסת תל אביב.",
+    "hero.badge": "נתוני בורסה בזמן אמת",
+    "hero.title1": "נווט בשווקים עם",
+    "hero.title2": "AlphaMap",
+    "hero.subtitle": "נתונים מקצועיים, תובנות בזמן אמת ומודיעין פיננסי גלובלי.",
     "search.placeholder": "חפש לפי שם חברה או טיקר...",
 
     // Features
@@ -88,8 +88,8 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.researchDev": "מחקר ופיתוח (R&D)",
 
     // Upgrade
-    "upgrade.title": "הצטרף ל-TASE Insight Premium",
-    "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות לבורסת תל אביב.",
+    "upgrade.title": "הצטרף ל-AlphaMap Premium",
+    "upgrade.subtitle": "פתח גישה לנתונים רבעוניים, הסר פרסומות וקבל תובנות מתקדמות.",
     "upgrade.feat1": "דוחות כספיים רבעוניים",
     "upgrade.feat2": "חוויה ללא פרסומות",
     "upgrade.feat3": "תובנות וניתוחים מתקדמים",
@@ -184,12 +184,12 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.watchlist": "Watchlist",
     "nav.signOut": "Sign Out",
     "nav.signIn": "Sign In",
-    "nav.brand": "TASE Insight",
+    "nav.brand": "AlphaMap",
 
-    "hero.badge": "Live TASE Data",
-    "hero.title1": "Israeli Market Intelligence,",
-    "hero.title2": "Simplified",
-    "hero.subtitle": "Financial data, interactive charts, and watchlists for every stock on the Tel Aviv Stock Exchange.",
+    "hero.badge": "Live Market Data",
+    "hero.title1": "Navigate the Markets with",
+    "hero.title2": "AlphaMap",
+    "hero.subtitle": "Professional data, real-time insights, and global financial intelligence.",
     "search.placeholder": "Search by company name or ticker...",
 
     "feature.financials.title": "5-Year Financials",
@@ -250,8 +250,8 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.totalInvestments": "Total Investments",
     "fin.researchDev": "R&D Expenses",
 
-    "upgrade.title": "Join TASE Insight Premium",
-    "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced TASE insights.",
+    "upgrade.title": "Join AlphaMap Premium",
+    "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced market insights.",
     "upgrade.feat1": "Quarterly financial reports",
     "upgrade.feat2": "Ad-free experience",
     "upgrade.feat3": "Advanced insights & analytics",

@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { signOut } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Star, LogOut, User, Globe, CalendarDays } from "lucide-react";
+import { Compass, Star, LogOut, User, Globe, CalendarDays } from "lucide-react";
 
 export default function Navbar() {
   const { user, loading } = useAuth();
@@ -21,8 +21,8 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-md">
       <div className="container flex h-14 items-center justify-between">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold tracking-tight">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          <span>{t("nav.brand")}</span>
+          <Compass className="h-5 w-5 text-primary" />
+          <span className="bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">AlphaMap</span>
         </Link>
 
         <div className="flex items-center gap-2">

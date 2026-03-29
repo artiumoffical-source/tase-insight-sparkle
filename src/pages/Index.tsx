@@ -2,14 +2,14 @@ import SearchBar from "@/components/SearchBar";
 import TrendingStocks from "@/components/TrendingStocks";
 import AdSlot from "@/components/AdSlot";
 import { useLanguage } from "@/hooks/useLanguage";
-import { BarChart3, TrendingUp, Shield } from "lucide-react";
+import { Compass, TrendingUp, Shield } from "lucide-react";
 
 export default function Index() {
   const { t } = useLanguage();
 
   const FEATURES = [
     { icon: TrendingUp, title: t("feature.financials.title"), desc: t("feature.financials.desc") },
-    { icon: BarChart3, title: t("feature.charts.title"), desc: t("feature.charts.desc") },
+    { icon: Compass, title: t("feature.charts.title"), desc: t("feature.charts.desc") },
     { icon: Shield, title: t("feature.watchlist.title"), desc: t("feature.watchlist.desc") },
   ];
 
