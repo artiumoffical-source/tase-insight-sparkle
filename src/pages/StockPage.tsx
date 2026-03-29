@@ -35,7 +35,7 @@ export default function StockPage() {
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const isPremium = !!user;
+  const isPremium = user?.email === "artiumoffical@gmail.com";
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
 
   const stock = TASE_STOCKS.find((s) => s.ticker === upperTicker);

@@ -1,4 +1,5 @@
 import { useLanguage } from "@/hooks/useLanguage";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Crown, Zap, BarChart3, ShieldOff } from "lucide-react";
@@ -11,7 +12,9 @@ interface UpgradeModalProps {
 
 export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const isLoggedIn = !!user;
 
   const features = [
     { icon: BarChart3, labelKey: "upgrade.feat1" },
@@ -48,10 +51,12 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
           className="w-full font-display text-base"
           onClick={() => {
             onOpenChange(false);
-            navigate("/auth");
+            if (!isLoggedIn) {
+              navigate("/auth");
+            }
           }}
         >
-          {t("upgrade.signUpLogin")}
+          {isLoggedIn ? t("upgrade.stripeSoon") : t("upgrade.signUpLogin")}
         </Button>
 
         <p className="text-center text-[11px] text-muted-foreground mt-1">
