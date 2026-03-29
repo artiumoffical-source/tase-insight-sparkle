@@ -86,3 +86,12 @@
     background-color: hsl(var(--surface-elevated));
   }
 }
+
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}

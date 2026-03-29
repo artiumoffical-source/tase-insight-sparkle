@@ -159,8 +159,11 @@ export default function StockPage() {
 
           <TradingViewSymbolOverview ticker={upperTicker} />
 
-          {/* Mid-content ad between chart and table */}
+          {/* Ad between chart and key metrics */}
           <AdSlot placement="banner" />
+
+          {/* In-content ad */}
+          <AdSlot placement="leaderboard" />
 
           <KeyMetrics
             data={keyMetrics}
