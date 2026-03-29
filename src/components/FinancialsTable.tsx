@@ -23,6 +23,17 @@ function formatNum(value: number): string {
   return value.toFixed(2);
 }
 
+type MetricKey = "revenue" | "grossProfit" | "operatingIncome" | "netIncome" | "debtToEquity" | "cashAndEquiv";
+
+const METRICS: { key: MetricKey; labelKey: string; colored?: boolean; isRatio?: boolean }[] = [
+  { key: "revenue", labelKey: "fin.revenue" },
+  { key: "grossProfit", labelKey: "fin.grossProfit" },
+  { key: "operatingIncome", labelKey: "fin.operatingIncome", colored: true },
+  { key: "netIncome", labelKey: "fin.netIncome", colored: true },
+  { key: "debtToEquity", labelKey: "fin.deRatio", isRatio: true },
+  { key: "cashAndEquiv", labelKey: "fin.cash" },
+];
+
 export default function FinancialsTable({ data, loading }: FinancialsTableProps) {
   const { t } = useLanguage();
 
@@ -46,6 +57,10 @@ export default function FinancialsTable({ data, loading }: FinancialsTableProps)
     );
   }
 
+  const years = [...data].sort((a, b) => a.year.localeCompare(b.year)).map((d) => d.year);
+  const byYear: Record<string, FinancialData> = {};
+  data.forEach((d) => (byYear[d.year] = d));
+
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <div className="overflow-x-auto">
@@ -53,28 +68,24 @@ export default function FinancialsTable({ data, loading }: FinancialsTableProps)
           <TableHeader>
             <TableRow className="border-b-border hover:bg-transparent">
               <TableHead className="font-display text-muted-foreground">{t("fin.year")}</TableHead>
-              <TableHead className="font-display text-muted-foreground text-end">{t("fin.revenue")}</TableHead>
-              <TableHead className="font-display text-muted-foreground text-end">{t("fin.grossProfit")}</TableHead>
-              <TableHead className="font-display text-muted-foreground text-end">{t("fin.operatingIncome")}</TableHead>
-              <TableHead className="font-display text-muted-foreground text-end">{t("fin.netIncome")}</TableHead>
-              <TableHead className="font-display text-muted-foreground text-end">{t("fin.deRatio")}</TableHead>
-              <TableHead className="font-display text-muted-foreground text-end">{t("fin.cash")}</TableHead>
+              {years.map((y) => (
+                <TableHead key={y} className="font-display text-muted-foreground text-end">{y}</TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((row) => (
-              <TableRow key={row.year} className="border-b-border">
-                <TableCell className="font-display font-semibold">{row.year}</TableCell>
-                <TableCell className="text-end font-mono">{formatNum(row.revenue)}</TableCell>
-                <TableCell className="text-end font-mono">{formatNum(row.grossProfit)}</TableCell>
-                <TableCell className={`text-end font-mono ${row.operatingIncome >= 0 ? "text-gain" : "text-loss"}`}>
-                  {formatNum(row.operatingIncome)}
-                </TableCell>
-                <TableCell className={`text-end font-mono ${row.netIncome >= 0 ? "text-gain" : "text-loss"}`}>
-                  {formatNum(row.netIncome)}
-                </TableCell>
-                <TableCell className="text-end font-mono">{row.debtToEquity.toFixed(2)}</TableCell>
-                <TableCell className="text-end font-mono">{formatNum(row.cashAndEquiv)}</TableCell>
+            {METRICS.map((m) => (
+              <TableRow key={m.key} className="border-b-border">
+                <TableCell className="font-display font-semibold">{t(m.labelKey)}</TableCell>
+                {years.map((y) => {
+                  const val = byYear[y]?.[m.key] ?? 0;
+                  const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
+                  return (
+                    <TableCell key={y} className={`text-end font-mono ${colorClass}`}>
+                      {m.isRatio ? val.toFixed(2) : formatNum(val)}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>

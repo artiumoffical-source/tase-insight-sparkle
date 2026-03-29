@@ -35,8 +35,9 @@ serve(async (req) => {
     const results = await Promise.all(
       tickerList.map(async (t) => {
         try {
+          const symbol = t.includes(".") ? t : `${t}.TA`;
           const resp = await fetch(
-            `https://eodhd.com/api/real-time/${t}.TA?api_token=${apiKey}&fmt=json`
+            `https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`
           );
           if (!resp.ok) {
             const text = await resp.text();
@@ -44,10 +45,13 @@ serve(async (req) => {
             return { ticker: t, price: 0, change: 0, error: true };
           }
           const data = await resp.json();
-          if (!data || data.close == null) {
+          console.log(`EODHD RT ${t}:`, JSON.stringify(data));
+          const price = Number(data?.close) || Number(data?.previousClose) || Number(data?.open) || 0;
+          const change = Number(data?.change_p) || 0;
+          if (price <= 0) {
             return { ticker: t, price: 0, change: 0, error: true };
           }
-          return { ticker: t, price: Number(data.close), change: Number(data.change_p ?? 0), error: false };
+          return { ticker: t, price, change, error: false };
         } catch (e) {
           console.error(`Error fetching ${t}:`, e);
           return { ticker: t, price: 0, change: 0, error: true };

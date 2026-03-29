@@ -127,13 +127,17 @@ serve(async (req) => {
     // Always fetch fresh real-time price
     let eodPrice: { price: number; change: number } | undefined;
     try {
+      const symbol = ticker.includes(".") ? ticker : `${ticker}.TA`;
       const rtResp = await fetch(
-        `https://eodhd.com/api/real-time/${ticker}.TA?api_token=${apiKey}&fmt=json`
+        `https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`
       );
       if (rtResp.ok) {
         const rtData = await rtResp.json();
-        if (rtData && rtData.close != null) {
-          eodPrice = { price: Number(rtData.close), change: Number(rtData.change_p ?? 0) };
+        console.log("EODHD Real-Time Response:", JSON.stringify(rtData));
+        const price = Number(rtData?.close) || Number(rtData?.previousClose) || Number(rtData?.open) || 0;
+        const change = Number(rtData?.change_p) || 0;
+        if (price > 0) {
+          eodPrice = { price, change };
         }
       }
     } catch (e) {
