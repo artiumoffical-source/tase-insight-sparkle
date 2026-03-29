@@ -11,6 +11,7 @@ interface UpgradeModalProps {
 
 export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   const features = [
     { icon: BarChart3, labelKey: "upgrade.feat1" },
