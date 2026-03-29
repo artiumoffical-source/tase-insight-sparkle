@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import Navbar from "@/components/Navbar";
+import AdSlot from "@/components/AdSlot";
 import Index from "./pages/Index";
 import StockPage from "./pages/StockPage";
 import WatchlistPage from "./pages/WatchlistPage";
@@ -23,6 +24,9 @@ const App = () => (
         <LanguageProvider>
           <AuthProvider>
             <Navbar />
+            <div className="w-full">
+              <AdSlot placement="leaderboard" className="my-3" />
+            </div>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/stock/:ticker" element={<StockPage />} />

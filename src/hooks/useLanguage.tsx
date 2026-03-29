@@ -84,6 +84,7 @@ const translations: Record<Language, Record<string, string>> = {
 
     // Ad
     "ad.space": "מקום לפרסום",
+    "ad.upgrade": "שדרג לפרימיום להסרת פרסומות",
 
     // 404
     "notFound.title": "404",
@@ -154,7 +155,8 @@ const translations: Record<Language, Record<string, string>> = {
     "auth.noAccount": "Don't have an account?",
     "auth.checkEmail": "Check your email to confirm your account",
 
-    "ad.space": "Ad Space",
+    "ad.space": "Advertisement",
+    "ad.upgrade": "Upgrade to Premium to remove ads",
 
     "notFound.title": "404",
     "notFound.message": "Oops! Page not found",
