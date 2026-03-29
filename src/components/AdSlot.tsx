@@ -1,19 +1,25 @@
 import { useLanguage } from "@/hooks/useLanguage";
 
 interface AdSlotProps {
-  placement: "banner" | "sidebar";
+  placement: "leaderboard" | "banner" | "sidebar";
+  className?: string;
 }
 
-export default function AdSlot({ placement }: AdSlotProps) {
+export default function AdSlot({ placement, className = "" }: AdSlotProps) {
   const { t } = useLanguage();
+
+  const sizeClasses: Record<string, string> = {
+    leaderboard: "h-[90px] max-w-[728px] mx-auto w-full",
+    banner: "h-[90px] w-full",
+    sidebar: "w-full h-[600px]",
+  };
 
   return (
     <div
-      className={`rounded-lg border border-dashed border-border bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground ${
-        placement === "banner" ? "h-20 w-full" : "h-64 w-full"
-      }`}
+      className={`rounded-lg border border-dashed border-border/50 bg-secondary/20 flex flex-col items-center justify-center gap-1 text-muted-foreground/60 ${sizeClasses[placement]} ${className}`}
     >
-      {t("ad.space")} — {placement}
+      <span className="text-xs font-medium tracking-wide uppercase">{t("ad.space")}</span>
+      <span className="text-[10px]">{t("ad.upgrade")}</span>
     </div>
   );
 }
