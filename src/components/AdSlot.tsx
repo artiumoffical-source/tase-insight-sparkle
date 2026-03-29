@@ -7,6 +7,11 @@ interface AdSlotProps {
 
 export default function AdSlot({ placement, className = "" }: AdSlotProps) {
   const { t } = useLanguage();
+  const { useAuth } = require("@/hooks/useAuth");
+  const { user } = useAuth();
+
+  // Hide ads for logged-in (premium) users
+  if (user) return null;
 
   const sizeClasses: Record<string, string> = {
     leaderboard: "h-[90px] max-w-[728px] mx-auto w-full",

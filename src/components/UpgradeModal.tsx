@@ -46,11 +46,11 @@ export default function UpgradeModal({ open, onOpenChange }: UpgradeModalProps) 
           size="lg"
           className="w-full font-display text-base"
           onClick={() => {
-            toast.info(t("upgrade.comingSoon"));
             onOpenChange(false);
+            window.location.href = "/auth";
           }}
         >
-          {t("upgrade.subscribe")}
+          {t("upgrade.signUpLogin")}
         </Button>
 
         <p className="text-center text-[11px] text-muted-foreground mt-1">
