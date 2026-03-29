@@ -1,16 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Progress } from "@/components/ui/progress";
-import { ExternalLink, Newspaper, TrendingUp, TrendingDown, Minus, Lock } from "lucide-react";
+import { Newspaper, TrendingUp, TrendingDown, Minus, Lock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface NewsItem {
-  title: string;
-  url: string;
-  source: string;
-  date: string;
-  sentiment: number;
-}
+import NewsReaderModal, { type NewsArticle } from "@/components/NewsReaderModal";
 
 interface StockNewsSidebarProps {
   ticker: string;
@@ -44,15 +37,16 @@ function sentimentLabel(s: number, t: (k: string) => string) {
 }
 
 function sentimentProgress(s: number) {
-  // Map -1..1 to 0..100
   return Math.round(((s + 1) / 2) * 100);
 }
 
 export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: StockNewsSidebarProps) {
   const { t, lang } = useLanguage();
-  const [items, setItems] = useState<NewsItem[]>([]);
+  const [items, setItems] = useState<NewsArticle[]>([]);
   const [avgSentiment, setAvgSentiment] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const [readerOpen, setReaderOpen] = useState(false);
 
   const fetchNews = useCallback(async () => {
     try {
@@ -75,14 +69,20 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
 
   useEffect(() => {
     fetchNews();
-    const interval = setInterval(fetchNews, 5 * 60 * 1000); // 5 min polling
+    const interval = setInterval(fetchNews, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchNews]);
+
+  const handleArticleClick = (article: NewsArticle) => {
+    setSelectedArticle(article);
+    setReaderOpen(true);
+  };
 
   const visibleItems = isPremium ? items : items.slice(0, 3);
   const progressValue = sentimentProgress(avgSentiment);
   const isPositive = avgSentiment > 0.15;
   const isNegative = avgSentiment < -0.15;
+  const isHe = lang === "he";
 
   return (
     <div className="space-y-4">
@@ -149,28 +149,26 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
         ) : (
           <div className="space-y-3">
             {visibleItems.map((item, i) => (
-              <a
+              <button
                 key={i}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group block rounded-lg p-2.5 -mx-1 hover:bg-secondary/50 transition-colors"
+                onClick={() => handleArticleClick(item)}
+                className="group block w-full text-start rounded-lg p-2.5 -mx-1 hover:bg-secondary/50 transition-colors"
               >
                 <div className="flex items-start gap-2">
                   <span className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${sentimentColor(item.sentiment)}`} />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                      {item.title}
+                      {isHe && item.titleHe ? item.titleHe : item.title}
                     </p>
                     <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                       <span>{item.source}</span>
                       <span>·</span>
                       <span>{timeAgo(item.date, lang)}</span>
-                      <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity ms-auto" />
+                      <BookOpen className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity ms-auto" />
                     </div>
                   </div>
                 </div>
-              </a>
+              </button>
             ))}
 
             {!isPremium && items.length > 3 && (
@@ -178,7 +176,7 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
                 <div className="space-y-3 blur-sm pointer-events-none select-none">
                   {items.slice(3, 5).map((item, i) => (
                     <div key={i} className="rounded-lg p-2.5">
-                      <p className="text-xs font-medium leading-snug line-clamp-2">{item.title}</p>
+                      <p className="text-xs font-medium leading-snug line-clamp-2">{isHe && item.titleHe ? item.titleHe : item.title}</p>
                       <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                         <span>{item.source}</span>
                       </div>
@@ -201,6 +199,15 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
           </div>
         )}
       </div>
+
+      {/* Reader Modal */}
+      <NewsReaderModal
+        article={selectedArticle}
+        open={readerOpen}
+        onOpenChange={setReaderOpen}
+        isPremium={isPremium}
+        onUpgrade={onUpgrade}
+      />
     </div>
   );
 }
