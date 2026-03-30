@@ -4,6 +4,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Circle, RefreshCw } from "lucide-react";
 import StockLogo from "@/components/StockLogo";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StockRow {
   symbol: string;
@@ -12,7 +13,27 @@ interface StockRow {
   price: number | null;
   change: number | null;
   flash?: "up" | "down" | "";
+  logoUrl?: string | null;
+  domain?: string | null;
 }
+
+// Domain mapping for clearbit fallback
+const COMPANY_DOMAINS: Record<string, string> = {
+  LUMI: "bankleumi.co.il",
+  POLI: "bankhapoalim.co.il",
+  TEVA: "tevapharm.com",
+  ICL: "icl-group.com",
+  ESLT: "elbitsystems.com",
+  AZRG: "azrieli.com",
+  DSCT: "discountbank.co.il",
+  MZTF: "mizrahi-tefahot.co.il",
+  NICE: "nice.com",
+  BEZQ: "bezeq.co.il",
+  NXSN: "nextvision.com",
+  PHOE: "fnx.co.il",
+  CEL: "cellcom.co.il",
+  CLIS: "clalbit.co.il",
+};
 
 const ALL_STOCKS: StockRow[] = [
   { symbol: "LUMI", nameHe: "בנק לאומי", nameEn: "Bank Leumi", price: null, change: null },
