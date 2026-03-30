@@ -502,7 +502,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
 
                 {/* Solvency Ratios Section */}
                 <tr>
-                  <td colSpan={years.length + 2} className="p-0">
+                  <td colSpan={years.length + 1} className="p-0">
                     <div className="border-t-2 border-border/40 bg-muted/10 px-4 py-2">
                       <span className="font-display font-bold text-xs text-muted-foreground uppercase tracking-wide">
                         {t("fin.solvencyRatios")}
@@ -514,22 +514,16 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                   { labelKey: "fin.currentRatio", getValue: (r: any) => r.currentRatio },
                   { labelKey: "fin.deRatio", getValue: (r: any) => r.debtToEquity, invertColor: true },
                   { labelKey: "fin.quickRatio", getValue: (r: any) => r.quickRatio },
-                ].map((ratio, idx) => {
-                  const vals = solvencyRatios.map(r => ratio.getValue(r));
-                  const yoy = vals.length >= 2 ? formatYoYText(vals[vals.length - 1], vals[vals.length - 2]) : "—";
-                  const yoyColor = vals.length >= 2 ? getYoYColor(vals[vals.length - 1], vals[vals.length - 2], ratio.invertColor) : "";
-                  return (
-                    <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
-                      <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
-                      {solvencyRatios.map((r, i) => (
-                        <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
-                          {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
-                        </td>
-                      ))}
-                      <td className={`text-end py-2.5 px-3 font-mono text-xs ${yoyColor}`}>{yoy}</td>
-                    </tr>
-                  );
-                })}
+                ].map((ratio, idx) => (
+                  <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
+                    <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
+                    {solvencyRatios.map((r) => (
+                      <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
+                        {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
