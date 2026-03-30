@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Circle, RefreshCw } from "lucide-react";
-import StockLogo from "@/components/StockLogo";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
 import { supabase } from "@/integrations/supabase/client";
 
