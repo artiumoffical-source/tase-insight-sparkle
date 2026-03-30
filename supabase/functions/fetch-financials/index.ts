@@ -82,8 +82,47 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
       inventory: parseFloat(bal.inventory) || 0,
-      totalDeposits: parseFloat(bal.otherCurrentLiab) || 0, // proxy for bank deposits
+      totalDeposits: parseFloat(bal.otherCurrentLiab) || 0,
       totalInvestments: parseFloat(bal.longTermInvestments) || parseFloat(bal.shortTermInvestments) || 0,
+    };
+  });
+}
+
+function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]) {
+  return dateKeys.slice().reverse().map((dateKey) => {
+    const b = balanceSheets[dateKey] || {};
+    const p = (field: string) => parseFloat(b[field]) || 0;
+    const totalCurrentAssets = p("totalCurrentAssets") || (p("cash") + p("shortTermInvestments") + p("netReceivables") + p("inventory") + p("otherCurrentAssets"));
+    const nonCurrentAssetsTotal = p("nonCurrentAssetsTotal") || (p("totalAssets") - totalCurrentAssets);
+    const totalCurrentLiabilities = p("totalCurrentLiabilities") || (p("accountsPayable") + p("shortTermDebt") + p("otherCurrentLiab"));
+    const nonCurrentLiabilitiesTotal = p("nonCurrentLiabilitiesTotal") || (p("totalLiab") - totalCurrentLiabilities);
+    return {
+      year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
+      totalAssets: p("totalAssets"),
+      totalCurrentAssets,
+      cash: p("cash") || p("cashAndShortTermInvestments"),
+      shortTermInvestments: p("shortTermInvestments"),
+      netReceivables: p("netReceivables"),
+      inventory: p("inventory"),
+      otherCurrentAssets: p("otherCurrentAssets"),
+      nonCurrentAssetsTotal,
+      propertyPlantEquipment: p("propertyPlantAndEquipmentNet") || p("propertyPlantEquipment"),
+      longTermInvestments: p("longTermInvestments"),
+      goodwill: p("goodWill") || p("goodwill"),
+      intangibleAssets: p("intangibleAssets"),
+      otherNonCurrentAssets: p("nonCurrrentAssetsOther") || p("otherNonCurAssets"),
+      totalLiabilities: p("totalLiab"),
+      totalCurrentLiabilities,
+      accountsPayable: p("accountsPayable"),
+      shortTermDebt: p("shortTermDebt") || p("shortLongTermDebt"),
+      otherCurrentLiabilities: p("otherCurrentLiab"),
+      nonCurrentLiabilitiesTotal,
+      longTermDebt: p("longTermDebt") || p("longTermDebtTotal"),
+      otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
+      totalEquity: p("totalStockholderEquity"),
+      commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
+      retainedEarnings: p("retainedEarnings"),
+      otherEquity: p("accumulatedOtherComprehensiveIncome") || p("otherStockholderEquity"),
     };
   });
 }
