@@ -23,10 +23,16 @@ async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: 
       const data = await resp.json();
       const rawPrice = Number(data?.close) || Number(data?.last) || Number(data?.previousClose) || Number(data?.open) || 0;
       if (rawPrice > 0) {
-        return { price: toNis(rawPrice), change: Math.round((Number(data?.change_p) || 0) * 100) / 100 };
+        const price = toNis(rawPrice);
+        const change = Math.round((Number(data?.change_p) || 0) * 100) / 100;
+        if (!isSaneChange(change)) {
+          console.log(`[EODHD-RT] ${symbol} SKIPPED: change ${change}% exceeds sanity threshold`);
+          return null;
+        }
+        return { price, change };
       }
     } else {
-      await resp.text(); // consume body
+      await resp.text();
     }
   } catch { /* fall through */ }
 
@@ -35,14 +41,16 @@ async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: 
     const resp = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&fmt=json&order=d&limit=2`);
     if (resp.ok) {
       const days = await resp.json();
-      if (Array.isArray(days) && days.length > 0) {
+      if (Array.isArray(days) && days.length >= 2) {
         const rawPrice = Number(days[0].adjusted_close) || Number(days[0].close) || 0;
-        if (rawPrice > 0) {
+        const prevRaw = Number(days[1].adjusted_close) || Number(days[1].close) || 0;
+        if (rawPrice > 0 && prevRaw > 0) {
           const price = toNis(rawPrice);
-          let change = 0;
-          if (days.length > 1) {
-            const prevRaw = Number(days[1].adjusted_close) || Number(days[1].close) || 0;
-            if (prevRaw > 0) change = Math.round(((price - toNis(prevRaw)) / toNis(prevRaw)) * 10000) / 100;
+          const prev = toNis(prevRaw);
+          const change = Math.round(((price - prev) / prev) * 10000) / 100;
+          if (!isSaneChange(change)) {
+            console.log(`[EODHD-EOD] ${symbol} SKIPPED: change ${change}% exceeds sanity threshold`);
+            return null;
           }
           return { price, change };
         }
