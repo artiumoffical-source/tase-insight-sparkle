@@ -291,13 +291,40 @@ serve(async (req) => {
       console.log(`Cache HIT for ${ticker} fundamentals`);
       const d = cached.data as any;
       const cachedMeta = d?.meta ?? {};
+      // Re-build detailedBalanceSheet if cached version is empty (from old cache)
+      let detailedBS = d?.detailedBalanceSheet ?? [];
+      if ((!detailedBS || detailedBS.length === 0) && d?.meta) {
+        // Try to re-parse from raw EODHD if we have the raw data
+        // Otherwise build from basic balance sheet
+        const basicBS = d?.balanceSheet ?? [];
+        detailedBS = basicBS.map((row: any) => ({
+          year: row.year,
+          totalAssets: row.totalAssets || 0,
+          totalCurrentAssets: (row.cash || 0) + (row.inventory || 0),
+          cash: row.cash || 0,
+          shortTermInvestments: 0,
+          netReceivables: 0,
+          inventory: row.inventory || 0,
+          otherCurrentAssets: 0,
+          nonCurrentAssetsTotal: (row.totalAssets || 0) - ((row.cash || 0) + (row.inventory || 0)),
+          propertyPlantEquipment: 0,
+          longTermInvestments: row.totalInvestments || 0,
+          goodwill: 0, intangibleAssets: 0, otherNonCurrentAssets: 0,
+          totalLiabilities: row.totalLiabilities || 0,
+          totalCurrentLiabilities: 0, accountsPayable: 0, shortTermDebt: 0, otherCurrentLiabilities: 0,
+          nonCurrentLiabilitiesTotal: 0,
+          longTermDebt: row.totalDebt || 0, otherNonCurrentLiabilities: 0,
+          totalEquity: row.totalEquity || 0,
+          commonStock: 0, retainedEarnings: 0, otherEquity: 0,
+        }));
+      }
       return new Response(JSON.stringify({
         meta: { ...cachedMeta, price: eodPrice?.price ?? cachedMeta.price ?? 0, change: eodPrice?.change ?? cachedMeta.change ?? 0 },
         financials: d?.financials ?? [],
         incomeStatement: d?.incomeStatement ?? [],
         balanceSheet: d?.balanceSheet ?? [],
         cashFlow: d?.cashFlow ?? [],
-        detailedBalanceSheet: d?.detailedBalanceSheet ?? [],
+        detailedBalanceSheet: detailedBS,
         qIncomeStatement: d?.qIncomeStatement ?? [],
         qBalanceSheet: d?.qBalanceSheet ?? [],
         qCashFlow: d?.qCashFlow ?? [],

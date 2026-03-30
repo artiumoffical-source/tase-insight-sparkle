@@ -81,13 +81,47 @@ export default function StockPage() {
   const stock = TASE_STOCKS.find((s) => s.ticker === upperTicker);
 
   // Apply cached financials data to state
+  // Build detailed balance sheet from basic data as fallback
+  const buildFallbackDetailedBS = (bs: BalanceSheetRow[]): DetailedBalanceSheetRow[] => {
+    return bs.map(row => ({
+      year: row.year,
+      totalAssets: row.totalAssets,
+      totalCurrentAssets: row.cash + row.inventory,
+      cash: row.cash,
+      shortTermInvestments: 0,
+      netReceivables: 0,
+      inventory: row.inventory,
+      otherCurrentAssets: 0,
+      nonCurrentAssetsTotal: row.totalAssets - (row.cash + row.inventory),
+      propertyPlantEquipment: 0,
+      longTermInvestments: row.totalInvestments || 0,
+      goodwill: 0,
+      intangibleAssets: 0,
+      otherNonCurrentAssets: 0,
+      totalLiabilities: row.totalLiabilities,
+      totalCurrentLiabilities: 0,
+      accountsPayable: 0,
+      shortTermDebt: 0,
+      otherCurrentLiabilities: 0,
+      nonCurrentLiabilitiesTotal: 0,
+      longTermDebt: row.totalDebt,
+      otherNonCurrentLiabilities: 0,
+      totalEquity: row.totalEquity,
+      commonStock: 0,
+      retainedEarnings: 0,
+      otherEquity: 0,
+    }));
+  };
+
   const applyFinancialsData = (data: FinancialsResponse) => {
     setMeta(data.meta);
     setFinancials(data.financials ?? []);
     setIncomeStatement(data.incomeStatement ?? []);
     setBalanceSheet(data.balanceSheet ?? []);
     setCashFlow(data.cashFlow ?? []);
-    setDetailedBalanceSheet(data.detailedBalanceSheet ?? []);
+    // Use detailed data if available, otherwise reconstruct from basic balance sheet
+    const detailed = data.detailedBalanceSheet?.length ? data.detailedBalanceSheet : buildFallbackDetailedBS(data.balanceSheet ?? []);
+    setDetailedBalanceSheet(detailed);
     setQIncomeStatement(data.qIncomeStatement ?? []);
     setQBalanceSheet(data.qBalanceSheet ?? []);
     setQCashFlow(data.qCashFlow ?? []);

@@ -136,6 +136,9 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  // Debug: log data to verify it arrives
+  
+
   const years = useMemo(() => {
     if (!data.length) return [];
     return [...data].sort((a, b) => a.year.localeCompare(b.year)).map(r => r.year);
@@ -232,36 +235,38 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
                         )}
                         onClick={() => canExpand && toggleExpand(node.field)}
                       >
-                        <td className="py-2.5 px-4 font-display font-semibold flex items-center gap-2">
-                          {canExpand ? (
-                            <ChevronRight
-                              className={cn(
-                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                                isExpanded && "rotate-90"
-                              )}
-                            />
-                          ) : (
-                            <span className="w-4" />
-                          )}
-                          <span>{t(node.labelKey)}</span>
-                          {checksumResult && checksumResult !== "unavailable" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  {checksumResult === "verified" ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-gain" />
-                                  ) : (
-                                    <AlertCircle className="h-3.5 w-3.5 text-yellow-500" />
-                                  )}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {checksumResult === "verified"
-                                  ? t("deepdive.verified")
-                                  : t("deepdive.checksumMismatch")}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
+                         <td className="py-2.5 px-4 font-display font-semibold">
+                          <div className="flex items-center gap-2" dir="rtl">
+                            <span>{t(node.labelKey)}</span>
+                            {canExpand ? (
+                              <ChevronRight
+                                className={cn(
+                                  "h-5 w-5 shrink-0 text-primary transition-transform duration-200",
+                                  isExpanded && "rotate-90"
+                                )}
+                              />
+                            ) : (
+                              <span className="w-5" />
+                            )}
+                            {checksumResult && checksumResult !== "unavailable" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    {checksumResult === "verified" ? (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-gain" />
+                                    ) : (
+                                      <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                                    )}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {checksumResult === "verified"
+                                    ? t("deepdive.verified")
+                                    : t("deepdive.checksumMismatch")}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                         </td>
                         {years.map(y => (
                           <td key={y} className="text-end py-2.5 px-3 font-mono font-semibold">
@@ -291,7 +296,7 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
                               "hover:bg-muted/30"
                             )}
                           >
-                            <td className="py-2 px-4 ps-10 text-muted-foreground font-display">
+                            <td className="py-2 px-4 pe-10 text-muted-foreground font-display" dir="rtl">
                               {allZero ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
