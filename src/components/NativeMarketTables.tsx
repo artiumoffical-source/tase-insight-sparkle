@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Circle, RefreshCw } from "lucide-react";
 import StockLogo from "@/components/StockLogo";
+import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
 
 interface StockRow {
   symbol: string;
