@@ -235,17 +235,19 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
                         )}
                         onClick={() => canExpand && toggleExpand(node.field)}
                       >
-                        <td className="py-2.5 px-4 font-display font-semibold flex items-center gap-2">
-                          {canExpand ? (
-                            <ChevronRight
-                              className={cn(
-                                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
-                                isExpanded && "rotate-90"
-                              )}
-                            />
-                          ) : (
-                            <span className="w-4" />
-                          )}
+                         <td className="py-2.5 px-4 font-display font-semibold">
+                          <div className="flex items-center gap-2" dir="rtl">
+                            <span>{t(node.labelKey)}</span>
+                            {canExpand ? (
+                              <ChevronRight
+                                className={cn(
+                                  "h-5 w-5 shrink-0 text-primary transition-transform duration-200",
+                                  isExpanded && "rotate-90"
+                                )}
+                              />
+                            ) : (
+                              <span className="w-5" />
+                            )}
                           <span>{t(node.labelKey)}</span>
                           {checksumResult && checksumResult !== "unavailable" && (
                             <Tooltip>
