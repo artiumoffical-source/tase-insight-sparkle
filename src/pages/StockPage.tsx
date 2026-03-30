@@ -254,6 +254,8 @@ export default function StockPage() {
             />
           </div>
 
+          <DeepDiveFinancials data={detailedBalanceSheet} loading={loading} />
+
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
 
