@@ -35,3 +35,11 @@ const TASE_STOCKS: TaseStock[] = [
 export default TASE_STOCKS;
 
 export const TRENDING_TICKERS = ["LUMI", "POLI", "ESLT", "ICL", "TEVA"];
+
+/** TA-35 index constituents – stocks eligible for deep-dive hierarchical tables */
+export const TA35_TICKERS = new Set([
+  "TEVA", "LUMI", "POLI", "DSCT", "HARL", "ICL", "NICE", "BEZQ", "AZRG",
+  "ESLT", "MZTF", "FIBI", "CLIS", "MGDL", "ORA", "PHOE", "SPNS", "CEL",
+  "PTNR", "AMOT", "GZIT", "SHPG", "DLEKG", "ELCO", "NXSN", "ISRA",
+  "ILDC", "MISH", "KMNK", "ALHE", "AURA", "AFPR", "RLCO", "ARBE", "ALMA",
+]);
