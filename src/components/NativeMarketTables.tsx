@@ -192,9 +192,9 @@ export default function NativeMarketTables() {
   useEffect(() => {
     const initTimeout = setTimeout(fetchData, 300);
     let id: ReturnType<typeof setInterval> | null = null;
-    const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
+    const start = () => { if (!id) id = setInterval(fetchData, 5_000); };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
-    const onVis = () => document.hidden ? stop() : start();
+    const onVis = () => { if (document.hidden) { stop(); } else { fetchData(); start(); } };
     document.addEventListener("visibilitychange", onVis);
     start();
     return () => { clearTimeout(initTimeout); stop(); document.removeEventListener("visibilitychange", onVis); };
