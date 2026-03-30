@@ -69,16 +69,24 @@ Deno.serve(async (req) => {
       : ["TEVA", "LUMI", "POLI", "ESLT", "ICL", "NICE", "AZRG", "BEZQ", "DSCT", "MZTF"];
 
     const allArticles: any[] = [];
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
     for (const t of tickers) {
       try {
         const res = await fetch(
-          `https://eodhd.com/api/news?s=${t}.TA&offset=0&limit=3&api_token=${eodhd}&fmt=json`
+          `https://eodhd.com/api/news?s=${t}.TA&offset=0&limit=5&api_token=${eodhd}&fmt=json`
         );
         if (res.ok) {
           const articles = await res.json();
           if (Array.isArray(articles)) {
             for (const a of articles) {
+              // STRICT: Only accept articles from the last 24 hours
+              const articleDate = a.date ? new Date(a.date).getTime() : 0;
+              if (!articleDate || (now - articleDate) > TWENTY_FOUR_HOURS) {
+                console.log(`Skipping old/undated article: "${(a.title || "").slice(0, 60)}" date=${a.date}`);
+                continue;
+              }
               allArticles.push({ ...a, _ticker: t });
             }
           }
@@ -89,7 +97,7 @@ Deno.serve(async (req) => {
     }
 
     if (allArticles.length === 0) {
-      return new Response(JSON.stringify({ generated: 0, message: "No news found" }), {
+      return new Response(JSON.stringify({ generated: 0, message: "No recent news found in the last 24 hours" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -122,7 +130,7 @@ Deno.serve(async (req) => {
 
 Analyze the following financial news and write a professional Hebrew analysis article.
 
-Rules:
+CRITICAL RULES:
 - Write in Hebrew
 - Be objective and data-driven
 - Focus on business impact and estimated financial implications
@@ -131,11 +139,16 @@ Rules:
 - Include the company context in the Israeli market
 - Structure: headline, 2-3 paragraphs of analysis
 - End with "מאת: ארטיום מנדבורה, אנליסט שוק ההון"
+- The article date is: ${date || "unknown"}. Use ONLY this date. Do NOT assume today's date.
+- If you are unsure about a number, a date, or any fact — do NOT guess. State it is unverified or skip it.
+- If the news content appears to be from a previous quarter/year, clearly label it as historical data.
+- Do NOT fabricate any numbers, dates, percentages, or events not explicitly stated in the source content below.
 
 News Title: ${title}
 News Content: ${content}
 Related Stock: ${relatedTicker} (TASE)
 Source: ${source}
+Article Date: ${date || "unknown"}
 
 Return a JSON object with these fields:
 - titleHe: Hebrew headline for the analysis (max 80 chars)
