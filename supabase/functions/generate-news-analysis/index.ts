@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
     }
 
     // --- Fetch macro/economic news from EODHD ---
-    const macroSearchTerms = ["Bank+of+Israel", "Israel+interest+rate", "Israel+CPI", "Israel+inflation", "Israel+economy"];
+    const macroSearchTerms = ["Bank+of+Israel", "Israel+interest+rate", "Israel+rate+decision", "Israel+CPI", "Israel+inflation", "Israel+economy", "Israel+monetary+policy", "shekel+exchange+rate"];
     for (const term of macroSearchTerms) {
       try {
         const res = await fetch(
