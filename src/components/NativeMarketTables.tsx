@@ -132,7 +132,7 @@ export default function NativeMarketTables() {
       ? tickerListRef.current
       : FALLBACK_STOCKS.map((s) => s.symbol);
 
-    const indexTickers = ["TA35", "TA125", "TABANK", "TAREALESTATE"];
+    const indexTickers = ["TA35", "TA90", "TABANKS", "TATECH"];
     const allTickers = [...indexTickers, ...stockTickers].join(",");
 
     fetch(
