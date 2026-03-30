@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
-import { TrendingUp, TrendingDown, Circle, RefreshCw, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw, BarChart3 } from "lucide-react";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -192,9 +192,9 @@ export default function NativeMarketTables() {
   useEffect(() => {
     const initTimeout = setTimeout(fetchData, 300);
     let id: ReturnType<typeof setInterval> | null = null;
-    const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
+    const start = () => { if (!id) id = setInterval(fetchData, 5_000); };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
-    const onVis = () => document.hidden ? stop() : start();
+    const onVis = () => { if (document.hidden) { stop(); } else { fetchData(); start(); } };
     document.addEventListener("visibilitychange", onVis);
     start();
     return () => { clearTimeout(initTimeout); stop(); document.removeEventListener("visibilitychange", onVis); };
@@ -218,9 +218,12 @@ export default function NativeMarketTables() {
             </span>
           )}
           <div className="flex items-center gap-1.5">
-            <Circle
-              className={`h-2 w-2 fill-current ${marketOpen ? "text-gain animate-pulse" : "text-muted-foreground/40"}`}
-            />
+            <span className="relative flex h-2.5 w-2.5">
+              {marketOpen && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--gain))] opacity-60" />
+              )}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${marketOpen ? "bg-[hsl(var(--gain))]" : "bg-muted-foreground/40"}`} />
+            </span>
             <span className="text-[11px] text-muted-foreground">
               {isRtl
                 ? marketOpen ? "הבורסה פתוחה" : "הבורסה סגורה"

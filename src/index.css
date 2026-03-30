@@ -95,3 +95,32 @@
     transform: translateX(-50%);
   }
 }
+
+@keyframes flash-green {
+  0% { background-color: transparent; }
+  20% { background-color: hsl(152 60% 50% / 0.15); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: transparent; }
+  20% { background-color: hsl(0 72% 55% / 0.15); }
+  100% { background-color: transparent; }
+}
+
+.animate-flash-green {
+  animation: flash-green 0.8s ease-out;
+}
+
+.animate-flash-red {
+  animation: flash-red 0.8s ease-out;
+}
+
+@keyframes price-fade-in {
+  0% { opacity: 0.5; transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-price-update {
+  animation: price-fade-in 0.3s ease-out;
+}
