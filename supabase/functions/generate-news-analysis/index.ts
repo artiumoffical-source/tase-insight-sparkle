@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
 
 Analyze the following financial news and write a professional Hebrew analysis article.
 
-Rules:
+CRITICAL RULES:
 - Write in Hebrew
 - Be objective and data-driven
 - Focus on business impact and estimated financial implications
@@ -139,11 +139,16 @@ Rules:
 - Include the company context in the Israeli market
 - Structure: headline, 2-3 paragraphs of analysis
 - End with "מאת: ארטיום מנדבורה, אנליסט שוק ההון"
+- The article date is: ${date || "unknown"}. Use ONLY this date. Do NOT assume today's date.
+- If you are unsure about a number, a date, or any fact — do NOT guess. State it is unverified or skip it.
+- If the news content appears to be from a previous quarter/year, clearly label it as historical data.
+- Do NOT fabricate any numbers, dates, percentages, or events not explicitly stated in the source content below.
 
 News Title: ${title}
 News Content: ${content}
 Related Stock: ${relatedTicker} (TASE)
 Source: ${source}
+Article Date: ${date || "unknown"}
 
 Return a JSON object with these fields:
 - titleHe: Hebrew headline for the analysis (max 80 chars)
