@@ -70,6 +70,7 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
       "TA35": "%5ETA35",
       "TA125": "%5ETA125",
       "TABANK": "%5ETABNK",
+      "TAREALESTATE": "%5ETA-RE",
     };
     const yahooSymbol = indexMap[ticker] || symbol;
     const resp = await fetch(
