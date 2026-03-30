@@ -321,6 +321,7 @@ serve(async (req) => {
           incomeStatement: d?.incomeStatement ?? [],
           balanceSheet: d?.balanceSheet ?? [],
           cashFlow: d?.cashFlow ?? [],
+          detailedBalanceSheet: d?.detailedBalanceSheet ?? [],
           qIncomeStatement: d?.qIncomeStatement ?? [],
           qBalanceSheet: d?.qBalanceSheet ?? [],
           qCashFlow: d?.qCashFlow ?? [],
