@@ -15,6 +15,7 @@ import { Star, Lock } from "lucide-react";
 import { toast } from "sonner";
 import StockLogo from "@/components/StockLogo";
 import StockNewsSidebar from "@/components/StockNewsSidebar";
+import StockPageSEO from "@/components/StockPageSEO";
 import TASE_STOCKS, { TA35_TICKERS } from "@/data/tase-stocks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCached, setCache } from "@/lib/stock-cache";
@@ -206,6 +207,14 @@ export default function StockPage() {
 
   return (
     <div className="container max-w-7xl py-8 animate-fade-in">
+      <StockPageSEO
+        ticker={upperTicker}
+        nameHe={isRtl ? displayName : (stock?.nameHe ?? displayName)}
+        nameEn={stock?.name ?? meta?.name ?? upperTicker}
+        price={meta?.price}
+        change={meta?.change}
+        currency={meta?.currency ?? "ILS"}
+      />
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6" style={{ direction: isRtl ? "rtl" : "ltr" }}>
         {/* Main content */}
         <div className="space-y-6 min-w-0">

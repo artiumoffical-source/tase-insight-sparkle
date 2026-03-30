@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://tase-insight-sparkle.lovable.app/sitemap.xml

@@ -2,6 +2,7 @@ import SearchBar from "@/components/SearchBar";
 import NativeTickerTape from "@/components/NativeTickerTape";
 import NativeMarketTables from "@/components/NativeMarketTables";
 import AdSlot from "@/components/AdSlot";
+import HomeSEO from "@/components/HomeSEO";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Compass, TrendingUp, Shield } from "lucide-react";
 
@@ -16,6 +17,7 @@ export default function Index() {
 
   return (
     <div className="flex flex-col items-center">
+      <HomeSEO />
       <NativeTickerTape />
 
       <section className="flex flex-col items-center justify-center gap-8 px-4 pt-20 pb-16 text-center">
