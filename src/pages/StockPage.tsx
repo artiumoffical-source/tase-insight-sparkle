@@ -87,6 +87,7 @@ export default function StockPage() {
     setIncomeStatement(data.incomeStatement ?? []);
     setBalanceSheet(data.balanceSheet ?? []);
     setCashFlow(data.cashFlow ?? []);
+    setDetailedBalanceSheet(data.detailedBalanceSheet ?? []);
     setQIncomeStatement(data.qIncomeStatement ?? []);
     setQBalanceSheet(data.qBalanceSheet ?? []);
     setQCashFlow(data.qCashFlow ?? []);
