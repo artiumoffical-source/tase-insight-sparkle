@@ -25,8 +25,7 @@ const TICKER_SYMBOLS: TickerItem[] = [
   { symbol: "MZTF", nameHe: "מזרחי", nameEn: "Mizrahi", price: null, change: null },
 ];
 
-// Indices don't have a stock page
-const INDEX_SYMBOLS = new Set(["TA35", "TA125", "TABANK"]);
+// All items are stocks with internal pages
 
 export default function NativeTickerTape() {
   const { isRtl } = useLanguage();
