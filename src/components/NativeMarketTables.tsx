@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
-import { TrendingUp, TrendingDown, Circle, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Circle, RefreshCw, BarChart3 } from "lucide-react";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,29 +12,40 @@ interface StockRow {
   price: number | null;
   change: number | null;
   flash?: "up" | "down" | "";
-  logoUrl?: string | null;
-  domain?: string | null;
 }
 
-// Domain mapping for clearbit fallback
-const COMPANY_DOMAINS: Record<string, string> = {
-  LUMI: "bankleumi.co.il",
-  POLI: "bankhapoalim.co.il",
-  TEVA: "tevapharm.com",
-  ICL: "icl-group.com",
-  ESLT: "elbitsystems.com",
-  AZRG: "azrieli.com",
-  DSCT: "discountbank.co.il",
-  MZTF: "mizrahi-tefahot.co.il",
-  NICE: "nice.com",
-  BEZQ: "bezeq.co.il",
-  NXSN: "nextvision.com",
-  PHOE: "fnx.co.il",
-  CEL: "cellcom.co.il",
-  CLIS: "clalbit.co.il",
-};
+interface IndexRow {
+  symbol: string;
+  nameHe: string;
+  nameEn: string;
+  price: number | null;
+  change: number | null;
+  flash?: "up" | "down" | "";
+}
 
-const ALL_STOCKS: StockRow[] = [
+// TA-125 tier stocks whitelist — only well-known, high-cap companies
+const TA125_TICKERS = new Set([
+  "LUMI","POLI","TEVA","ICL","ESLT","AZRG","DSCT","MZTF","NICE","BEZQ",
+  "NXSN","PHOE","CEL","CLIS","HARL","MGDL","FIBI","ORA","SPNS","PTNR",
+  "AMOT","GZIT","SHPG","DLEKG","ELCO","ISOP",
+  "NVMI","TSEM","CHKP","CYBR","ENLT","ENRG","OPCE","FTAL","DIMRI",
+  "MLSR","STRS","RMLI","MTRX","MLTM","HLAN","SAE","FOX","DALT",
+  "SKBN","ISCN","PERI","ISRA","ELAL","DNYA","ORL","PZOL","ILCO",
+  "MMHD","NYAX","NWMD","NVPT","GCT","DLEA","DORL","ECNR","BIG",
+  "GVYM","AYAL","ELTR","GILT","INCR","SPEN","MTRN","AUDC","MAXO",
+  "KEN","KLIL","ISRO","RANI","CBI","MTDS","MSHR","MVNE","PLSN",
+  "TASE","DANH","KAFR","CLBV","DISI","BVC","FORTY","HOD","MDTR",
+  "ORMP","LPSN","PAYT","ARBE","FRSX","BLRX",
+]);
+
+const INDICES: IndexRow[] = [
+  { symbol: "TA35", nameHe: "מדד ת\"א 35", nameEn: "TA-35 Index", price: null, change: null },
+  { symbol: "TA125", nameHe: "מדד ת\"א 125", nameEn: "TA-125 Index", price: null, change: null },
+  { symbol: "TABANK", nameHe: "מדד ת\"א בנקים", nameEn: "TA Banks Index", price: null, change: null },
+  { symbol: "TAREALESTATE", nameHe: "מדד ת\"א נדל\"ן", nameEn: "TA Real Estate", price: null, change: null },
+];
+
+const FALLBACK_STOCKS: StockRow[] = [
   { symbol: "LUMI", nameHe: "בנק לאומי", nameEn: "Bank Leumi", price: null, change: null },
   { symbol: "POLI", nameHe: "בנק הפועלים", nameEn: "Bank Hapoalim", price: null, change: null },
   { symbol: "TEVA", nameHe: "טבע תעשיות", nameEn: "Teva Pharma", price: null, change: null },
@@ -45,10 +56,6 @@ const ALL_STOCKS: StockRow[] = [
   { symbol: "MZTF", nameHe: "מזרחי טפחות", nameEn: "Mizrahi Tefahot", price: null, change: null },
   { symbol: "NICE", nameHe: "נייס מערכות", nameEn: "NICE Systems", price: null, change: null },
   { symbol: "BEZQ", nameHe: "בזק", nameEn: "Bezeq", price: null, change: null },
-  { symbol: "NXSN", nameHe: "נקסט ויז'ן", nameEn: "Next Vision", price: null, change: null },
-  { symbol: "PHOE", nameHe: "הפניקס", nameEn: "The Phoenix", price: null, change: null },
-  { symbol: "CEL", nameHe: "סלקום", nameEn: "Cellcom", price: null, change: null },
-  { symbol: "CLIS", nameHe: "כלל ביטוח", nameEn: "Clal Insurance", price: null, change: null },
 ];
 
 function useMarketOpen() {
@@ -71,45 +78,44 @@ export default function NativeMarketTables() {
   const { isRtl } = useLanguage();
   const marketOpen = useMarketOpen();
   const [stocks, setStocks] = useState<StockRow[]>([]);
+  const [indices, setIndices] = useState<IndexRow[]>(INDICES);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const prevPrices = useRef<Record<string, number>>({});
   const tickerListRef = useRef<string[]>([]);
-  const stockMetaRef = useRef<Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }>>({});
+  const stockMetaRef = useRef<Record<string, { nameHe: string; nameEn: string }>>({});
 
-  // Load top 50 tickers from DB on mount
+  // Load tickers from DB, filtered to TA-125 quality
   useEffect(() => {
     supabase
       .from("tase_symbols")
-      .select("ticker, name, name_he, logo_url")
+      .select("ticker, name, name_he")
       .eq("exchange", "TA")
-      .limit(100)
+      .limit(200)
       .then(({ data }) => {
         if (!data || data.length === 0) {
-          const fallbackTickers = ALL_STOCKS.map((s) => s.symbol);
-          tickerListRef.current = fallbackTickers;
-          const meta: Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }> = {};
-          ALL_STOCKS.forEach((s) => { meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn, logoUrl: null }; });
+          tickerListRef.current = FALLBACK_STOCKS.map((s) => s.symbol);
+          const meta: Record<string, { nameHe: string; nameEn: string }> = {};
+          FALLBACK_STOCKS.forEach((s) => { meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn }; });
           stockMetaRef.current = meta;
           return;
         }
         const tickers: string[] = [];
-        const meta: Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }> = {};
+        const meta: Record<string, { nameHe: string; nameEn: string }> = {};
         data
-          .filter((row) => /^[A-Z]{2,10}$/.test(row.ticker)) // Only real stock tickers
+          .filter((row) => /^[A-Z]{2,10}$/.test(row.ticker) && TA125_TICKERS.has(row.ticker))
           .forEach((row) => {
-          tickers.push(row.ticker);
-          meta[row.ticker] = {
-            nameHe: row.name_he || row.name,
-            nameEn: row.name,
-            logoUrl: row.logo_url || null,
-          };
-        });
-        // Ensure our core stocks are included
-        ALL_STOCKS.forEach((s) => {
+            tickers.push(row.ticker);
+            meta[row.ticker] = {
+              nameHe: row.name_he || row.name,
+              nameEn: row.name,
+            };
+          });
+        // Ensure fallback stocks are included
+        FALLBACK_STOCKS.forEach((s) => {
           if (!meta[s.symbol]) {
             tickers.push(s.symbol);
-            meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn, logoUrl: null };
+            meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn };
           }
         });
         tickerListRef.current = tickers;
@@ -120,78 +126,80 @@ export default function NativeMarketTables() {
   const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    if (!projectId || !anonKey) {
-      setLoading(false);
-      return;
-    }
+    if (!projectId || !anonKey) { setLoading(false); return; }
 
-    const tickers = tickerListRef.current.length > 0
-      ? tickerListRef.current.join(",")
-      : ALL_STOCKS.map((s) => s.symbol).join(",");
+    const stockTickers = tickerListRef.current.length > 0
+      ? tickerListRef.current
+      : FALLBACK_STOCKS.map((s) => s.symbol);
+
+    const indexTickers = ["TA35", "TA125", "TABANK", "TAREALESTATE"];
+    const allTickers = [...indexTickers, ...stockTickers].join(",");
 
     fetch(
-      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}`,
+      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${allTickers}`,
       { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
     )
       .then((r) => r.json())
       .then((data) => {
         if (!data?.quotes) return;
         const meta = stockMetaRef.current;
-        const updated: StockRow[] = data.quotes
-          .filter((q: any) => !q.error && q.price > 0)
+        const indexSet = new Set(indexTickers);
+
+        // Process indices
+        const updatedIndices = INDICES.map((idx) => {
+          const q = data.quotes.find((qq: any) => qq.ticker === idx.symbol);
+          if (!q || q.error || q.price <= 0) return idx;
+          const oldPrice = prevPrices.current[idx.symbol];
+          let flash: "up" | "down" | "" = "";
+          if (oldPrice != null && oldPrice !== q.price) {
+            flash = q.price > oldPrice ? "up" : "down";
+          }
+          prevPrices.current[idx.symbol] = q.price;
+          return { ...idx, price: q.price, change: q.change, flash };
+        });
+        setIndices(updatedIndices);
+
+        // Process stocks
+        const updatedStocks: StockRow[] = data.quotes
+          .filter((q: any) => !q.error && q.price > 0 && !indexSet.has(q.ticker))
           .map((q: any) => {
             const sym = q.ticker?.replace(".TA", "") ?? q.ticker;
-            const m = meta[sym] || { nameHe: sym, nameEn: sym, logoUrl: null };
+            if (!TA125_TICKERS.has(sym)) return null;
+            const m = meta[sym] || { nameHe: sym, nameEn: sym };
             const oldPrice = prevPrices.current[sym];
             let flash: "up" | "down" | "" = "";
             if (oldPrice != null && oldPrice !== q.price) {
               flash = q.price > oldPrice ? "up" : "down";
             }
             prevPrices.current[sym] = q.price;
-            return {
-              symbol: sym,
-              nameHe: m.nameHe,
-              nameEn: m.nameEn,
-              price: q.price,
-              change: q.change,
-              flash,
-              logoUrl: m.logoUrl,
-              domain: COMPANY_DOMAINS[sym] || null,
-            };
-          });
+            return { symbol: sym, nameHe: m.nameHe, nameEn: m.nameEn, price: q.price, change: q.change, flash };
+          })
+          .filter(Boolean) as StockRow[];
 
-        setStocks(updated);
+        setStocks(updatedStocks);
 
         setTimeout(() => {
           setStocks((prev) => prev.map((s) => ({ ...s, flash: "" })));
+          setIndices((prev) => prev.map((s) => ({ ...s, flash: "" })));
         }, 800);
 
-        const now = new Date();
-        setLastUpdate(now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+        setLastUpdate(new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  // Initial fetch + polling every 15s, only when tab is visible
   useEffect(() => {
-    // Small delay to let DB tickers load first
-    const initTimeout = setTimeout(() => {
-      fetchData();
-    }, 300);
-
+    const initTimeout = setTimeout(fetchData, 300);
     let id: ReturnType<typeof setInterval> | null = null;
     const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
-
     const onVis = () => document.hidden ? stop() : start();
     document.addEventListener("visibilitychange", onVis);
     start();
-
     return () => { clearTimeout(initTimeout); stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchData]);
 
-  // STRICT filtering: gainers > 0 only, losers < 0 only
   const gainers = [...stocks].filter((s) => (s.change ?? 0) > 0).sort((a, b) => (b.change ?? 0) - (a.change ?? 0)).slice(0, 10);
   const losers = [...stocks].filter((s) => (s.change ?? 0) < 0).sort((a, b) => (a.change ?? 0) - (b.change ?? 0)).slice(0, 10);
 
@@ -226,50 +234,85 @@ export default function NativeMarketTables() {
         <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
           {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
-      ) : stocks.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
-          {isRtl ? "טוען נתונים..." : "Loading data..."}
-        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Gainers */}
-          <div className="rounded-xl border border-gain/10 bg-card/30 overflow-hidden">
+        <div className="space-y-4">
+          {/* Indices Section */}
+          <div className="rounded-xl border border-border/20 bg-card/30 overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5 text-gain" />
-              <h3 className="text-xs font-bold text-gain">
-                {isRtl ? "המרוויחות" : "Top Gainers"}
+              <BarChart3 className="h-3.5 w-3.5 text-primary" />
+              <h3 className="text-xs font-bold text-primary">
+                {isRtl ? "מדדים" : "Indices"}
               </h3>
             </div>
-            {gainers.length > 0 ? (
-              gainers.map((s) => (
-                <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
-              ))
-            ) : (
-              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                {isRtl ? "אין מניות עולות כרגע" : "No gainers right now"}
-              </div>
-            )}
+            <div className="grid grid-cols-2 sm:grid-cols-4">
+              {indices.map((idx) => (
+                <IndexCard key={idx.symbol} index={idx} isRtl={isRtl} />
+              ))}
+            </div>
           </div>
 
-          {/* Losers */}
-          <div className="rounded-xl border border-loss/10 bg-card/30 overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
-              <TrendingDown className="h-3.5 w-3.5 text-loss" />
-              <h3 className="text-xs font-bold text-loss">
-                {isRtl ? "המפסידות" : "Top Losers"}
-              </h3>
-            </div>
-            {losers.length > 0 ? (
-              losers.map((s) => (
-                <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
-              ))
-            ) : (
-              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                {isRtl ? "אין מניות יורדות כרגע" : "No losers right now"}
+          {/* Gainers & Losers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-gain/10 bg-card/30 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5 text-gain" />
+                <h3 className="text-xs font-bold text-gain">
+                  {isRtl ? "המרוויחות" : "Top Gainers"}
+                </h3>
               </div>
-            )}
+              {gainers.length > 0 ? (
+                gainers.map((s) => <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />)
+              ) : (
+                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                  {isRtl ? "אין מניות עולות כרגע" : "No gainers right now"}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-loss/10 bg-card/30 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
+                <TrendingDown className="h-3.5 w-3.5 text-loss" />
+                <h3 className="text-xs font-bold text-loss">
+                  {isRtl ? "המפסידות" : "Top Losers"}
+                </h3>
+              </div>
+              {losers.length > 0 ? (
+                losers.map((s) => <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />)
+              ) : (
+                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                  {isRtl ? "אין מניות יורדות כרגע" : "No losers right now"}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function IndexCard({ index, isRtl }: { index: IndexRow; isRtl: boolean }) {
+  const change = index.change ?? 0;
+  const isPositive = change > 0;
+  const isNegative = change < 0;
+  const flashClass = index.flash === "up" ? "animate-flash-green" : index.flash === "down" ? "animate-flash-red" : "";
+
+  return (
+    <div className={`px-3 py-3 border-e border-b border-border/10 last:border-e-0 ${flashClass}`}>
+      <p className="text-[11px] font-medium text-muted-foreground truncate mb-1">
+        {isRtl ? index.nameHe : index.nameEn}
+      </p>
+      {index.price !== null ? (
+        <>
+          <p className="text-sm font-display font-bold tabular-nums text-foreground">
+            {index.price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className={`text-[11px] font-bold tabular-nums ${isPositive ? "text-gain" : isNegative ? "text-loss" : "text-muted-foreground"}`}>
+            {Math.abs(change).toFixed(2)}%
+          </p>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground/50 animate-pulse">—</p>
       )}
     </div>
   );
@@ -279,12 +322,7 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
   const change = stock.change ?? 0;
   const isPositive = change > 0;
   const isNegative = change < 0;
-
-  const flashClass = stock.flash === "up"
-    ? "animate-flash-green"
-    : stock.flash === "down"
-    ? "animate-flash-red"
-    : "";
+  const flashClass = stock.flash === "up" ? "animate-flash-green" : stock.flash === "down" ? "animate-flash-red" : "";
 
   const handleMouseEnter = () => {
     prefetchFinancials(stock.symbol);
