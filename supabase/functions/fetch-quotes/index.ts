@@ -74,7 +74,7 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
     };
     const yahooSymbol = indexMap[ticker] || symbol;
     const resp = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=2d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=2d&_ts=${Date.now()}`,
       {
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; AlphaMap/1.0)",
