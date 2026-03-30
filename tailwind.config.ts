@@ -82,11 +82,21 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "flash-green": {
+          "0%": { backgroundColor: "hsl(var(--gain) / 0.3)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        "flash-red": {
+          "0%": { backgroundColor: "hsl(var(--loss) / 0.3)" },
+          "100%": { backgroundColor: "transparent" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out",
+        "flash-green": "flash-green 1.2s ease-out",
+        "flash-red": "flash-red 1.2s ease-out",
       },
     },
   },
