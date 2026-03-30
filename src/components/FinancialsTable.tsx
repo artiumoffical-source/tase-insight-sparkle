@@ -261,13 +261,6 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
             <TableBody>
               {metrics.map((m, idx) => {
                 const allValues = years.map(y => m.getValue(byYear[y]) ?? 0);
-                // YoY for last year vs previous
-                const lastIdx = years.length - 1;
-                const prevIdx = years.length - 2;
-                const currentVal = allValues[lastIdx];
-                const prevVal = prevIdx >= 0 ? allValues[prevIdx] : 0;
-                const yoyText = formatYoYText(currentVal, prevVal);
-                const yoyColor = getYoYColor(currentVal, prevVal, m.invertColor);
 
                 return (
                   <TableRow key={m.labelKey} className={`border-b-border ${idx % 2 === 0 ? "bg-muted/30" : ""}`}>
@@ -277,7 +270,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
                         <Sparkline values={allValues} invertColor={m.invertColor} />
                       </div>
                     </TableCell>
-                    {years.map((y, yi) => {
+                    {years.map((y) => {
                       const val = m.getValue(byYear[y]) ?? 0;
                       const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
                       return (
@@ -286,9 +279,6 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
                         </TableCell>
                       );
                     })}
-                    <TableCell className={`text-end font-mono text-xs ${yoyColor}`}>
-                      {yoyText}
-                    </TableCell>
                   </TableRow>
                 );
               })}
