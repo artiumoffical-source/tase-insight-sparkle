@@ -17,6 +17,7 @@ export default function Index() {
 
   return (
     <div className="flex flex-col items-center">
+      <HomeSEO />
       <NativeTickerTape />
 
       <section className="flex flex-col items-center justify-center gap-8 px-4 pt-20 pb-16 text-center">
