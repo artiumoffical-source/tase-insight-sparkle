@@ -50,9 +50,15 @@ async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: 
   return null;
 }
 
-async function fetchFromYahoo(symbol: string): Promise<{ price: number; change: number } | null> {
+async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: number; change: number } | null> {
   try {
-    const yahooSymbol = symbol.replace(".TA", ".TA"); // Yahoo uses same .TA suffix
+    // Map index tickers to Yahoo Finance symbols
+    const indexMap: Record<string, string> = {
+      "TA35": "%5ETA35",
+      "TA125": "%5ETA125",
+      "TABANK": "%5ETABNK",
+    };
+    const yahooSymbol = indexMap[ticker] || symbol;
     const resp = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=2d`,
       {
@@ -75,11 +81,12 @@ async function fetchFromYahoo(symbol: string): Promise<{ price: number; change: 
     const prevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
 
     if (price > 0) {
-      // Yahoo may return agorot for TASE stocks, apply same conversion
-      const nisPrice = toNis(price);
+      // Indices (TA35 etc) are in points, stocks are in agorot
+      const isIndex = !!indexMap[ticker];
+      const nisPrice = isIndex ? price : toNis(price);
       let change = 0;
       if (prevClose > 0) {
-        const nisPrev = toNis(prevClose);
+        const nisPrev = isIndex ? prevClose : toNis(prevClose);
         change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
       }
       return { price: nisPrice, change };
@@ -122,7 +129,7 @@ serve(async (req) => {
         }
 
         // Fallback: Yahoo Finance
-        const yahoo = await fetchFromYahoo(symbol);
+        const yahoo = await fetchFromYahoo(symbol, t);
         if (yahoo) {
           console.log(`[OK-Yahoo] ${t}: ${yahoo.price} (${yahoo.change}%)`);
           return { ticker: t, price: yahoo.price, change: yahoo.change, source: "yahoo", error: false };

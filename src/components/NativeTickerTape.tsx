@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -9,6 +9,7 @@ interface TickerItem {
   nameEn: string;
   price: number | null;
   change: number | null;
+  flash?: "up" | "down" | "";
 }
 
 const TICKER_SYMBOLS: TickerItem[] = [
@@ -19,11 +20,17 @@ const TICKER_SYMBOLS: TickerItem[] = [
   { symbol: "ICL", nameHe: "כיל", nameEn: "ICL", price: null, change: null },
   { symbol: "NXSN", nameHe: "נקסט ויז'ן", nameEn: "Next Vision", price: null, change: null },
   { symbol: "NICE", nameHe: "נייס", nameEn: "NICE", price: null, change: null },
+  { symbol: "AZRG", nameHe: "עזריאלי", nameEn: "Azrieli", price: null, change: null },
+  { symbol: "DSCT", nameHe: "דיסקונט", nameEn: "Discount", price: null, change: null },
+  { symbol: "MZTF", nameHe: "מזרחי", nameEn: "Mizrahi", price: null, change: null },
 ];
+
+// All items are stocks with internal pages
 
 export default function NativeTickerTape() {
   const { isRtl } = useLanguage();
   const [items, setItems] = useState<TickerItem[]>(TICKER_SYMBOLS);
+  const prevPrices = useRef<Record<string, number>>({});
 
   const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -43,10 +50,19 @@ export default function NativeTickerTape() {
             const q = data.quotes.find(
               (qq: any) => qq.ticker?.replace(".TA", "") === item.symbol
             );
-            if (!q || q.error || q.price <= 0) return item;
-            return { ...item, price: q.price, change: q.change };
+            if (!q || q.error || q.price <= 0) return { ...item, flash: "" };
+            const oldPrice = prevPrices.current[item.symbol];
+            let flash: "up" | "down" | "" = "";
+            if (oldPrice != null && oldPrice !== q.price) {
+              flash = q.price > oldPrice ? "up" : "down";
+            }
+            prevPrices.current[item.symbol] = q.price;
+            return { ...item, price: q.price, change: q.change, flash };
           })
         );
+        setTimeout(() => {
+          setItems((prev) => prev.map((s) => ({ ...s, flash: "" })));
+        }, 800);
       })
       .catch(() => {});
   }, []);
@@ -54,42 +70,49 @@ export default function NativeTickerTape() {
   useEffect(() => {
     fetchData();
     let id: ReturnType<typeof setInterval> | null = null;
-
     const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
-
     const onVis = () => document.hidden ? stop() : start();
     document.addEventListener("visibilitychange", onVis);
     start();
-
     return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchData]);
 
-  const doubled = [...items, ...items];
+  // Triple the items for seamless infinite loop
+  const tripled = [...items, ...items, ...items];
 
   return (
-    <div className="w-full overflow-hidden border-b border-border/20 bg-card/40">
-      <div className="flex animate-[ticker-scroll_30s_linear_infinite] whitespace-nowrap py-2.5">
-        {doubled.map((item, i) => {
+    <div className="w-full overflow-hidden border-b border-border/20 bg-card/40" dir="ltr">
+      <div
+        className="flex whitespace-nowrap py-2.5"
+        style={{ animation: "ticker-scroll 40s linear infinite" }}
+      >
+        {tripled.map((item, i) => {
           const isPositive = (item.change ?? 0) > 0;
           const isNegative = (item.change ?? 0) < 0;
+
+          const flashBg = item.flash === "up"
+            ? "animate-flash-green"
+            : item.flash === "down"
+            ? "animate-flash-red"
+            : "";
 
           return (
             <Link
               key={`${item.symbol}-${i}`}
               to={`/stock/${item.symbol}.TA`}
-              className="inline-flex items-center gap-2 px-5 text-xs hover:bg-secondary/30 transition-colors border-e border-border/10"
+              className={`inline-flex items-center gap-2 px-5 text-xs hover:bg-secondary/30 transition-colors border-e border-border/10 ${flashBg}`}
             >
               <span className="font-medium text-foreground/70">
                 {isRtl ? item.nameHe : item.nameEn}
               </span>
               {item.price !== null ? (
                 <>
-                  <span className="font-display font-bold text-foreground">
+                  <span className="font-display font-bold text-foreground tabular-nums">
                     ₪{item.price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <span
-                    className={`flex items-center gap-0.5 font-semibold ${
+                    className={`flex items-center gap-0.5 font-semibold tabular-nums ${
                       isPositive ? "text-gain" : isNegative ? "text-loss" : "text-muted-foreground"
                     }`}
                   >
@@ -99,7 +122,7 @@ export default function NativeTickerTape() {
                 </>
               ) : (
                 <span className="text-muted-foreground/50 text-[10px] animate-pulse">
-                  {isRtl ? "טוען..." : "Loading..."}
+                  {isRtl ? "טוען..." : "..."}
                 </span>
               )}
             </Link>
