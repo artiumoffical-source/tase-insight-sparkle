@@ -105,7 +105,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const tickers = url.searchParams.get("tickers");
-    if (!tickers || !/^[A-Z0-9,^]{1,300}$/.test(tickers)) {
+    if (!tickers || !/^[A-Z0-9,^]{1,600}$/.test(tickers)) {
       return new Response(JSON.stringify({ error: "Invalid tickers param" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -113,7 +113,7 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get("EODHD_API_KEY") || "";
-    const tickerList = tickers.split(",").slice(0, 20);
+    const tickerList = tickers.split(",").slice(0, 50);
 
     const results = await Promise.all(
       tickerList.map(async (t) => {

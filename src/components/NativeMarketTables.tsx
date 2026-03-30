@@ -71,31 +71,49 @@ function useMarketOpen() {
 export default function NativeMarketTables() {
   const { isRtl } = useLanguage();
   const marketOpen = useMarketOpen();
-  const [stocks, setStocks] = useState<StockRow[]>(ALL_STOCKS);
+  const [stocks, setStocks] = useState<StockRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const prevPrices = useRef<Record<string, number>>({});
+  const tickerListRef = useRef<string[]>([]);
+  const stockMetaRef = useRef<Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }>>({});
 
-  // Fetch logos from DB once on mount
+  // Load top 50 tickers from DB on mount
   useEffect(() => {
-    const tickers = ALL_STOCKS.map((s) => s.symbol);
     supabase
       .from("tase_symbols")
-      .select("ticker, logo_url")
-      .in("ticker", tickers)
+      .select("ticker, name, name_he, logo_url")
+      .eq("exchange", "TA")
+      .limit(50)
       .then(({ data }) => {
-        if (!data || data.length === 0) return;
-        const logoMap: Record<string, string> = {};
+        if (!data || data.length === 0) {
+          // Fallback to hardcoded list
+          const fallbackTickers = ALL_STOCKS.map((s) => s.symbol);
+          tickerListRef.current = fallbackTickers;
+          const meta: Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }> = {};
+          ALL_STOCKS.forEach((s) => { meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn, logoUrl: null }; });
+          stockMetaRef.current = meta;
+          return;
+        }
+        const tickers: string[] = [];
+        const meta: Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }> = {};
         data.forEach((row) => {
-          if (row.logo_url) logoMap[row.ticker] = row.logo_url;
+          tickers.push(row.ticker);
+          meta[row.ticker] = {
+            nameHe: row.name_he || row.name,
+            nameEn: row.name,
+            logoUrl: row.logo_url || null,
+          };
         });
-        setStocks((prev) =>
-          prev.map((s) => ({
-            ...s,
-            logoUrl: logoMap[s.symbol] || null,
-            domain: COMPANY_DOMAINS[s.symbol] || null,
-          }))
-        );
+        // Ensure our core stocks are included
+        ALL_STOCKS.forEach((s) => {
+          if (!meta[s.symbol]) {
+            tickers.push(s.symbol);
+            meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn, logoUrl: null };
+          }
+        });
+        tickerListRef.current = tickers;
+        stockMetaRef.current = meta;
       });
   }, []);
 
@@ -107,7 +125,10 @@ export default function NativeMarketTables() {
       return;
     }
 
-    const tickers = ALL_STOCKS.map((s) => s.symbol).join(",");
+    const tickers = tickerListRef.current.length > 0
+      ? tickerListRef.current.join(",")
+      : ALL_STOCKS.map((s) => s.symbol).join(",");
+
     fetch(
       `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}`,
       { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
@@ -115,22 +136,32 @@ export default function NativeMarketTables() {
       .then((r) => r.json())
       .then((data) => {
         if (!data?.quotes) return;
-        setStocks((prev) =>
-          prev.map((s) => {
-            const q = data.quotes.find(
-              (qq: any) => qq.ticker?.replace(".TA", "") === s.symbol
-            );
-            if (!q || q.error || q.price <= 0) return { ...s, flash: "" };
-            const oldPrice = prevPrices.current[s.symbol];
+        const meta = stockMetaRef.current;
+        const updated: StockRow[] = data.quotes
+          .filter((q: any) => !q.error && q.price > 0)
+          .map((q: any) => {
+            const sym = q.ticker?.replace(".TA", "") ?? q.ticker;
+            const m = meta[sym] || { nameHe: sym, nameEn: sym, logoUrl: null };
+            const oldPrice = prevPrices.current[sym];
             let flash: "up" | "down" | "" = "";
             if (oldPrice != null && oldPrice !== q.price) {
               flash = q.price > oldPrice ? "up" : "down";
             }
-            prevPrices.current[s.symbol] = q.price;
-            return { ...s, price: q.price, change: q.change, flash };
-          })
-        );
-        // Clear flash after animation
+            prevPrices.current[sym] = q.price;
+            return {
+              symbol: sym,
+              nameHe: m.nameHe,
+              nameEn: m.nameEn,
+              price: q.price,
+              change: q.change,
+              flash,
+              logoUrl: m.logoUrl,
+              domain: COMPANY_DOMAINS[sym] || null,
+            };
+          });
+
+        setStocks(updated);
+
         setTimeout(() => {
           setStocks((prev) => prev.map((s) => ({ ...s, flash: "" })));
         }, 800);
@@ -144,9 +175,12 @@ export default function NativeMarketTables() {
 
   // Initial fetch + polling every 15s, only when tab is visible
   useEffect(() => {
-    fetchData();
-    let id: ReturnType<typeof setInterval> | null = null;
+    // Small delay to let DB tickers load first
+    const initTimeout = setTimeout(() => {
+      fetchData();
+    }, 300);
 
+    let id: ReturnType<typeof setInterval> | null = null;
     const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
 
@@ -154,12 +188,12 @@ export default function NativeMarketTables() {
     document.addEventListener("visibilitychange", onVis);
     start();
 
-    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
+    return () => { clearTimeout(initTimeout); stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchData]);
 
-  const withData = stocks.filter((s) => s.price !== null);
-  const gainers = [...withData].sort((a, b) => (b.change ?? 0) - (a.change ?? 0)).slice(0, 7);
-  const losers = [...withData].sort((a, b) => (a.change ?? 0) - (b.change ?? 0)).slice(0, 7);
+  // STRICT filtering: gainers > 0 only, losers < 0 only
+  const gainers = [...stocks].filter((s) => (s.change ?? 0) > 0).sort((a, b) => (b.change ?? 0) - (a.change ?? 0)).slice(0, 10);
+  const losers = [...stocks].filter((s) => (s.change ?? 0) < 0).sort((a, b) => (a.change ?? 0) - (b.change ?? 0)).slice(0, 10);
 
   return (
     <div className="w-full max-w-[700px] px-4" dir={isRtl ? "rtl" : "ltr"}>
@@ -192,7 +226,7 @@ export default function NativeMarketTables() {
         <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
           {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
-      ) : withData.length === 0 ? (
+      ) : stocks.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
           {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
@@ -206,9 +240,15 @@ export default function NativeMarketTables() {
                 {isRtl ? "המרוויחות" : "Top Gainers"}
               </h3>
             </div>
-            {gainers.map((s) => (
-              <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
-            ))}
+            {gainers.length > 0 ? (
+              gainers.map((s) => (
+                <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
+              ))
+            ) : (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                {isRtl ? "אין מניות עולות כרגע" : "No gainers right now"}
+              </div>
+            )}
           </div>
 
           {/* Losers */}
@@ -219,9 +259,15 @@ export default function NativeMarketTables() {
                 {isRtl ? "המפסידות" : "Top Losers"}
               </h3>
             </div>
-            {losers.map((s) => (
-              <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
-            ))}
+            {losers.length > 0 ? (
+              losers.map((s) => (
+                <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
+              ))
+            ) : (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                {isRtl ? "אין מניות יורדות כרגע" : "No losers right now"}
+              </div>
+            )}
           </div>
         </div>
       )}
