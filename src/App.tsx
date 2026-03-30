@@ -17,6 +17,8 @@ import CalendarPage from "./pages/CalendarPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/NotFound";
+import NewsPage from "./pages/NewsPage";
+import AdminNewsroom from "./pages/AdminNewsroom";
 
 
 const queryClient = new QueryClient();
