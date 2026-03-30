@@ -253,10 +253,9 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
             <TableHeader>
               <TableRow className="border-b-border hover:bg-transparent">
                 <TableHead className="font-display text-muted-foreground min-w-[220px]">{t("fin.metric")}</TableHead>
-                {years.map((y) => (
-                  <TableHead key={y} className="font-display text-muted-foreground text-end min-w-[90px]">{y}</TableHead>
+                {displayYears.map((y, i) => (
+                  <TableHead key={years[i]} className="font-display text-muted-foreground text-end min-w-[90px]">{y}</TableHead>
                 ))}
-                <TableHead className="font-display text-muted-foreground text-end min-w-[80px] text-xs">{t("fin.yoyGrowth")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
