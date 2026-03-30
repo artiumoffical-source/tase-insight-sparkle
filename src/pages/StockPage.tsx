@@ -287,6 +287,7 @@ export default function StockPage() {
               loading={loading}
               sector={sector}
             />
+          </div>
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
