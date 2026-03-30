@@ -10,6 +10,11 @@ function toNis(raw: number): number {
   return raw > 1000 ? raw / 100 : raw;
 }
 
+// Sanity check: if change exceeds ±50%, it's likely a unit mismatch — discard
+function isSaneChange(change: number): boolean {
+  return Math.abs(change) <= 50;
+}
+
 async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: number; change: number } | null> {
   // Try real-time
   try {
