@@ -84,8 +84,9 @@ export default function AdminNewsroom() {
     onError: (err) => toast.error(`שגיאה: ${err.message}`),
   });
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  if (loading || roleLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-8 w-8" /></div>;
   if (!user) return <Navigate to="/auth" replace />;
+  if (!isSuperAdmin) return <div className="flex justify-center py-20 text-destructive font-bold">אין לך הרשאה לדף זה</div>;
 
   const startEdit = (article: any) => {
     setEditingId(article.id);
