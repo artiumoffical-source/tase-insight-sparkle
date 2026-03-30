@@ -76,6 +76,29 @@ export default function NativeMarketTables() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const prevPrices = useRef<Record<string, number>>({});
 
+  // Fetch logos from DB once on mount
+  useEffect(() => {
+    const tickers = ALL_STOCKS.map((s) => s.symbol);
+    supabase
+      .from("tase_symbols")
+      .select("ticker, logo_url")
+      .in("ticker", tickers)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const logoMap: Record<string, string> = {};
+        data.forEach((row) => {
+          if (row.logo_url) logoMap[row.ticker] = row.logo_url;
+        });
+        setStocks((prev) =>
+          prev.map((s) => ({
+            ...s,
+            logoUrl: logoMap[s.symbol] || null,
+            domain: COMPANY_DOMAINS[s.symbol] || null,
+          }))
+        );
+      });
+  }, []);
+
   const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
