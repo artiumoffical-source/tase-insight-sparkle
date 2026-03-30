@@ -69,16 +69,24 @@ Deno.serve(async (req) => {
       : ["TEVA", "LUMI", "POLI", "ESLT", "ICL", "NICE", "AZRG", "BEZQ", "DSCT", "MZTF"];
 
     const allArticles: any[] = [];
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
     for (const t of tickers) {
       try {
         const res = await fetch(
-          `https://eodhd.com/api/news?s=${t}.TA&offset=0&limit=3&api_token=${eodhd}&fmt=json`
+          `https://eodhd.com/api/news?s=${t}.TA&offset=0&limit=5&api_token=${eodhd}&fmt=json`
         );
         if (res.ok) {
           const articles = await res.json();
           if (Array.isArray(articles)) {
             for (const a of articles) {
+              // STRICT: Only accept articles from the last 24 hours
+              const articleDate = a.date ? new Date(a.date).getTime() : 0;
+              if (!articleDate || (now - articleDate) > TWENTY_FOUR_HOURS) {
+                console.log(`Skipping old/undated article: "${(a.title || "").slice(0, 60)}" date=${a.date}`);
+                continue;
+              }
               allArticles.push({ ...a, _ticker: t });
             }
           }
@@ -89,7 +97,7 @@ Deno.serve(async (req) => {
     }
 
     if (allArticles.length === 0) {
-      return new Response(JSON.stringify({ generated: 0, message: "No news found" }), {
+      return new Response(JSON.stringify({ generated: 0, message: "No recent news found in the last 24 hours" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
