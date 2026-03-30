@@ -283,12 +283,10 @@ export default function StockPage() {
               incomeStatement={period === "quarterly" ? qIncomeStatement : incomeStatement}
               balanceSheet={period === "quarterly" ? qBalanceSheet : balanceSheet}
               cashFlow={period === "quarterly" ? qCashFlow : cashFlow}
+              detailedBalanceSheet={period === "annual" ? detailedBalanceSheet : undefined}
               loading={loading}
               sector={sector}
             />
-          </div>
-
-          <DeepDiveFinancials data={detailedBalanceSheet} loading={loading} />
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
