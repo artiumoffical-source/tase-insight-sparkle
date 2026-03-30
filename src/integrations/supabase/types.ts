@@ -41,6 +41,7 @@ export type Database = {
           ai_summary_he: string
           ai_title_he: string
           author: string
+          category: string
           created_at: string
           id: string
           original_date: string | null
@@ -57,6 +58,7 @@ export type Database = {
           ai_summary_he?: string
           ai_title_he?: string
           author?: string
+          category?: string
           created_at?: string
           id?: string
           original_date?: string | null
@@ -73,6 +75,7 @@ export type Database = {
           ai_summary_he?: string
           ai_title_he?: string
           author?: string
+          category?: string
           created_at?: string
           id?: string
           original_date?: string | null
