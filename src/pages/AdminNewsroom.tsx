@@ -160,6 +160,9 @@ export default function AdminNewsroom() {
                       <Badge className={statusColor(article.status)}>
                         {statusLabel(article.status)}
                       </Badge>
+                      <Badge variant="secondary" className={article.category === "macro" ? "bg-blue-600 text-white" : "bg-muted"}>
+                        {article.category === "macro" ? "מאקרו וכלכלה" : "מניות"}
+                      </Badge>
                       {article.related_ticker && (
                         <Badge variant="outline">{article.related_ticker}</Badge>
                       )}
