@@ -15,7 +15,7 @@ import { Star, Lock } from "lucide-react";
 import { toast } from "sonner";
 import StockLogo from "@/components/StockLogo";
 import StockNewsSidebar from "@/components/StockNewsSidebar";
-import TASE_STOCKS from "@/data/tase-stocks";
+import TASE_STOCKS, { TA35_TICKERS } from "@/data/tase-stocks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCached, setCache } from "@/lib/stock-cache";
 
