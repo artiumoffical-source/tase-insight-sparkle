@@ -136,7 +136,7 @@ export default function NativeMarketTables() {
     const allTickers = [...indexTickers, ...stockTickers].join(",");
 
     fetch(
-      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${allTickers}`,
+      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${allTickers}&_ts=${Date.now()}`,
       { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
     )
       .then((r) => r.json())
