@@ -35,6 +35,57 @@ export type Database = {
         }
         Relationships: []
       }
+      news_articles: {
+        Row: {
+          ai_body_he: string
+          ai_summary_he: string
+          ai_title_he: string
+          author: string
+          created_at: string
+          id: string
+          original_date: string | null
+          original_source: string
+          original_title: string
+          original_url: string
+          published_at: string | null
+          related_ticker: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_body_he?: string
+          ai_summary_he?: string
+          ai_title_he?: string
+          author?: string
+          created_at?: string
+          id?: string
+          original_date?: string | null
+          original_source?: string
+          original_title?: string
+          original_url?: string
+          published_at?: string | null
+          related_ticker?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_body_he?: string
+          ai_summary_he?: string
+          ai_title_he?: string
+          author?: string
+          created_at?: string
+          id?: string
+          original_date?: string | null
+          original_source?: string
+          original_title?: string
+          original_url?: string
+          published_at?: string | null
+          related_ticker?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tase_symbols: {
         Row: {
           currency: string | null
