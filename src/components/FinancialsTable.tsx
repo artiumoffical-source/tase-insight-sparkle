@@ -450,15 +450,12 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                       {/* Child rows */}
                       {isExpanded && visibleChildren.length > 0 && (
                         <tr>
-                          <td colSpan={years.length + 2} className="p-0">
+                          <td colSpan={years.length + 1} className="p-0">
                             <div className="animate-accordion-down overflow-hidden">
                               <table className="w-full text-sm">
                                 <tbody>
                                   {visibleChildren.map((child, childIdx) => {
                                     const isLast = childIdx === visibleChildren.length - 1;
-                                    const childValues = years.map(y => (byYear[y]?.[child.field] as number) || 0);
-                                    const childYoY = prevIdx >= 0 ? formatYoYText(childValues[lastIdx], childValues[prevIdx]) : "—";
-                                    const childYoYColor = prevIdx >= 0 ? getYoYColor(childValues[lastIdx], childValues[prevIdx], child.invertColor) : "";
 
                                     return (
                                       <tr
@@ -490,9 +487,6 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                                             {formatNum((byYear[y]?.[child.field] as number) || 0)}
                                           </td>
                                         ))}
-                                        <td className={`text-end py-2 px-3 font-mono text-[11px] ${childYoYColor}`}>
-                                          {childYoY}
-                                        </td>
                                       </tr>
                                     );
                                   })}
