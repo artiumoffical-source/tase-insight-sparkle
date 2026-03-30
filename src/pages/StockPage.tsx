@@ -7,6 +7,8 @@ import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
 import type { KeyMetricsData } from "@/components/KeyMetrics";
+import DeepDiveFinancials from "@/components/DeepDiveFinancials";
+import type { DetailedBalanceSheetRow } from "@/components/DeepDiveFinancials";
 import AdSlot from "@/components/AdSlot";
 import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
