@@ -225,16 +225,16 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
   const byYear: Record<string, any> = {};
   rows.forEach((r) => (byYear[r.year] = r));
 
+  const displayYears = years.map(y => y.replace(/-\d{2}$/, ""));
+
   const handleExport = () => {
-    const headers = [t("fin.metric"), ...years, t("fin.yoyGrowth")];
+    const headers = [t("fin.metric"), ...displayYears];
     const csvRows = metrics.map(m => {
       const vals = years.map(y => {
         const val = m.getValue(byYear[y]) ?? 0;
         return m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : String(val);
       });
-      const lastTwo = years.slice(-2);
-      const yoy = lastTwo.length === 2 ? formatYoYText(m.getValue(byYear[lastTwo[1]]), m.getValue(byYear[lastTwo[0]])) : "—";
-      return [`"${t(m.labelKey)}"`, ...vals, yoy];
+      return [`"${t(m.labelKey)}"`, ...vals];
     });
     exportToCSV(headers, csvRows, `${tabName || "financials"}.csv`);
   };
