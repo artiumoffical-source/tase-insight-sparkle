@@ -106,7 +106,22 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
                 onClick={() => handleArticleClick(item)}
                 className="group block w-full text-start rounded-lg p-2.5 -mx-1 hover:bg-secondary/50 transition-colors"
               >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2.5">
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="h-8 w-8 rounded-md object-cover shrink-0 mt-0.5"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : item.source ? (
+                    <img
+                      src={`https://logo.clearbit.com/${item.source.toLowerCase().replace(/\s/g, '')}.com`}
+                      alt=""
+                      className="h-6 w-6 rounded-full object-cover shrink-0 mt-0.5"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                       {isHe && item.titleHe ? item.titleHe : item.title}
