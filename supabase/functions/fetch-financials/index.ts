@@ -195,6 +195,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const incomeStatement = buildIncomeRows(incomeStatements, years5);
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
+  const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
 
   // Quarterly 3-statement
   const qIncomeStatements = data.Financials?.Income_Statement?.quarterly || {};
