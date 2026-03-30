@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { ChevronRight, CheckCircle2, AlertCircle, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { DetailedBalanceSheetRow } from "@/components/DeepDiveFinancials";
 
 // Shared types
@@ -72,6 +73,7 @@ interface MetricDef {
   colored?: boolean;
   isRatio?: boolean;
   isEps?: boolean;
+  invertColor?: boolean; // For debt metrics: increase = red
 }
 
 // --- Expandable balance sheet config ---
@@ -79,7 +81,8 @@ interface ExpandableRow {
   labelKey: string;
   field: keyof DetailedBalanceSheetRow;
   colored?: boolean;
-  children?: { labelKey: string; field: keyof DetailedBalanceSheetRow }[];
+  invertColor?: boolean;
+  children?: { labelKey: string; field: keyof DetailedBalanceSheetRow; invertColor?: boolean }[];
   checksumChildren?: (keyof DetailedBalanceSheetRow)[];
 }
 
@@ -103,15 +106,15 @@ const EXPANDABLE_BALANCE: ExpandableRow[] = [
     checksumChildren: ["totalCurrentAssets", "nonCurrentAssetsTotal"],
   },
   {
-    labelKey: "fin.totalLiabilities", field: "totalLiabilities",
+    labelKey: "fin.totalLiabilities", field: "totalLiabilities", invertColor: true,
     children: [
-      { labelKey: "deepdive.totalCurrentLiabilities", field: "totalCurrentLiabilities" },
-      { labelKey: "deepdive.accountsPayable", field: "accountsPayable" },
-      { labelKey: "deepdive.shortTermDebt", field: "shortTermDebt" },
-      { labelKey: "deepdive.otherCurrentLiabilities", field: "otherCurrentLiabilities" },
-      { labelKey: "deepdive.nonCurrentLiabilities", field: "nonCurrentLiabilitiesTotal" },
-      { labelKey: "deepdive.longTermDebt", field: "longTermDebt" },
-      { labelKey: "deepdive.otherNonCurrentLiabilities", field: "otherNonCurrentLiabilities" },
+      { labelKey: "deepdive.totalCurrentLiabilities", field: "totalCurrentLiabilities", invertColor: true },
+      { labelKey: "deepdive.accountsPayable", field: "accountsPayable", invertColor: true },
+      { labelKey: "deepdive.shortTermDebt", field: "shortTermDebt", invertColor: true },
+      { labelKey: "deepdive.otherCurrentLiabilities", field: "otherCurrentLiabilities", invertColor: true },
+      { labelKey: "deepdive.nonCurrentLiabilities", field: "nonCurrentLiabilitiesTotal", invertColor: true },
+      { labelKey: "deepdive.longTermDebt", field: "longTermDebt", invertColor: true },
+      { labelKey: "deepdive.otherNonCurrentLiabilities", field: "otherNonCurrentLiabilities", invertColor: true },
     ],
     checksumChildren: ["totalCurrentLiabilities", "nonCurrentLiabilitiesTotal"],
   },
@@ -125,7 +128,7 @@ const EXPANDABLE_BALANCE: ExpandableRow[] = [
     checksumChildren: ["commonStock", "retainedEarnings", "otherEquity"],
   },
   { labelKey: "fin.cashBs", field: "cash" },
-  { labelKey: "fin.totalDebt", field: "longTermDebt" },
+  { labelKey: "fin.totalDebt", field: "longTermDebt", invertColor: true },
 ];
 
 function formatNum(value: number): string {
@@ -137,9 +140,52 @@ function formatNum(value: number): string {
   return value.toFixed(2);
 }
 
-function formatPct(value: number): string {
-  if (!isFinite(value) || isNaN(value)) return "—";
-  return `${value.toFixed(1)}%`;
+function formatYoY(current: number, previous: number): { text: string; color: string } | null {
+  if (!previous || previous === 0 || !current) return null;
+  const pct = ((current - previous) / Math.abs(previous)) * 100;
+  if (!isFinite(pct) || isNaN(pct)) return null;
+  return { text: `${pct.toFixed(1)}%`, color: pct >= 0 ? "gain" : "loss" };
+}
+
+function getYoYColor(current: number, previous: number, invertColor?: boolean): string {
+  if (!previous || previous === 0 || !current) return "";
+  const pct = ((current - previous) / Math.abs(previous)) * 100;
+  if (!isFinite(pct) || isNaN(pct)) return "";
+  const isPositive = pct >= 0;
+  if (invertColor) return isPositive ? "text-loss" : "text-gain";
+  return isPositive ? "text-gain" : "text-loss";
+}
+
+function formatYoYText(current: number, previous: number): string {
+  if (!previous || previous === 0 || !current) return "—";
+  const pct = ((current - previous) / Math.abs(previous)) * 100;
+  if (!isFinite(pct) || isNaN(pct)) return "—";
+  return `${pct.toFixed(1)}%`;
+}
+
+// --- Mini Sparkline SVG ---
+function Sparkline({ values, invertColor }: { values: number[]; invertColor?: boolean }) {
+  const filtered = values.filter(v => v !== 0 && v != null);
+  if (filtered.length < 2) return null;
+  const min = Math.min(...filtered);
+  const max = Math.max(...filtered);
+  const range = max - min || 1;
+  const w = 48, h = 16;
+  const points = filtered.map((v, i) => {
+    const x = (i / (filtered.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 2) - 1;
+    return `${x},${y}`;
+  }).join(" ");
+
+  const trend = filtered[filtered.length - 1] - filtered[0];
+  const isUp = trend >= 0;
+  const color = invertColor ? (isUp ? "hsl(var(--loss))" : "hsl(var(--gain))") : (isUp ? "hsl(var(--gain))" : "hsl(var(--loss))");
+
+  return (
+    <svg width={w} height={h} className="inline-block ms-2 opacity-70 shrink-0">
+      <polyline fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" points={points} />
+    </svg>
+  );
 }
 
 function verifyChecksum(row: DetailedBalanceSheetRow, parent: keyof DetailedBalanceSheetRow, children: (keyof DetailedBalanceSheetRow)[]): "verified" | "mismatch" | "unavailable" {
@@ -151,8 +197,21 @@ function verifyChecksum(row: DetailedBalanceSheetRow, parent: keyof DetailedBala
   return Math.abs(parentVal - childSum) <= tolerance ? "verified" : "mismatch";
 }
 
+// --- Export to CSV (universal Excel-compatible) ---
+function exportToCSV(headers: string[], rows: string[][], filename: string) {
+  const BOM = "\uFEFF";
+  const csv = BOM + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // --- Simple MetricTable for Income & Cash Flow ---
-function SimpleMetricTable({ rows, metrics, t }: { rows: any[]; metrics: MetricDef[]; t: (k: string) => string }) {
+function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics: MetricDef[]; t: (k: string) => string; tabName?: string }) {
   if (!rows.length) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
@@ -161,46 +220,89 @@ function SimpleMetricTable({ rows, metrics, t }: { rows: any[]; metrics: MetricD
     );
   }
 
-  const years = [...rows].sort((a, b) => a.year.localeCompare(b.year)).map((r) => r.year);
+  const sortedRows = [...rows].sort((a, b) => a.year.localeCompare(b.year));
+  const years = sortedRows.map((r) => r.year);
   const byYear: Record<string, any> = {};
   rows.forEach((r) => (byYear[r.year] = r));
 
+  const handleExport = () => {
+    const headers = [t("fin.metric"), ...years, t("fin.yoyGrowth")];
+    const csvRows = metrics.map(m => {
+      const vals = years.map(y => {
+        const val = m.getValue(byYear[y]) ?? 0;
+        return m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : String(val);
+      });
+      const lastTwo = years.slice(-2);
+      const yoy = lastTwo.length === 2 ? formatYoYText(m.getValue(byYear[lastTwo[1]]), m.getValue(byYear[lastTwo[0]])) : "—";
+      return [`"${t(m.labelKey)}"`, ...vals, yoy];
+    });
+    exportToCSV(headers, csvRows, `${tabName || "financials"}.csv`);
+  };
+
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b-border hover:bg-transparent">
-              <TableHead className="font-display text-muted-foreground">{t("fin.metric")}</TableHead>
-              {years.map((y) => (
-                <TableHead key={y} className="font-display text-muted-foreground text-end">{y}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {metrics.map((m, idx) => (
-              <TableRow key={m.labelKey} className={`border-b-border ${idx % 2 === 0 ? "bg-muted/30" : ""}`}>
-                <TableCell className="font-display font-semibold">{t(m.labelKey)}</TableCell>
-                {years.map((y) => {
-                  const val = m.getValue(byYear[y]) ?? 0;
-                  const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
-                  return (
-                    <TableCell key={y} className={`text-end font-mono ${colorClass}`}>
-                      {m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : formatNum(val)}
-                    </TableCell>
-                  );
-                })}
+    <div className="space-y-2">
+      <div className="flex justify-end">
+        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5" onClick={handleExport}>
+          <Download className="h-3.5 w-3.5" />
+          {t("fin.exportExcel")}
+        </Button>
+      </div>
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b-border hover:bg-transparent">
+                <TableHead className="font-display text-muted-foreground min-w-[220px]">{t("fin.metric")}</TableHead>
+                {years.map((y) => (
+                  <TableHead key={y} className="font-display text-muted-foreground text-end min-w-[90px]">{y}</TableHead>
+                ))}
+                <TableHead className="font-display text-muted-foreground text-end min-w-[80px] text-xs">{t("fin.yoyGrowth")}</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {metrics.map((m, idx) => {
+                const allValues = years.map(y => m.getValue(byYear[y]) ?? 0);
+                // YoY for last year vs previous
+                const lastIdx = years.length - 1;
+                const prevIdx = years.length - 2;
+                const currentVal = allValues[lastIdx];
+                const prevVal = prevIdx >= 0 ? allValues[prevIdx] : 0;
+                const yoyText = formatYoYText(currentVal, prevVal);
+                const yoyColor = getYoYColor(currentVal, prevVal, m.invertColor);
+
+                return (
+                  <TableRow key={m.labelKey} className={`border-b-border ${idx % 2 === 0 ? "bg-muted/30" : ""}`}>
+                    <TableCell className="font-display font-semibold">
+                      <div className="flex items-center">
+                        <span>{t(m.labelKey)}</span>
+                        <Sparkline values={allValues} invertColor={m.invertColor} />
+                      </div>
+                    </TableCell>
+                    {years.map((y, yi) => {
+                      const val = m.getValue(byYear[y]) ?? 0;
+                      const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
+                      return (
+                        <TableCell key={y} className={`text-end font-mono ${colorClass}`}>
+                          {m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : formatNum(val)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className={`text-end font-mono text-xs ${yoyColor}`}>
+                      {yoyText}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
 }
 
 // --- Expandable Balance Sheet Table ---
-function ExpandableBalanceTable({ rows, t }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string }) {
+function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[] }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hoveredParent, setHoveredParent] = useState<string | null>(null);
 
@@ -212,13 +314,13 @@ function ExpandableBalanceTable({ rows, t }: { rows: DetailedBalanceSheetRow[]; 
     );
   }
 
-  const years = [...rows].sort((a, b) => a.year.localeCompare(b.year)).map(r => r.year);
+  const sortedRows = [...rows].sort((a, b) => a.year.localeCompare(b.year));
+  const years = sortedRows.map(r => r.year);
   const byYear: Record<string, DetailedBalanceSheetRow> = {};
   rows.forEach(r => (byYear[r.year] = r));
 
   const toggleExpand = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
-  // Check if a child row has ANY non-zero data
   const childHasData = (field: keyof DetailedBalanceSheetRow) =>
     years.some(y => {
       const val = byYear[y]?.[field] as number;
@@ -228,170 +330,238 @@ function ExpandableBalanceTable({ rows, t }: { rows: DetailedBalanceSheetRow[]; 
   const hasChildData = (children: { field: keyof DetailedBalanceSheetRow }[]) =>
     children.some(child => childHasData(child.field));
 
+  // Solvency ratios
+  const solvencyRatios = years.map(y => {
+    const row = byYear[y];
+    if (!row) return { year: y, currentRatio: 0, debtToEquity: 0, quickRatio: 0 };
+    const currentAssets = (row.totalCurrentAssets as number) || 0;
+    const currentLiab = (row.totalCurrentLiabilities as number) || 0;
+    const totalDebt = ((row.longTermDebt as number) || 0) + ((row.shortTermDebt as number) || 0);
+    const equity = (row.totalEquity as number) || 0;
+    const inventory = (row.inventory as number) || 0;
+    return {
+      year: y,
+      currentRatio: currentLiab ? currentAssets / currentLiab : 0,
+      debtToEquity: equity ? totalDebt / equity : 0,
+      quickRatio: currentLiab ? (currentAssets - inventory) / currentLiab : 0,
+    };
+  });
+
+  const handleExport = () => {
+    const headers = [t("fin.metric"), ...years, t("fin.yoyGrowth")];
+    const csvRows: string[][] = [];
+    EXPANDABLE_BALANCE.forEach(node => {
+      const vals = years.map(y => String((byYear[y]?.[node.field] as number) || 0));
+      const lastTwo = years.slice(-2);
+      const yoy = lastTwo.length === 2 ? formatYoYText((byYear[lastTwo[1]]?.[node.field] as number) || 0, (byYear[lastTwo[0]]?.[node.field] as number) || 0) : "—";
+      csvRows.push([`"${t(node.labelKey)}"`, ...vals, yoy]);
+    });
+    // Add ratios
+    csvRows.push([`"${t("fin.currentRatio")}"`, ...solvencyRatios.map(r => r.currentRatio.toFixed(2)), "—"]);
+    csvRows.push([`"${t("fin.deRatio")}"`, ...solvencyRatios.map(r => r.debtToEquity.toFixed(2)), "—"]);
+    csvRows.push([`"${t("fin.quickRatio")}"`, ...solvencyRatios.map(r => r.quickRatio.toFixed(2)), "—"]);
+    exportToCSV(headers, csvRows, "balance-sheet.csv");
+  };
+
   return (
     <TooltipProvider>
-      <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/40 bg-muted/20">
-                <th className="text-start py-3 px-4 font-display text-muted-foreground font-medium min-w-[240px]">
-                  {t("fin.metric")}
-                </th>
-                {years.map(y => (
-                  <th key={y} className="text-end py-3 px-3 font-display text-muted-foreground font-medium min-w-[100px]">
-                    {y}
+      <div className="space-y-2">
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1.5" onClick={handleExport}>
+            <Download className="h-3.5 w-3.5" />
+            {t("fin.exportExcel")}
+          </Button>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/20">
+                  <th className="text-start py-3 px-4 font-display text-muted-foreground font-medium min-w-[260px]">
+                    {t("fin.metric")}
                   </th>
-                ))}
-                <th className="text-end py-3 px-3 font-display text-muted-foreground/60 font-medium min-w-[80px] text-xs">
-                  % {t("deepdive.commonSize")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {EXPANDABLE_BALANCE.map((node) => {
-                const isExpanded = expanded[node.field] ?? false;
-                const canExpand = node.children && hasChildData(node.children);
-                const isHovered = hoveredParent === node.field;
+                  {years.map(y => (
+                    <th key={y} className="text-end py-3 px-3 font-display text-muted-foreground font-medium min-w-[90px]">
+                      {y}
+                    </th>
+                  ))}
+                  <th className="text-end py-3 px-3 font-display text-muted-foreground/60 font-medium min-w-[80px] text-xs">
+                    {t("fin.yoyGrowth")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {EXPANDABLE_BALANCE.map((node) => {
+                  const isExpanded = expanded[node.field] ?? false;
+                  const canExpand = node.children && hasChildData(node.children);
+                  const isHovered = hoveredParent === node.field;
 
-                const checksumResult = node.checksumChildren
-                  ? (() => {
-                      const latestYear = years[years.length - 1];
-                      const latestRow = byYear[latestYear];
-                      if (!latestRow) return null;
-                      return verifyChecksum(latestRow, node.field, node.checksumChildren!);
-                    })()
-                  : null;
+                  const checksumResult = node.checksumChildren
+                    ? (() => {
+                        const latestYear = years[years.length - 1];
+                        const latestRow = byYear[latestYear];
+                        if (!latestRow) return null;
+                        return verifyChecksum(latestRow, node.field, node.checksumChildren!);
+                      })()
+                    : null;
 
-                // Filter out children with all-zero data
-                const visibleChildren = canExpand
-                  ? node.children!.filter(child => childHasData(child.field))
-                  : [];
+                  const visibleChildren = canExpand
+                    ? node.children!.filter(child => childHasData(child.field))
+                    : [];
 
-                return (
-                  <RowGroup key={node.field}>
-                    {/* Parent row */}
-                    <tr
-                      className={cn(
-                        "border-b border-border/30 transition-all duration-150",
-                        "bg-secondary/30 hover:bg-secondary/50",
-                        canExpand && "cursor-pointer",
-                        isHovered && "bg-secondary/50"
-                      )}
-                      onClick={() => canExpand && toggleExpand(node.field)}
-                      onMouseEnter={() => setHoveredParent(node.field)}
-                      onMouseLeave={() => setHoveredParent(null)}
-                    >
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2" dir="rtl">
-                          {canExpand && (
-                            <ChevronRight
-                              className={cn(
-                                "h-4.5 w-4.5 shrink-0 text-primary transition-transform duration-300 ease-out",
-                                isExpanded && "rotate-90"
-                              )}
-                            />
-                          )}
-                          <span className="font-display font-bold text-foreground">{t(node.labelKey)}</span>
-                          {checksumResult && checksumResult !== "unavailable" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="inline-flex">
-                                  {checksumResult === "verified" ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-gain" />
-                                  ) : (
-                                    <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-                                  )}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {checksumResult === "verified" ? t("deepdive.verified") : t("deepdive.checksumMismatch")}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                      </td>
-                      {years.map(y => (
-                        <td key={y} className="text-end py-3 px-3 font-mono font-bold text-foreground">
-                          {formatNum((byYear[y]?.[node.field] as number) || 0)}
-                        </td>
-                      ))}
-                      <td className="text-end py-3 px-3">
-                        <span className="inline-block rounded-full bg-muted/50 px-2 py-0.5 text-xs font-mono text-muted-foreground/70">
-                          {node.field === "totalAssets" ? "100%" : (() => {
-                            const latestYear = years[years.length - 1];
-                            const total = Math.abs((byYear[latestYear]?.totalAssets as number) || 1);
-                            const val = (byYear[latestYear]?.[node.field] as number) || 0;
-                            return formatPct((val / total) * 100);
-                          })()}
-                        </span>
-                      </td>
-                    </tr>
+                  // YoY for parent
+                  const parentValues = years.map(y => (byYear[y]?.[node.field] as number) || 0);
+                  const lastIdx = years.length - 1;
+                  const prevIdx = years.length - 2;
+                  const parentYoY = prevIdx >= 0 ? formatYoYText(parentValues[lastIdx], parentValues[prevIdx]) : "—";
+                  const parentYoYColor = prevIdx >= 0 ? getYoYColor(parentValues[lastIdx], parentValues[prevIdx], node.invertColor) : "";
 
-                    {/* Child rows with animation wrapper */}
-                    {isExpanded && visibleChildren.length > 0 && (
-                      <tr>
-                        <td colSpan={years.length + 2} className="p-0">
-                          <div className="animate-accordion-down overflow-hidden">
-                            <table className="w-full text-sm">
-                              <tbody>
-                                {visibleChildren.map((child, childIdx) => {
-                                  const latestYear = years[years.length - 1];
-                                  const parentVal = Math.abs((byYear[latestYear]?.[node.field] as number) || 1);
-                                  const childVal = (byYear[latestYear]?.[child.field] as number) || 0;
-                                  const commonSize = parentVal ? (childVal / parentVal) * 100 : 0;
-                                  const isLast = childIdx === visibleChildren.length - 1;
-
-                                  return (
-                                    <tr
-                                      key={child.field}
-                                      className={cn(
-                                        "border-b border-border/10 transition-colors duration-150",
-                                        "hover:bg-primary/5",
-                                        hoveredParent === node.field && "bg-primary/[0.02]"
-                                      )}
-                                      onMouseEnter={() => setHoveredParent(node.field)}
-                                      onMouseLeave={() => setHoveredParent(null)}
-                                    >
-                                      <td className="py-2 px-4 min-w-[240px]" dir="rtl">
-                                        <div className="flex items-center gap-0" dir="rtl">
-                                          {/* Tree connector */}
-                                          <div className="relative w-6 h-full shrink-0 flex items-center justify-center" dir="ltr">
-                                            <div className={cn(
-                                              "absolute right-0 top-0 w-px bg-border/40",
-                                              isLast ? "h-1/2" : "h-full"
-                                            )} />
-                                            <div className="absolute right-0 top-1/2 h-px w-3 bg-border/40" />
-                                          </div>
-                                          <span className="text-muted-foreground font-display text-[13px] font-normal">
-                                            {t(child.labelKey)}
-                                          </span>
-                                        </div>
-                                      </td>
-                                      {years.map(y => (
-                                        <td key={y} className="text-end py-2 px-3 font-mono text-muted-foreground text-[13px] min-w-[100px]">
-                                          {formatNum((byYear[y]?.[child.field] as number) || 0)}
-                                        </td>
-                                      ))}
-                                      <td className="text-end py-2 px-3 min-w-[80px]">
-                                        <span className="inline-block rounded-full bg-muted/30 px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground/50">
-                                          {formatPct(commonSize)}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                  return (
+                    <RowGroup key={node.field}>
+                      {/* Parent row */}
+                      <tr
+                        className={cn(
+                          "border-b border-border/30 transition-all duration-150",
+                          "bg-secondary/30 hover:bg-secondary/50",
+                          canExpand && "cursor-pointer",
+                          isHovered && "bg-secondary/50"
+                        )}
+                        onClick={() => canExpand && toggleExpand(node.field)}
+                        onMouseEnter={() => setHoveredParent(node.field)}
+                        onMouseLeave={() => setHoveredParent(null)}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2" dir="rtl">
+                            {canExpand && (
+                              <ChevronRight
+                                className={cn(
+                                  "h-4.5 w-4.5 shrink-0 text-primary transition-transform duration-300 ease-out",
+                                  isExpanded && "rotate-90"
+                                )}
+                              />
+                            )}
+                            <span className="font-display font-bold text-foreground">{t(node.labelKey)}</span>
+                            <Sparkline values={parentValues} invertColor={node.invertColor} />
+                            {checksumResult && checksumResult !== "unavailable" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex">
+                                    {checksumResult === "verified" ? (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-gain" />
+                                    ) : (
+                                      <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                                    )}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {checksumResult === "verified" ? t("deepdive.verified") : t("deepdive.checksumMismatch")}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
                           </div>
                         </td>
+                        {years.map(y => (
+                          <td key={y} className="text-end py-3 px-3 font-mono font-bold text-foreground">
+                            {formatNum((byYear[y]?.[node.field] as number) || 0)}
+                          </td>
+                        ))}
+                        <td className={`text-end py-3 px-3 font-mono text-xs ${parentYoYColor}`}>
+                          {parentYoY}
+                        </td>
                       </tr>
-                    )}
-                  </RowGroup>
-                );
-              })}
-            </tbody>
-          </table>
+
+                      {/* Child rows */}
+                      {isExpanded && visibleChildren.length > 0 && (
+                        <tr>
+                          <td colSpan={years.length + 2} className="p-0">
+                            <div className="animate-accordion-down overflow-hidden">
+                              <table className="w-full text-sm">
+                                <tbody>
+                                  {visibleChildren.map((child, childIdx) => {
+                                    const isLast = childIdx === visibleChildren.length - 1;
+                                    const childValues = years.map(y => (byYear[y]?.[child.field] as number) || 0);
+                                    const childYoY = prevIdx >= 0 ? formatYoYText(childValues[lastIdx], childValues[prevIdx]) : "—";
+                                    const childYoYColor = prevIdx >= 0 ? getYoYColor(childValues[lastIdx], childValues[prevIdx], child.invertColor) : "";
+
+                                    return (
+                                      <tr
+                                        key={child.field}
+                                        className={cn(
+                                          "border-b border-border/10 transition-colors duration-150",
+                                          "hover:bg-primary/5",
+                                          hoveredParent === node.field && "bg-primary/[0.02]"
+                                        )}
+                                        onMouseEnter={() => setHoveredParent(node.field)}
+                                        onMouseLeave={() => setHoveredParent(null)}
+                                      >
+                                        <td className="py-2 px-4 min-w-[260px]" dir="rtl">
+                                          <div className="flex items-center gap-0" dir="rtl">
+                                            <div className="relative w-6 h-full shrink-0 flex items-center justify-center" dir="ltr">
+                                              <div className={cn(
+                                                "absolute right-0 top-0 w-px bg-border/40",
+                                                isLast ? "h-1/2" : "h-full"
+                                              )} />
+                                              <div className="absolute right-0 top-1/2 h-px w-3 bg-border/40" />
+                                            </div>
+                                            <span className="text-muted-foreground font-display text-[13px] font-normal">
+                                              {t(child.labelKey)}
+                                            </span>
+                                          </div>
+                                        </td>
+                                        {years.map(y => (
+                                          <td key={y} className="text-end py-2 px-3 font-mono text-muted-foreground text-[13px] min-w-[90px]">
+                                            {formatNum((byYear[y]?.[child.field] as number) || 0)}
+                                          </td>
+                                        ))}
+                                        <td className={`text-end py-2 px-3 font-mono text-[11px] ${childYoYColor}`}>
+                                          {childYoY}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </RowGroup>
+                  );
+                })}
+
+                {/* Solvency Ratios Section */}
+                <tr>
+                  <td colSpan={years.length + 2} className="p-0">
+                    <div className="border-t-2 border-border/40 bg-muted/10 px-4 py-2">
+                      <span className="font-display font-bold text-xs text-muted-foreground uppercase tracking-wide">
+                        {t("fin.solvencyRatios")}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+                {[
+                  { labelKey: "fin.currentRatio", getValue: (r: any) => r.currentRatio },
+                  { labelKey: "fin.deRatio", getValue: (r: any) => r.debtToEquity, invertColor: true },
+                  { labelKey: "fin.quickRatio", getValue: (r: any) => r.quickRatio },
+                ].map((ratio, idx) => {
+                  const vals = solvencyRatios.map(r => ratio.getValue(r));
+                  const yoy = vals.length >= 2 ? formatYoYText(vals[vals.length - 1], vals[vals.length - 2]) : "—";
+                  const yoyColor = vals.length >= 2 ? getYoYColor(vals[vals.length - 1], vals[vals.length - 2], ratio.invertColor) : "";
+                  return (
+                    <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
+                      <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
+                      {solvencyRatios.map((r, i) => (
+                        <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
+                          {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
+                        </td>
+                      ))}
+                      <td className={`text-end py-2.5 px-3 font-mono text-xs ${yoyColor}`}>{yoy}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </TooltipProvider>
@@ -501,7 +671,6 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
     return <SimpleMetricTable rows={data} metrics={legacyMetrics} t={t} />;
   }
 
-  // Use detailed balance sheet for the expandable table
   const useDetailedBS = detailedBalanceSheet && detailedBalanceSheet.length > 0;
 
   return (
@@ -512,7 +681,7 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
         <TabsTrigger value="cashflow">{t("fin.cashFlow")}</TabsTrigger>
       </TabsList>
       <TabsContent value="income">
-        <SimpleMetricTable rows={incomeStatement!} metrics={getIncomeMetrics(sector)} t={t} />
+        <SimpleMetricTable rows={incomeStatement!} metrics={getIncomeMetrics(sector)} t={t} tabName="income-statement" />
       </TabsContent>
       <TabsContent value="balance">
         {useDetailedBS ? (
@@ -520,16 +689,16 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
         ) : (
           <SimpleMetricTable rows={balanceSheet!} metrics={[
             { labelKey: "fin.totalAssets", getValue: (r) => r.totalAssets },
-            { labelKey: "fin.totalLiabilities", getValue: (r) => r.totalLiabilities },
+            { labelKey: "fin.totalLiabilities", getValue: (r) => r.totalLiabilities, invertColor: true },
             { labelKey: "fin.totalEquity", getValue: (r) => r.totalEquity },
             { labelKey: "fin.cashBs", getValue: (r) => r.cash },
-            { labelKey: "fin.totalDebt", getValue: (r) => r.totalDebt },
+            { labelKey: "fin.totalDebt", getValue: (r) => r.totalDebt, invertColor: true },
             { labelKey: "fin.inventory", getValue: (r) => r.inventory },
-          ]} t={t} />
+          ]} t={t} tabName="balance-sheet" />
         )}
       </TabsContent>
       <TabsContent value="cashflow">
-        <SimpleMetricTable rows={cashFlow!} metrics={getCashFlowMetrics(sector)} t={t} />
+        <SimpleMetricTable rows={cashFlow!} metrics={getCashFlowMetrics(sector)} t={t} tabName="cash-flow" />
       </TabsContent>
     </Tabs>
   );

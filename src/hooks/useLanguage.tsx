@@ -86,6 +86,11 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.totalDeposits": "סך פיקדונות",
     "fin.totalInvestments": "סך השקעות",
     "fin.researchDev": "מחקר ופיתוח (R&D)",
+    "fin.yoyGrowth": "שינוי שנתי",
+    "fin.exportExcel": "ייצוא לאקסל",
+    "fin.solvencyRatios": "יחסי נזילות ואשראי",
+    "fin.currentRatio": "יחס שוטף",
+    "fin.quickRatio": "יחס מהיר",
 
     // Deep Dive Financials
     "deepdive.title": "ניתוח מאזן מעמיק",
@@ -309,6 +314,11 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.totalDeposits": "Total Deposits",
     "fin.totalInvestments": "Total Investments",
     "fin.researchDev": "R&D Expenses",
+    "fin.yoyGrowth": "YoY Growth",
+    "fin.exportExcel": "Export to Excel",
+    "fin.solvencyRatios": "Solvency & Liquidity Ratios",
+    "fin.currentRatio": "Current Ratio",
+    "fin.quickRatio": "Quick Ratio",
 
     // Deep Dive Financials
     "deepdive.title": "Deep Dive Balance Sheet",
