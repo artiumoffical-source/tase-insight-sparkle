@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { signOut } from "@/lib/supabase-helpers";
 import { Button } from "@/components/ui/button";
-import { Compass, Star, LogOut, User, Globe, CalendarDays } from "lucide-react";
+import { Compass, Star, LogOut, User, Globe, CalendarDays, Newspaper } from "lucide-react";
 
 export default function Navbar() {
   const { user, loading } = useAuth();
@@ -39,6 +39,13 @@ export default function Navbar() {
             <Link to="/calendar" className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
               {t("nav.calendar")}
+            </Link>
+          </Button>
+
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/news" className="flex items-center gap-1.5">
+              <Newspaper className="h-3.5 w-3.5" />
+              {lang === "he" ? "חדשות" : "News"}
             </Link>
           </Button>
 
