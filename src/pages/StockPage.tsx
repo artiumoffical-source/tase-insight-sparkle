@@ -1,9 +1,8 @@
 import { useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
-import TradingViewSymbolOverview from "@/components/TradingViewSymbolOverview";
 import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
@@ -16,6 +15,11 @@ import { toast } from "sonner";
 import StockLogo from "@/components/StockLogo";
 import StockNewsSidebar from "@/components/StockNewsSidebar";
 import TASE_STOCKS from "@/data/tase-stocks";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getCached, setCache } from "@/lib/stock-cache";
+
+// Lazy load TradingView chart - renders after main layout
+const TradingViewSymbolOverview = lazy(() => import("@/components/TradingViewSymbolOverview"));
 
 interface StockMeta {
   name: string;
@@ -24,6 +28,28 @@ interface StockMeta {
   marketCap: string;
   currency: string;
   logoUrl: string | null;
+  sector?: string;
+}
+
+interface FinancialsResponse {
+  meta: StockMeta;
+  financials: FinancialData[];
+  incomeStatement: IncomeStatementRow[];
+  balanceSheet: BalanceSheetRow[];
+  cashFlow: CashFlowRow[];
+  qIncomeStatement: IncomeStatementRow[];
+  qBalanceSheet: BalanceSheetRow[];
+  qCashFlow: CashFlowRow[];
+  keyMetrics: KeyMetricsData | null;
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <Skeleton className="h-[80px] w-full" />
+      <Skeleton className="h-[500px] w-full" />
+    </div>
+  );
 }
 
 export default function StockPage() {
@@ -48,14 +74,36 @@ export default function StockPage() {
 
   const isPremium = user?.email === "artiumoffical@gmail.com";
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
-
   const stock = TASE_STOCKS.find((s) => s.ticker === upperTicker);
+
+  // Apply cached financials data to state
+  const applyFinancialsData = (data: FinancialsResponse) => {
+    setMeta(data.meta);
+    setFinancials(data.financials ?? []);
+    setIncomeStatement(data.incomeStatement ?? []);
+    setBalanceSheet(data.balanceSheet ?? []);
+    setCashFlow(data.cashFlow ?? []);
+    setQIncomeStatement(data.qIncomeStatement ?? []);
+    setQBalanceSheet(data.qBalanceSheet ?? []);
+    setQCashFlow(data.qCashFlow ?? []);
+    setKeyMetrics(data.keyMetrics ?? null);
+    setSector(data.meta?.sector as SectorType ?? "general");
+  };
 
   useEffect(() => {
     if (!upperTicker) return;
-    setLoading(true);
     setError(null);
 
+    // 1. Check cache first for instant display
+    const cached = getCached<FinancialsResponse>("financials", upperTicker);
+    if (cached) {
+      applyFinancialsData(cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // 2. Fetch fresh data in background
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -70,21 +118,15 @@ export default function StockPage() {
         }
         return res.json();
       })
-      .then((data) => {
-        setMeta(data.meta);
-        setFinancials(data.financials ?? []);
-        setIncomeStatement(data.incomeStatement ?? []);
-        setBalanceSheet(data.balanceSheet ?? []);
-        setCashFlow(data.cashFlow ?? []);
-        setQIncomeStatement(data.qIncomeStatement ?? []);
-        setQBalanceSheet(data.qBalanceSheet ?? []);
-        setQCashFlow(data.qCashFlow ?? []);
-        setKeyMetrics(data.keyMetrics ?? null);
-        setSector(data.meta?.sector ?? "general");
+      .then((data: FinancialsResponse) => {
+        applyFinancialsData(data);
+        setCache("financials", upperTicker, data);
       })
       .catch((err) => {
-        console.error("Failed to fetch financials:", err);
-        setError(err.message || "Failed to load data");
+        if (!cached) {
+          console.error("Failed to fetch financials:", err);
+          setError(err.message || "Failed to load data");
+        }
       })
       .finally(() => setLoading(false));
   }, [upperTicker]);
@@ -120,7 +162,6 @@ export default function StockPage() {
     }
   };
 
-  
   const displayName = isRtl
     ? (stock?.nameHe ?? stock?.name ?? meta?.name ?? upperTicker)
     : (stock?.name ?? meta?.name ?? upperTicker);
@@ -134,7 +175,7 @@ export default function StockPage() {
             <StockLogo name={displayName} logoUrl={meta?.logoUrl} size="lg" />
             <div>
               <h1 className="font-display text-3xl font-bold">
-                {loading ? t("stock.loading") : displayName}
+                {loading && !meta ? t("stock.loading") : displayName}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">TASE: {upperTicker}</p>
               {stock && (
@@ -157,12 +198,12 @@ export default function StockPage() {
             </div>
           )}
 
-          <TradingViewSymbolOverview ticker={upperTicker} />
+          {/* Lazy-loaded TradingView chart with skeleton fallback */}
+          <Suspense fallback={<ChartSkeleton />}>
+            <TradingViewSymbolOverview ticker={upperTicker} />
+          </Suspense>
 
-          {/* Ad between chart and key metrics */}
           <AdSlot placement="banner" />
-
-          {/* In-content ad */}
           <AdSlot placement="leaderboard" />
 
           <KeyMetrics
@@ -211,7 +252,7 @@ export default function StockPage() {
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
 
-        {/* Desktop sidebar: News + Ad */}
+        {/* Desktop sidebar */}
         <aside className="hidden lg:block">
           <div className="sticky top-24 space-y-4">
             <StockNewsSidebar ticker={upperTicker} isPremium={isPremium} onUpgrade={() => setShowUpgrade(true)} />
