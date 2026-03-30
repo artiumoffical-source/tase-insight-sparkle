@@ -42,7 +42,12 @@ export default function Navbar() {
             </Link>
           </Button>
 
-          {user && (
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/news" className="flex items-center gap-1.5">
+              <Newspaper className="h-3.5 w-3.5" />
+              {lang === "he" ? "חדשות" : "News"}
+            </Link>
+          </Button>
             <Button variant="ghost" size="sm" asChild>
               <Link to="/watchlist" className="flex items-center gap-1.5">
                 <Star className="h-3.5 w-3.5" />
