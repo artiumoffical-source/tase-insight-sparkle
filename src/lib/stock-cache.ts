@@ -8,7 +8,7 @@ interface CacheEntry<T> {
 const CACHE_DURATIONS = {
   financials: 60 * 60 * 1000,  // 1 hour
   news: 60 * 60 * 1000,        // 1 hour
-  quotes: 15 * 1000,           // 15 seconds
+  quotes: 5 * 1000,            // 5 seconds
 } as const;
 
 type CacheType = keyof typeof CACHE_DURATIONS;
