@@ -39,6 +39,7 @@ interface FinancialsResponse {
   incomeStatement: IncomeStatementRow[];
   balanceSheet: BalanceSheetRow[];
   cashFlow: CashFlowRow[];
+  detailedBalanceSheet: DetailedBalanceSheetRow[];
   qIncomeStatement: IncomeStatementRow[];
   qBalanceSheet: BalanceSheetRow[];
   qCashFlow: CashFlowRow[];
