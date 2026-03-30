@@ -40,9 +40,9 @@ const TA125_TICKERS = new Set([
 
 const INDICES: IndexRow[] = [
   { symbol: "TA35", nameHe: "מדד ת\"א 35", nameEn: "TA-35 Index", price: null, change: null },
-  { symbol: "TA125", nameHe: "מדד ת\"א 125", nameEn: "TA-125 Index", price: null, change: null },
-  { symbol: "TABANK", nameHe: "מדד ת\"א בנקים", nameEn: "TA Banks Index", price: null, change: null },
-  { symbol: "TAREALESTATE", nameHe: "מדד ת\"א נדל\"ן", nameEn: "TA Real Estate", price: null, change: null },
+  { symbol: "TA90", nameHe: "מדד ת\"א 90", nameEn: "TA-90 Index", price: null, change: null },
+  { symbol: "TABANKS", nameHe: "מדד ת\"א בנקים", nameEn: "TA Banks Index", price: null, change: null },
+  { symbol: "TATECH", nameHe: "מדד ת\"א טכנולוגיה", nameEn: "TA Tech Index", price: null, change: null },
 ];
 
 const FALLBACK_STOCKS: StockRow[] = [
