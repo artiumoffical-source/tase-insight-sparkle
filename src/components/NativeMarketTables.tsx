@@ -226,7 +226,7 @@ export default function NativeMarketTables() {
         <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
           {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
-      ) : withData.length === 0 ? (
+      ) : stocks.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
           {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
@@ -240,9 +240,15 @@ export default function NativeMarketTables() {
                 {isRtl ? "המרוויחות" : "Top Gainers"}
               </h3>
             </div>
-            {gainers.map((s) => (
-              <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
-            ))}
+            {gainers.length > 0 ? (
+              gainers.map((s) => (
+                <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
+              ))
+            ) : (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                {isRtl ? "אין מניות עולות כרגע" : "No gainers right now"}
+              </div>
+            )}
           </div>
 
           {/* Losers */}
@@ -253,9 +259,15 @@ export default function NativeMarketTables() {
                 {isRtl ? "המפסידות" : "Top Losers"}
               </h3>
             </div>
-            {losers.map((s) => (
-              <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
-            ))}
+            {losers.length > 0 ? (
+              losers.map((s) => (
+                <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />
+              ))
+            ) : (
+              <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                {isRtl ? "אין מניות יורדות כרגע" : "No losers right now"}
+              </div>
+            )}
           </div>
         </div>
       )}
