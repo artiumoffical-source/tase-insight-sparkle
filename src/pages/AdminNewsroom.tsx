@@ -19,6 +19,20 @@ export default function AdminNewsroom() {
   const [editBody, setEditBody] = useState("");
   const [editSummary, setEditSummary] = useState("");
 
+  const { data: isSuperAdmin, isLoading: roleLoading } = useQuery({
+    queryKey: ["user-role", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .eq("role", "superadmin")
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user,
+  });
+
   const { data: articles, isLoading } = useQuery({
     queryKey: ["admin-news"],
     queryFn: async () => {
@@ -29,7 +43,7 @@ export default function AdminNewsroom() {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && isSuperAdmin === true,
   });
 
   const generateMutation = useMutation({
@@ -70,8 +84,9 @@ export default function AdminNewsroom() {
     onError: (err) => toast.error(`שגיאה: ${err.message}`),
   });
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  if (loading || roleLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-8 w-8" /></div>;
   if (!user) return <Navigate to="/auth" replace />;
+  if (!isSuperAdmin) return <div className="flex justify-center py-20 text-destructive font-bold">אין לך הרשאה לדף זה</div>;
 
   const startEdit = (article: any) => {
     setEditingId(article.id);
