@@ -196,9 +196,15 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
     ? "animate-flash-red"
     : "";
 
+  const handleMouseEnter = () => {
+    prefetchFinancials(stock.symbol);
+    prefetchNews(stock.symbol);
+  };
+
   return (
     <Link
       to={`/stock/${stock.symbol}.TA`}
+      onMouseEnter={handleMouseEnter}
       className={`flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors border-b border-border/8 last:border-b-0 ${flashClass}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
