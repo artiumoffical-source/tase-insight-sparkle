@@ -81,8 +81,8 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
     const prevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
 
     if (price > 0) {
-      // Indices are in points, not agorot — skip conversion for indices
-      const isIndex = ticker.startsWith("TA");
+      // Indices (TA35 etc) are in points, stocks are in agorot
+      const isIndex = !!indexMap[ticker];
       const nisPrice = isIndex ? price : toNis(price);
       let change = 0;
       if (prevClose > 0) {
