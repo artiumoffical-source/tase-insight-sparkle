@@ -248,25 +248,25 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
                             ) : (
                               <span className="w-5" />
                             )}
-                          <span>{t(node.labelKey)}</span>
-                          {checksumResult && checksumResult !== "unavailable" && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  {checksumResult === "verified" ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-gain" />
-                                  ) : (
-                                    <AlertCircle className="h-3.5 w-3.5 text-yellow-500" />
-                                  )}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {checksumResult === "verified"
-                                  ? t("deepdive.verified")
-                                  : t("deepdive.checksumMismatch")}
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
+                            {checksumResult && checksumResult !== "unavailable" && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    {checksumResult === "verified" ? (
+                                      <CheckCircle2 className="h-3.5 w-3.5 text-gain" />
+                                    ) : (
+                                      <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                                    )}
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {checksumResult === "verified"
+                                    ? t("deepdive.verified")
+                                    : t("deepdive.checksumMismatch")}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                         </td>
                         {years.map(y => (
                           <td key={y} className="text-end py-2.5 px-3 font-mono font-semibold">
