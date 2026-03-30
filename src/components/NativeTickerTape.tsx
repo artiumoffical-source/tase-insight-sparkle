@@ -142,6 +142,7 @@ export default function NativeTickerTape() {
               to={`/stock/${item.symbol}.TA`}
               className={`inline-flex items-center gap-2 px-5 text-xs hover:bg-secondary/30 transition-colors border-e border-border/10 ${flashBg}`}
             >
+              <StockLogo name={isRtl ? item.nameHe : item.nameEn} logoUrl={item.logoUrl} domain={item.domain ?? COMPANY_DOMAINS[item.symbol]} size="sm" className="h-5 w-5" />
               <span className="font-medium text-foreground/70">
                 {isRtl ? item.nameHe : item.nameEn}
               </span>
