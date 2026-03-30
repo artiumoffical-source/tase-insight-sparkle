@@ -129,7 +129,7 @@ serve(async (req) => {
         }
 
         // Fallback: Yahoo Finance
-        const yahoo = await fetchFromYahoo(symbol);
+        const yahoo = await fetchFromYahoo(symbol, t);
         if (yahoo) {
           console.log(`[OK-Yahoo] ${t}: ${yahoo.price} (${yahoo.change}%)`);
           return { ticker: t, price: yahoo.price, change: yahoo.change, source: "yahoo", error: false };
