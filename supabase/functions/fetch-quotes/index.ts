@@ -82,17 +82,20 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
     if (!result) return null;
 
     const meta = result.meta;
-    const price = Number(meta?.regularMarketPrice) || 0;
-    const prevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
+    const rawPrice = Number(meta?.regularMarketPrice) || 0;
+    const rawPrevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
 
-    if (price > 0) {
-      // Indices (TA35 etc) are in points, stocks are in agorot
+    if (rawPrice > 0 && rawPrevClose > 0) {
       const isIndex = !!indexMap[ticker];
-      const nisPrice = isIndex ? price : toNis(price);
-      let change = 0;
-      if (prevClose > 0) {
-        const nisPrev = isIndex ? prevClose : toNis(prevClose);
-        change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
+      // Apply toNis consistently: both price and prevClose come from same source
+      const nisPrice = isIndex ? rawPrice : toNis(rawPrice);
+      const nisPrev = isIndex ? rawPrevClose : toNis(rawPrevClose);
+      const change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
+
+      // Skip stocks with insane change (unit mismatch)
+      if (!isSaneChange(change)) {
+        console.log(`[Yahoo] ${symbol} SKIPPED: change ${change}% exceeds sanity threshold (price=${nisPrice}, prev=${nisPrev})`);
+        return null;
       }
       return { price: nisPrice, change };
     }
