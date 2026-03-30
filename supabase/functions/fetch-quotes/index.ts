@@ -75,12 +75,14 @@ async function fetchFromYahoo(symbol: string): Promise<{ price: number; change: 
     const prevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
 
     if (price > 0) {
+      // Yahoo may return agorot for TASE stocks, apply same conversion
+      const nisPrice = toNis(price);
       let change = 0;
       if (prevClose > 0) {
-        change = Math.round(((price - prevClose) / prevClose) * 10000) / 100;
+        const nisPrev = toNis(prevClose);
+        change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
       }
-      // Yahoo returns NIS directly for TASE, no need for agorot conversion
-      return { price, change };
+      return { price: nisPrice, change };
     }
   } catch (e) {
     console.log(`[Yahoo] ${symbol} exception: ${e}`);
