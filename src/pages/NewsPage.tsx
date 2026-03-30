@@ -87,6 +87,9 @@ export default function NewsPage() {
                 <Card className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary" className={article.category === "macro" ? "bg-blue-600 text-white" : "bg-muted"}>
+                        {article.category === "macro" ? "מאקרו וכלכלה" : "מניות"}
+                      </Badge>
                       {article.related_ticker && (
                         <Link to={`/stock/${article.related_ticker}`}>
                           <Badge
