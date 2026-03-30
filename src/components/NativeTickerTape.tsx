@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -24,9 +24,8 @@ const TICKER_SYMBOLS: TickerItem[] = [
 export default function NativeTickerTape() {
   const { isRtl } = useLanguage();
   const [items, setItems] = useState<TickerItem[]>(TICKER_SYMBOLS);
-  const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (!projectId || !anonKey) return;
@@ -34,7 +33,7 @@ export default function NativeTickerTape() {
     const tickers = TICKER_SYMBOLS.map((t) => t.symbol).join(",");
     fetch(
       `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}`,
-      { headers: { apikey: anonKey, "Content-Type": "application/json" } }
+      { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
     )
       .then((r) => r.json())
       .then((data) => {
@@ -48,10 +47,15 @@ export default function NativeTickerTape() {
             return { ...item, price: q.price, change: q.change };
           })
         );
-        setLoaded(true);
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetchData();
+    const id = setInterval(fetchData, 60_000);
+    return () => clearInterval(id);
+  }, [fetchData]);
 
   const doubled = [...items, ...items];
 
@@ -86,8 +90,8 @@ export default function NativeTickerTape() {
                   </span>
                 </>
               ) : (
-                <span className="text-muted-foreground/50 text-[10px]">
-                  {isRtl ? "בטעינה..." : "Loading..."}
+                <span className="text-muted-foreground/50 text-[10px] animate-pulse">
+                  {isRtl ? "טוען..." : "Loading..."}
                 </span>
               )}
             </Link>

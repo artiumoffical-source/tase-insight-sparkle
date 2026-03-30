@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
-import { TrendingUp, TrendingDown, Circle } from "lucide-react";
+import { TrendingUp, TrendingDown, Circle, RefreshCw } from "lucide-react";
 import StockLogo from "@/components/StockLogo";
 
 interface StockRow {
@@ -10,6 +10,7 @@ interface StockRow {
   nameEn: string;
   price: number | null;
   change: number | null;
+  flash?: "up" | "down" | "";
 }
 
 const ALL_STOCKS: StockRow[] = [
@@ -50,8 +51,10 @@ export default function NativeMarketTables() {
   const marketOpen = useMarketOpen();
   const [stocks, setStocks] = useState<StockRow[]>(ALL_STOCKS);
   const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const prevPrices = useRef<Record<string, number>>({});
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (!projectId || !anonKey) {
@@ -62,7 +65,7 @@ export default function NativeMarketTables() {
     const tickers = ALL_STOCKS.map((s) => s.symbol).join(",");
     fetch(
       `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}`,
-      { headers: { apikey: anonKey, "Content-Type": "application/json" } }
+      { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
     )
       .then((r) => r.json())
       .then((data) => {
@@ -72,14 +75,34 @@ export default function NativeMarketTables() {
             const q = data.quotes.find(
               (qq: any) => qq.ticker?.replace(".TA", "") === s.symbol
             );
-            if (!q || q.error || q.price <= 0) return s;
-            return { ...s, price: q.price, change: q.change };
+            if (!q || q.error || q.price <= 0) return { ...s, flash: "" };
+            const oldPrice = prevPrices.current[s.symbol];
+            let flash: "up" | "down" | "" = "";
+            if (oldPrice != null && oldPrice !== q.price) {
+              flash = q.price > oldPrice ? "up" : "down";
+            }
+            prevPrices.current[s.symbol] = q.price;
+            return { ...s, price: q.price, change: q.change, flash };
           })
         );
+        // Clear flash after animation
+        setTimeout(() => {
+          setStocks((prev) => prev.map((s) => ({ ...s, flash: "" })));
+        }, 1200);
+
+        const now = new Date();
+        setLastUpdate(now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Initial fetch + polling every 60s
+  useEffect(() => {
+    fetchData();
+    const id = setInterval(fetchData, 60_000);
+    return () => clearInterval(id);
+  }, [fetchData]);
 
   const withData = stocks.filter((s) => s.price !== null);
   const gainers = [...withData].sort((a, b) => (b.change ?? 0) - (a.change ?? 0)).slice(0, 7);
@@ -92,25 +115,33 @@ export default function NativeMarketTables() {
         <h2 className="font-display text-base font-semibold text-foreground/90">
           {isRtl ? "סקירת שוק" : "Market Overview"}
         </h2>
-        <div className="flex items-center gap-1.5">
-          <Circle
-            className={`h-2 w-2 fill-current ${marketOpen ? "text-gain animate-pulse" : "text-muted-foreground/40"}`}
-          />
-          <span className="text-[11px] text-muted-foreground">
-            {isRtl
-              ? marketOpen ? "הבורסה פתוחה" : "הבורסה סגורה"
-              : marketOpen ? "Market Open" : "Market Closed"}
-          </span>
+        <div className="flex items-center gap-3">
+          {lastUpdate && (
+            <span className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
+              <RefreshCw className="h-2.5 w-2.5" />
+              {lastUpdate}
+            </span>
+          )}
+          <div className="flex items-center gap-1.5">
+            <Circle
+              className={`h-2 w-2 fill-current ${marketOpen ? "text-gain animate-pulse" : "text-muted-foreground/40"}`}
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {isRtl
+                ? marketOpen ? "הבורסה פתוחה" : "הבורסה סגורה"
+                : marketOpen ? "Market Open" : "Market Closed"}
+            </span>
+          </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          {isRtl ? "נתונים בטעינה..." : "Loading data..."}
+        <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
+          {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
       ) : withData.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          {isRtl ? "נתונים בטעינה..." : "Loading data..."}
+        <div className="text-center py-12 text-muted-foreground text-sm animate-pulse">
+          {isRtl ? "טוען נתונים..." : "Loading data..."}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -150,10 +181,16 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
   const isPositive = change > 0;
   const isNegative = change < 0;
 
+  const flashClass = stock.flash === "up"
+    ? "animate-flash-green"
+    : stock.flash === "down"
+    ? "animate-flash-red"
+    : "";
+
   return (
     <Link
       to={`/stock/${stock.symbol}.TA`}
-      className="flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors border-b border-border/8 last:border-b-0"
+      className={`flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors border-b border-border/8 last:border-b-0 ${flashClass}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <StockLogo name={stock.nameEn} size="sm" />

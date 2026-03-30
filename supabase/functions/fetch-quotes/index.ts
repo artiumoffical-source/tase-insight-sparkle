@@ -6,6 +6,25 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function extractPrice(data: any): number {
+  // Try every possible price field from EODHD
+  const candidates = [
+    data?.close, data?.last, data?.price, data?.adjusted_close,
+    data?.previousClose, data?.previous_close, data?.open,
+  ];
+  for (const c of candidates) {
+    const n = Number(c);
+    if (n > 0) return n;
+  }
+  return 0;
+}
+
+function toNis(raw: number): number {
+  // TASE prices from EODHD are often in agorot (hundredths of NIS)
+  // If price > 1000, it's likely agorot
+  return raw > 1000 ? raw / 100 : raw;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -14,7 +33,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const tickers = url.searchParams.get("tickers");
-    if (!tickers || !/^[A-Z0-9,]{1,200}$/.test(tickers)) {
+    if (!tickers || !/^[A-Z0-9,^]{1,300}$/.test(tickers)) {
       return new Response(JSON.stringify({ error: "Invalid tickers param" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -23,6 +42,7 @@ serve(async (req) => {
 
     const apiKey = Deno.env.get("EODHD_API_KEY");
     if (!apiKey) {
+      console.error("EODHD_API_KEY is not set");
       return new Response(JSON.stringify({ error: "API key not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -34,52 +54,60 @@ serve(async (req) => {
     const results = await Promise.all(
       tickerList.map(async (t) => {
         const symbol = t.includes(".") ? t : `${t}.TA`;
+
+        // === Attempt 1: Real-time endpoint ===
         try {
-          // Try real-time first
-          const rtResp = await fetch(
-            `https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`
-          );
+          const rtUrl = `https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`;
+          const rtResp = await fetch(rtUrl);
           if (rtResp.ok) {
             const data = await rtResp.json();
-            const rawPrice = Number(data?.close) || Number(data?.previousClose) || Number(data?.open) || 0;
-            const change = Number(data?.change_p) || 0;
+            console.log(`[RT] ${symbol}:`, JSON.stringify(data));
+            const rawPrice = extractPrice(data);
             if (rawPrice > 0) {
-              // TASE prices from EODHD are in agorot — divide by 100 for NIS
-              const price = rawPrice > 1000 ? rawPrice / 100 : rawPrice;
-              return { ticker: t, price, change, error: false };
+              const price = toNis(rawPrice);
+              const change = Number(data?.change_p) || 0;
+              return { ticker: t, price, change: Math.round(change * 100) / 100, source: "realtime", error: false };
             }
+          } else {
+            const body = await rtResp.text();
+            console.log(`[RT] ${symbol} status=${rtResp.status}: ${body.slice(0, 200)}`);
           }
-        } catch {
-          // Fall through to EOD
+        } catch (e) {
+          console.log(`[RT] ${symbol} exception: ${e}`);
         }
 
+        // === Attempt 2: EOD (end-of-day) endpoint ===
         try {
-          // Fallback: EOD (end-of-day) endpoint
-          const eodResp = await fetch(
-            `https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&fmt=json&order=d&limit=2`
-          );
+          const eodUrl = `https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&fmt=json&order=d&limit=2`;
+          const eodResp = await fetch(eodUrl);
           if (eodResp.ok) {
             const days = await eodResp.json();
+            console.log(`[EOD] ${symbol}: got ${Array.isArray(days) ? days.length : 0} days`);
             if (Array.isArray(days) && days.length > 0) {
               const latest = days[0];
-              const prev = days.length > 1 ? days[1] : null;
               const rawPrice = Number(latest.adjusted_close) || Number(latest.close) || 0;
-              const price = rawPrice > 1000 ? rawPrice / 100 : rawPrice;
-              let change = 0;
-              if (prev) {
-                const prevPrice = Number(prev.adjusted_close) || Number(prev.close) || 0;
-                if (prevPrice > 0) {
-                  change = ((rawPrice - (prevPrice > 1000 ? prevPrice : prevPrice * 100)) / (prevPrice > 1000 ? prevPrice : prevPrice * 100)) * 100;
-                  // Recalculate cleanly
-                  const prevNis = prevPrice > 1000 ? prevPrice / 100 : prevPrice;
-                  change = ((price - prevNis) / prevNis) * 100;
+              if (rawPrice > 0) {
+                const price = toNis(rawPrice);
+                let change = 0;
+                if (days.length > 1) {
+                  const prevRaw = Number(days[1].adjusted_close) || Number(days[1].close) || 0;
+                  if (prevRaw > 0) {
+                    const prevNis = toNis(prevRaw);
+                    change = ((price - prevNis) / prevNis) * 100;
+                  }
                 }
+                return {
+                  ticker: t, price, change: Math.round(change * 100) / 100,
+                  date: latest.date, source: "eod", error: false,
+                };
               }
-              return { ticker: t, price, change: Math.round(change * 100) / 100, date: latest.date, error: false };
             }
+          } else {
+            const body = await eodResp.text();
+            console.log(`[EOD] ${symbol} status=${eodResp.status}: ${body.slice(0, 200)}`);
           }
-        } catch {
-          // Fall through
+        } catch (e) {
+          console.log(`[EOD] ${symbol} exception: ${e}`);
         }
 
         return { ticker: t, price: 0, change: 0, error: true };
