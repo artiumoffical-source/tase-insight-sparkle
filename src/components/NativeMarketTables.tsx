@@ -345,7 +345,7 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
         <p className="text-sm font-display font-bold tabular-nums">
           ₪{(stock.price ?? 0).toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
-        <p className={`text-xs font-bold tabular-nums ${isPositive ? "text-gain" : isNegative ? "text-loss" : "text-muted-foreground"}`}>
+        <p className={`text-xs font-bold tabular-nums ${change > 0 ? "text-gain" : change < 0 ? "text-loss" : "text-muted-foreground"}`}>
           {Math.abs(change).toFixed(2)}%
         </p>
       </div>

@@ -78,7 +78,7 @@ export default function NativeTickerTape() {
 
     const tickers = TICKER_SYMBOLS.map((t) => t.symbol).join(",");
     fetch(
-      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}`,
+      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}&_ts=${Date.now()}`,
       { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
     )
       .then((r) => r.json())
