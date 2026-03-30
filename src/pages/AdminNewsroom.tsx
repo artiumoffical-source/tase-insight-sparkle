@@ -19,6 +19,20 @@ export default function AdminNewsroom() {
   const [editBody, setEditBody] = useState("");
   const [editSummary, setEditSummary] = useState("");
 
+  const { data: isSuperAdmin, isLoading: roleLoading } = useQuery({
+    queryKey: ["user-role", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .eq("role", "superadmin")
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user,
+  });
+
   const { data: articles, isLoading } = useQuery({
     queryKey: ["admin-news"],
     queryFn: async () => {
@@ -29,7 +43,7 @@ export default function AdminNewsroom() {
       if (error) throw error;
       return data;
     },
-    enabled: !!user,
+    enabled: !!user && isSuperAdmin === true,
   });
 
   const generateMutation = useMutation({
