@@ -117,7 +117,7 @@ export default function NativeTickerTape() {
                     }`}
                   >
                     {isPositive ? <TrendingUp className="h-3 w-3" /> : isNegative ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                    {isPositive ? "+" : ""}{(item.change ?? 0).toFixed(2)}%
+                    {Math.abs(item.change ?? 0).toFixed(2)}%
                   </span>
                 </>
               ) : (
