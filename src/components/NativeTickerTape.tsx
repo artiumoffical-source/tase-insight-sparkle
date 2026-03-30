@@ -90,7 +90,6 @@ export default function NativeTickerTape() {
         {tripled.map((item, i) => {
           const isPositive = (item.change ?? 0) > 0;
           const isNegative = (item.change ?? 0) < 0;
-          const isIndex = INDEX_SYMBOLS.has(item.symbol);
 
           const flashBg = item.flash === "up"
             ? "animate-flash-green"
@@ -98,15 +97,19 @@ export default function NativeTickerTape() {
             ? "animate-flash-red"
             : "";
 
-          const inner = (
-            <div className={`inline-flex items-center gap-2 px-5 text-xs transition-colors border-e border-border/10 ${flashBg}`}>
+          return (
+            <Link
+              key={`${item.symbol}-${i}`}
+              to={`/stock/${item.symbol}.TA`}
+              className={`inline-flex items-center gap-2 px-5 text-xs hover:bg-secondary/30 transition-colors border-e border-border/10 ${flashBg}`}
+            >
               <span className="font-medium text-foreground/70">
                 {isRtl ? item.nameHe : item.nameEn}
               </span>
               {item.price !== null ? (
                 <>
                   <span className="font-display font-bold text-foreground tabular-nums">
-                    {isIndex ? "" : "₪"}{item.price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₪{item.price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <span
                     className={`flex items-center gap-0.5 font-semibold tabular-nums ${
@@ -122,16 +125,6 @@ export default function NativeTickerTape() {
                   {isRtl ? "טוען..." : "..."}
                 </span>
               )}
-            </div>
-          );
-
-          if (isIndex) {
-            return <span key={`${item.symbol}-${i}`} className="cursor-default hover:bg-secondary/30">{inner}</span>;
-          }
-
-          return (
-            <Link key={`${item.symbol}-${i}`} to={`/stock/${item.symbol}.TA`} className="hover:bg-secondary/30">
-              {inner}
             </Link>
           );
         })}
