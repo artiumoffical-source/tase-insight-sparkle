@@ -7,6 +7,8 @@ import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
 import type { KeyMetricsData } from "@/components/KeyMetrics";
+import DeepDiveFinancials from "@/components/DeepDiveFinancials";
+import type { DetailedBalanceSheetRow } from "@/components/DeepDiveFinancials";
 import AdSlot from "@/components/AdSlot";
 import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ interface FinancialsResponse {
   incomeStatement: IncomeStatementRow[];
   balanceSheet: BalanceSheetRow[];
   cashFlow: CashFlowRow[];
+  detailedBalanceSheet: DetailedBalanceSheetRow[];
   qIncomeStatement: IncomeStatementRow[];
   qBalanceSheet: BalanceSheetRow[];
   qCashFlow: CashFlowRow[];
@@ -66,6 +69,7 @@ export default function StockPage() {
   const [qBalanceSheet, setQBalanceSheet] = useState<BalanceSheetRow[]>([]);
   const [qCashFlow, setQCashFlow] = useState<CashFlowRow[]>([]);
   const [sector, setSector] = useState<SectorType>("general");
+  const [detailedBalanceSheet, setDetailedBalanceSheet] = useState<DetailedBalanceSheetRow[]>([]);
   const [meta, setMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +87,7 @@ export default function StockPage() {
     setIncomeStatement(data.incomeStatement ?? []);
     setBalanceSheet(data.balanceSheet ?? []);
     setCashFlow(data.cashFlow ?? []);
+    setDetailedBalanceSheet(data.detailedBalanceSheet ?? []);
     setQIncomeStatement(data.qIncomeStatement ?? []);
     setQBalanceSheet(data.qBalanceSheet ?? []);
     setQCashFlow(data.qCashFlow ?? []);
@@ -248,6 +253,8 @@ export default function StockPage() {
               sector={sector}
             />
           </div>
+
+          <DeepDiveFinancials data={detailedBalanceSheet} loading={loading} />
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
