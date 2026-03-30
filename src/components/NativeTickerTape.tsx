@@ -49,6 +49,28 @@ export default function NativeTickerTape() {
   const [items, setItems] = useState<TickerItem[]>(TICKER_SYMBOLS);
   const prevPrices = useRef<Record<string, number>>({});
 
+  // Fetch logos from DB once
+  useEffect(() => {
+    const tickers = TICKER_SYMBOLS.map((s) => s.symbol);
+    supabase
+      .from("tase_symbols")
+      .select("ticker, logo_url")
+      .in("ticker", tickers)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const logoMap: Record<string, string> = {};
+        data.forEach((row) => { if (row.logo_url) logoMap[row.ticker] = row.logo_url; });
+        setItems((prev) =>
+          prev.map((s) => ({
+            ...s,
+            logoUrl: logoMap[s.symbol] || null,
+            domain: COMPANY_DOMAINS[s.symbol] || null,
+          }))
+        );
+      });
+  }, []);
+
+
   const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
