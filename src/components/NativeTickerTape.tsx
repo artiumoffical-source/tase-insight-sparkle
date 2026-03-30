@@ -12,7 +12,22 @@ interface TickerItem {
   price: number | null;
   change: number | null;
   flash?: "up" | "down" | "";
+  logoUrl?: string | null;
+  domain?: string | null;
 }
+
+const COMPANY_DOMAINS: Record<string, string> = {
+  LUMI: "bankleumi.co.il",
+  POLI: "bankhapoalim.co.il",
+  TEVA: "tevapharm.com",
+  ESLT: "elbitsystems.com",
+  ICL: "icl-group.com",
+  NXSN: "nextvision.com",
+  NICE: "nice.com",
+  AZRG: "azrieli.com",
+  DSCT: "discountbank.co.il",
+  MZTF: "mizrahi-tefahot.co.il",
+};
 
 const TICKER_SYMBOLS: TickerItem[] = [
   { symbol: "LUMI", nameHe: "לאומי", nameEn: "Leumi", price: null, change: null },
