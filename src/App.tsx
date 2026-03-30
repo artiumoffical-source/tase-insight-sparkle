@@ -42,6 +42,8 @@ const App = () => {
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
               <Route path="/terms" element={<TermsPage />} />
+              <Route path="/news" element={<NewsPage />} />
+              <Route path="/admin/newsroom" element={<AdminNewsroom />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <Footer />
