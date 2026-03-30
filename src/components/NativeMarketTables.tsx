@@ -298,14 +298,11 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
       onMouseEnter={handleMouseEnter}
       className={`flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors border-b border-border/8 last:border-b-0 ${flashClass}`}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <StockLogo name={isRtl ? stock.nameHe : stock.nameEn} logoUrl={stock.logoUrl} domain={stock.domain ?? COMPANY_DOMAINS[stock.symbol]} size="sm" />
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground/90 truncate">
-            {isRtl ? stock.nameHe : stock.nameEn}
-          </p>
-          <p className="text-[10px] text-muted-foreground/60">{stock.symbol}</p>
-        </div>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground/90 truncate">
+          {isRtl ? stock.nameHe : stock.nameEn}
+        </p>
+        <p className="text-[10px] text-muted-foreground/60">{stock.symbol}</p>
       </div>
       <div className="text-end flex-shrink-0 ms-3">
         <p className="text-sm font-display font-bold tabular-nums">
