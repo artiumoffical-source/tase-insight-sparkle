@@ -53,8 +53,16 @@ export default function NativeTickerTape() {
 
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, 60_000);
-    return () => clearInterval(id);
+    let id: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
+    const stop = () => { if (id) { clearInterval(id); id = null; } };
+
+    const onVis = () => document.hidden ? stop() : start();
+    document.addEventListener("visibilitychange", onVis);
+    start();
+
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchData]);
 
   const doubled = [...items, ...items];

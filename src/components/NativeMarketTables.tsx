@@ -88,20 +88,28 @@ export default function NativeMarketTables() {
         // Clear flash after animation
         setTimeout(() => {
           setStocks((prev) => prev.map((s) => ({ ...s, flash: "" })));
-        }, 1200);
+        }, 800);
 
         const now = new Date();
-        setLastUpdate(now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }));
+        setLastUpdate(now.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  // Initial fetch + polling every 60s
+  // Initial fetch + polling every 15s, only when tab is visible
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, 60_000);
-    return () => clearInterval(id);
+    let id: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => { if (!id) id = setInterval(fetchData, 15_000); };
+    const stop = () => { if (id) { clearInterval(id); id = null; } };
+
+    const onVis = () => document.hidden ? stop() : start();
+    document.addEventListener("visibilitychange", onVis);
+    start();
+
+    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
   }, [fetchData]);
 
   const withData = stocks.filter((s) => s.price !== null);
