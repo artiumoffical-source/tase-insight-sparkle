@@ -394,12 +394,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                     ? node.children!.filter(child => childHasData(child.field))
                     : [];
 
-                  // YoY for parent
                   const parentValues = years.map(y => (byYear[y]?.[node.field] as number) || 0);
-                  const lastIdx = years.length - 1;
-                  const prevIdx = years.length - 2;
-                  const parentYoY = prevIdx >= 0 ? formatYoYText(parentValues[lastIdx], parentValues[prevIdx]) : "—";
-                  const parentYoYColor = prevIdx >= 0 ? getYoYColor(parentValues[lastIdx], parentValues[prevIdx], node.invertColor) : "";
 
                   return (
                     <RowGroup key={node.field}>
@@ -450,9 +445,6 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                             {formatNum((byYear[y]?.[node.field] as number) || 0)}
                           </td>
                         ))}
-                        <td className={`text-end py-3 px-3 font-mono text-xs ${parentYoYColor}`}>
-                          {parentYoY}
-                        </td>
                       </tr>
 
                       {/* Child rows */}
