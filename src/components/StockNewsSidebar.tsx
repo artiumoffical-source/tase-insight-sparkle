@@ -3,6 +3,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { Newspaper, Lock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NewsReaderModal, { type NewsArticle } from "@/components/NewsReaderModal";
+import { getCached, setCache } from "@/lib/stock-cache";
 
 interface StockNewsSidebarProps {
   ticker: string;
@@ -28,7 +29,17 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [readerOpen, setReaderOpen] = useState(false);
 
-  const fetchNews = useCallback(async () => {
+  const fetchNews = useCallback(async (skipCache = false) => {
+    // Check cache first
+    if (!skipCache) {
+      const cached = getCached<{ items: NewsArticle[] }>("news", ticker);
+      if (cached) {
+        setItems(cached.items ?? []);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -39,6 +50,7 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setItems(data.items ?? []);
+      setCache("news", ticker, data);
     } catch (err) {
       console.error("News fetch error:", err);
     } finally {
