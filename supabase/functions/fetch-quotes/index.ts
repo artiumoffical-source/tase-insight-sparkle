@@ -81,11 +81,12 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
     const prevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
 
     if (price > 0) {
-      // Yahoo may return agorot for TASE stocks, apply same conversion
-      const nisPrice = toNis(price);
+      // Indices are in points, not agorot — skip conversion for indices
+      const isIndex = ticker.startsWith("TA");
+      const nisPrice = isIndex ? price : toNis(price);
       let change = 0;
       if (prevClose > 0) {
-        const nisPrev = toNis(prevClose);
+        const nisPrev = isIndex ? prevClose : toNis(prevClose);
         change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
       }
       return { price: nisPrice, change };
