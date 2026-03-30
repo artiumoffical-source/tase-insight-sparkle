@@ -4,6 +4,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Circle, RefreshCw } from "lucide-react";
 import StockLogo from "@/components/StockLogo";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StockRow {
   symbol: string;
@@ -12,7 +13,27 @@ interface StockRow {
   price: number | null;
   change: number | null;
   flash?: "up" | "down" | "";
+  logoUrl?: string | null;
+  domain?: string | null;
 }
+
+// Domain mapping for clearbit fallback
+const COMPANY_DOMAINS: Record<string, string> = {
+  LUMI: "bankleumi.co.il",
+  POLI: "bankhapoalim.co.il",
+  TEVA: "tevapharm.com",
+  ICL: "icl-group.com",
+  ESLT: "elbitsystems.com",
+  AZRG: "azrieli.com",
+  DSCT: "discountbank.co.il",
+  MZTF: "mizrahi-tefahot.co.il",
+  NICE: "nice.com",
+  BEZQ: "bezeq.co.il",
+  NXSN: "nextvision.com",
+  PHOE: "fnx.co.il",
+  CEL: "cellcom.co.il",
+  CLIS: "clalbit.co.il",
+};
 
 const ALL_STOCKS: StockRow[] = [
   { symbol: "LUMI", nameHe: "בנק לאומי", nameEn: "Bank Leumi", price: null, change: null },
@@ -54,6 +75,29 @@ export default function NativeMarketTables() {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const prevPrices = useRef<Record<string, number>>({});
+
+  // Fetch logos from DB once on mount
+  useEffect(() => {
+    const tickers = ALL_STOCKS.map((s) => s.symbol);
+    supabase
+      .from("tase_symbols")
+      .select("ticker, logo_url")
+      .in("ticker", tickers)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const logoMap: Record<string, string> = {};
+        data.forEach((row) => {
+          if (row.logo_url) logoMap[row.ticker] = row.logo_url;
+        });
+        setStocks((prev) =>
+          prev.map((s) => ({
+            ...s,
+            logoUrl: logoMap[s.symbol] || null,
+            domain: COMPANY_DOMAINS[s.symbol] || null,
+          }))
+        );
+      });
+  }, []);
 
   const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -208,7 +252,7 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
       className={`flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors border-b border-border/8 last:border-b-0 ${flashClass}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
-        <StockLogo name={stock.nameEn} size="sm" />
+        <StockLogo name={isRtl ? stock.nameHe : stock.nameEn} logoUrl={stock.logoUrl} domain={stock.domain ?? COMPANY_DOMAINS[stock.symbol]} size="sm" />
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground/90 truncate">
             {isRtl ? stock.nameHe : stock.nameEn}

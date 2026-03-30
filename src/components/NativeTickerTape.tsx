@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import StockLogo from "@/components/StockLogo";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TickerItem {
   symbol: string;
@@ -10,7 +12,22 @@ interface TickerItem {
   price: number | null;
   change: number | null;
   flash?: "up" | "down" | "";
+  logoUrl?: string | null;
+  domain?: string | null;
 }
+
+const COMPANY_DOMAINS: Record<string, string> = {
+  LUMI: "bankleumi.co.il",
+  POLI: "bankhapoalim.co.il",
+  TEVA: "tevapharm.com",
+  ESLT: "elbitsystems.com",
+  ICL: "icl-group.com",
+  NXSN: "nextvision.com",
+  NICE: "nice.com",
+  AZRG: "azrieli.com",
+  DSCT: "discountbank.co.il",
+  MZTF: "mizrahi-tefahot.co.il",
+};
 
 const TICKER_SYMBOLS: TickerItem[] = [
   { symbol: "LUMI", nameHe: "לאומי", nameEn: "Leumi", price: null, change: null },
@@ -31,6 +48,28 @@ export default function NativeTickerTape() {
   const { isRtl } = useLanguage();
   const [items, setItems] = useState<TickerItem[]>(TICKER_SYMBOLS);
   const prevPrices = useRef<Record<string, number>>({});
+
+  // Fetch logos from DB once
+  useEffect(() => {
+    const tickers = TICKER_SYMBOLS.map((s) => s.symbol);
+    supabase
+      .from("tase_symbols")
+      .select("ticker, logo_url")
+      .in("ticker", tickers)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const logoMap: Record<string, string> = {};
+        data.forEach((row) => { if (row.logo_url) logoMap[row.ticker] = row.logo_url; });
+        setItems((prev) =>
+          prev.map((s) => ({
+            ...s,
+            logoUrl: logoMap[s.symbol] || null,
+            domain: COMPANY_DOMAINS[s.symbol] || null,
+          }))
+        );
+      });
+  }, []);
+
 
   const fetchData = useCallback(() => {
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -103,6 +142,7 @@ export default function NativeTickerTape() {
               to={`/stock/${item.symbol}.TA`}
               className={`inline-flex items-center gap-2 px-5 text-xs hover:bg-secondary/30 transition-colors border-e border-border/10 ${flashBg}`}
             >
+              <StockLogo name={isRtl ? item.nameHe : item.nameEn} logoUrl={item.logoUrl} domain={item.domain ?? COMPANY_DOMAINS[item.symbol]} size="sm" className="h-5 w-5" />
               <span className="font-medium text-foreground/70">
                 {isRtl ? item.nameHe : item.nameEn}
               </span>

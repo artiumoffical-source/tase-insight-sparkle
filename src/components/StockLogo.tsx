@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 interface StockLogoProps {
   name: string;
   logoUrl?: string | null;
+  /** Company domain for clearbit fallback (e.g. "bankleumi.co.il") */
+  domain?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -25,18 +27,30 @@ function hashColor(str: string): string {
   return `hsl(${hue}, 55%, 45%)`;
 }
 
-export default function StockLogo({ name, logoUrl, size = "md", className }: StockLogoProps) {
+export default function StockLogo({ name, logoUrl, domain, size = "md", className }: StockLogoProps) {
   const [imgError, setImgError] = useState(false);
+  const [clearbitError, setClearbitError] = useState(false);
   const initial = (name || "?").charAt(0).toUpperCase();
   const bgColor = hashColor(name || "X");
 
+  const clearbitUrl = domain ? `https://logo.clearbit.com/${domain}` : null;
+  const showPrimary = logoUrl && !imgError;
+  const showClearbit = !showPrimary && clearbitUrl && !clearbitError;
+
   return (
     <Avatar className={cn(sizeMap[size], "shrink-0", className)}>
-      {logoUrl && !imgError && (
+      {showPrimary && (
         <AvatarImage
-          src={logoUrl}
+          src={logoUrl!}
           alt={name}
           onError={() => setImgError(true)}
+        />
+      )}
+      {showClearbit && (
+        <AvatarImage
+          src={clearbitUrl!}
+          alt={name}
+          onError={() => setClearbitError(true)}
         />
       )}
       <AvatarFallback
