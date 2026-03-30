@@ -3,6 +3,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { Newspaper, Lock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NewsReaderModal, { type NewsArticle } from "@/components/NewsReaderModal";
+import { getCached, setCache } from "@/lib/stock-cache";
 
 interface StockNewsSidebarProps {
   ticker: string;
