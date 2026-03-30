@@ -7,7 +7,6 @@ import FinancialsTable from "@/components/FinancialsTable";
 import type { FinancialData, IncomeStatementRow, BalanceSheetRow, CashFlowRow, SectorType } from "@/components/FinancialsTable";
 import KeyMetrics from "@/components/KeyMetrics";
 import type { KeyMetricsData } from "@/components/KeyMetrics";
-import DeepDiveFinancials from "@/components/DeepDiveFinancials";
 import type { DetailedBalanceSheetRow } from "@/components/DeepDiveFinancials";
 import AdSlot from "@/components/AdSlot";
 import UpgradeModal from "@/components/UpgradeModal";
@@ -283,12 +282,11 @@ export default function StockPage() {
               incomeStatement={period === "quarterly" ? qIncomeStatement : incomeStatement}
               balanceSheet={period === "quarterly" ? qBalanceSheet : balanceSheet}
               cashFlow={period === "quarterly" ? qCashFlow : cashFlow}
+              detailedBalanceSheet={period === "annual" ? detailedBalanceSheet : undefined}
               loading={loading}
               sector={sector}
             />
           </div>
-
-          <DeepDiveFinancials data={detailedBalanceSheet} loading={loading} />
 
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
