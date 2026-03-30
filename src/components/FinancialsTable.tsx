@@ -225,16 +225,16 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
   const byYear: Record<string, any> = {};
   rows.forEach((r) => (byYear[r.year] = r));
 
+  const displayYears = years.map(y => y.replace(/-\d{2}$/, ""));
+
   const handleExport = () => {
-    const headers = [t("fin.metric"), ...years, t("fin.yoyGrowth")];
+    const headers = [t("fin.metric"), ...displayYears];
     const csvRows = metrics.map(m => {
       const vals = years.map(y => {
         const val = m.getValue(byYear[y]) ?? 0;
         return m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : String(val);
       });
-      const lastTwo = years.slice(-2);
-      const yoy = lastTwo.length === 2 ? formatYoYText(m.getValue(byYear[lastTwo[1]]), m.getValue(byYear[lastTwo[0]])) : "—";
-      return [`"${t(m.labelKey)}"`, ...vals, yoy];
+      return [`"${t(m.labelKey)}"`, ...vals];
     });
     exportToCSV(headers, csvRows, `${tabName || "financials"}.csv`);
   };
@@ -253,22 +253,14 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
             <TableHeader>
               <TableRow className="border-b-border hover:bg-transparent">
                 <TableHead className="font-display text-muted-foreground min-w-[220px]">{t("fin.metric")}</TableHead>
-                {years.map((y) => (
-                  <TableHead key={y} className="font-display text-muted-foreground text-end min-w-[90px]">{y}</TableHead>
+                {displayYears.map((y, i) => (
+                  <TableHead key={years[i]} className="font-display text-muted-foreground text-end min-w-[90px]">{y}</TableHead>
                 ))}
-                <TableHead className="font-display text-muted-foreground text-end min-w-[80px] text-xs">{t("fin.yoyGrowth")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {metrics.map((m, idx) => {
                 const allValues = years.map(y => m.getValue(byYear[y]) ?? 0);
-                // YoY for last year vs previous
-                const lastIdx = years.length - 1;
-                const prevIdx = years.length - 2;
-                const currentVal = allValues[lastIdx];
-                const prevVal = prevIdx >= 0 ? allValues[prevIdx] : 0;
-                const yoyText = formatYoYText(currentVal, prevVal);
-                const yoyColor = getYoYColor(currentVal, prevVal, m.invertColor);
 
                 return (
                   <TableRow key={m.labelKey} className={`border-b-border ${idx % 2 === 0 ? "bg-muted/30" : ""}`}>
@@ -278,7 +270,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
                         <Sparkline values={allValues} invertColor={m.invertColor} />
                       </div>
                     </TableCell>
-                    {years.map((y, yi) => {
+                    {years.map((y) => {
                       const val = m.getValue(byYear[y]) ?? 0;
                       const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
                       return (
@@ -287,9 +279,6 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
                         </TableCell>
                       );
                     })}
-                    <TableCell className={`text-end font-mono text-xs ${yoyColor}`}>
-                      {yoyText}
-                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -347,19 +336,18 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
     };
   });
 
+  const displayYears = years.map(y => y.replace(/-\d{2}$/, ""));
+
   const handleExport = () => {
-    const headers = [t("fin.metric"), ...years, t("fin.yoyGrowth")];
+    const headers = [t("fin.metric"), ...displayYears];
     const csvRows: string[][] = [];
     EXPANDABLE_BALANCE.forEach(node => {
       const vals = years.map(y => String((byYear[y]?.[node.field] as number) || 0));
-      const lastTwo = years.slice(-2);
-      const yoy = lastTwo.length === 2 ? formatYoYText((byYear[lastTwo[1]]?.[node.field] as number) || 0, (byYear[lastTwo[0]]?.[node.field] as number) || 0) : "—";
-      csvRows.push([`"${t(node.labelKey)}"`, ...vals, yoy]);
+      csvRows.push([`"${t(node.labelKey)}"`, ...vals]);
     });
-    // Add ratios
-    csvRows.push([`"${t("fin.currentRatio")}"`, ...solvencyRatios.map(r => r.currentRatio.toFixed(2)), "—"]);
-    csvRows.push([`"${t("fin.deRatio")}"`, ...solvencyRatios.map(r => r.debtToEquity.toFixed(2)), "—"]);
-    csvRows.push([`"${t("fin.quickRatio")}"`, ...solvencyRatios.map(r => r.quickRatio.toFixed(2)), "—"]);
+    csvRows.push([`"${t("fin.currentRatio")}"`, ...solvencyRatios.map(r => r.currentRatio.toFixed(2))]);
+    csvRows.push([`"${t("fin.deRatio")}"`, ...solvencyRatios.map(r => r.debtToEquity.toFixed(2))]);
+    csvRows.push([`"${t("fin.quickRatio")}"`, ...solvencyRatios.map(r => r.quickRatio.toFixed(2))]);
     exportToCSV(headers, csvRows, "balance-sheet.csv");
   };
 
@@ -380,14 +368,11 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                   <th className="text-start py-3 px-4 font-display text-muted-foreground font-medium min-w-[260px]">
                     {t("fin.metric")}
                   </th>
-                  {years.map(y => (
-                    <th key={y} className="text-end py-3 px-3 font-display text-muted-foreground font-medium min-w-[90px]">
+                  {displayYears.map((y, i) => (
+                    <th key={years[i]} className="text-end py-3 px-3 font-display text-muted-foreground font-medium min-w-[90px]">
                       {y}
                     </th>
                   ))}
-                  <th className="text-end py-3 px-3 font-display text-muted-foreground/60 font-medium min-w-[80px] text-xs">
-                    {t("fin.yoyGrowth")}
-                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -409,12 +394,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                     ? node.children!.filter(child => childHasData(child.field))
                     : [];
 
-                  // YoY for parent
                   const parentValues = years.map(y => (byYear[y]?.[node.field] as number) || 0);
-                  const lastIdx = years.length - 1;
-                  const prevIdx = years.length - 2;
-                  const parentYoY = prevIdx >= 0 ? formatYoYText(parentValues[lastIdx], parentValues[prevIdx]) : "—";
-                  const parentYoYColor = prevIdx >= 0 ? getYoYColor(parentValues[lastIdx], parentValues[prevIdx], node.invertColor) : "";
 
                   return (
                     <RowGroup key={node.field}>
@@ -465,23 +445,17 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                             {formatNum((byYear[y]?.[node.field] as number) || 0)}
                           </td>
                         ))}
-                        <td className={`text-end py-3 px-3 font-mono text-xs ${parentYoYColor}`}>
-                          {parentYoY}
-                        </td>
                       </tr>
 
                       {/* Child rows */}
                       {isExpanded && visibleChildren.length > 0 && (
                         <tr>
-                          <td colSpan={years.length + 2} className="p-0">
+                          <td colSpan={years.length + 1} className="p-0">
                             <div className="animate-accordion-down overflow-hidden">
                               <table className="w-full text-sm">
                                 <tbody>
                                   {visibleChildren.map((child, childIdx) => {
                                     const isLast = childIdx === visibleChildren.length - 1;
-                                    const childValues = years.map(y => (byYear[y]?.[child.field] as number) || 0);
-                                    const childYoY = prevIdx >= 0 ? formatYoYText(childValues[lastIdx], childValues[prevIdx]) : "—";
-                                    const childYoYColor = prevIdx >= 0 ? getYoYColor(childValues[lastIdx], childValues[prevIdx], child.invertColor) : "";
 
                                     return (
                                       <tr
@@ -513,9 +487,6 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                                             {formatNum((byYear[y]?.[child.field] as number) || 0)}
                                           </td>
                                         ))}
-                                        <td className={`text-end py-2 px-3 font-mono text-[11px] ${childYoYColor}`}>
-                                          {childYoY}
-                                        </td>
                                       </tr>
                                     );
                                   })}
@@ -531,7 +502,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
 
                 {/* Solvency Ratios Section */}
                 <tr>
-                  <td colSpan={years.length + 2} className="p-0">
+                  <td colSpan={years.length + 1} className="p-0">
                     <div className="border-t-2 border-border/40 bg-muted/10 px-4 py-2">
                       <span className="font-display font-bold text-xs text-muted-foreground uppercase tracking-wide">
                         {t("fin.solvencyRatios")}
@@ -543,22 +514,16 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                   { labelKey: "fin.currentRatio", getValue: (r: any) => r.currentRatio },
                   { labelKey: "fin.deRatio", getValue: (r: any) => r.debtToEquity, invertColor: true },
                   { labelKey: "fin.quickRatio", getValue: (r: any) => r.quickRatio },
-                ].map((ratio, idx) => {
-                  const vals = solvencyRatios.map(r => ratio.getValue(r));
-                  const yoy = vals.length >= 2 ? formatYoYText(vals[vals.length - 1], vals[vals.length - 2]) : "—";
-                  const yoyColor = vals.length >= 2 ? getYoYColor(vals[vals.length - 1], vals[vals.length - 2], ratio.invertColor) : "";
-                  return (
-                    <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
-                      <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
-                      {solvencyRatios.map((r, i) => (
-                        <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
-                          {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
-                        </td>
-                      ))}
-                      <td className={`text-end py-2.5 px-3 font-mono text-xs ${yoyColor}`}>{yoy}</td>
-                    </tr>
-                  );
-                })}
+                ].map((ratio, idx) => (
+                  <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
+                    <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
+                    {solvencyRatios.map((r) => (
+                      <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
+                        {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
