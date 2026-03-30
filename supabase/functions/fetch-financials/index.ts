@@ -231,6 +231,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     incomeStatement,
     balanceSheet,
     cashFlow,
+    detailedBalanceSheet,
     qIncomeStatement,
     qBalanceSheet,
     qCashFlow,
