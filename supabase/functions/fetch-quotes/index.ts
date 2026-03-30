@@ -10,6 +10,11 @@ function toNis(raw: number): number {
   return raw > 1000 ? raw / 100 : raw;
 }
 
+// Sanity check: if change exceeds ±50%, it's likely a unit mismatch — discard
+function isSaneChange(change: number): boolean {
+  return Math.abs(change) <= 50;
+}
+
 async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: number; change: number } | null> {
   // Try real-time
   try {
@@ -18,10 +23,16 @@ async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: 
       const data = await resp.json();
       const rawPrice = Number(data?.close) || Number(data?.last) || Number(data?.previousClose) || Number(data?.open) || 0;
       if (rawPrice > 0) {
-        return { price: toNis(rawPrice), change: Math.round((Number(data?.change_p) || 0) * 100) / 100 };
+        const price = toNis(rawPrice);
+        const change = Math.round((Number(data?.change_p) || 0) * 100) / 100;
+        if (!isSaneChange(change)) {
+          console.log(`[EODHD-RT] ${symbol} SKIPPED: change ${change}% exceeds sanity threshold`);
+          return null;
+        }
+        return { price, change };
       }
     } else {
-      await resp.text(); // consume body
+      await resp.text();
     }
   } catch { /* fall through */ }
 
@@ -30,14 +41,16 @@ async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: 
     const resp = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&fmt=json&order=d&limit=2`);
     if (resp.ok) {
       const days = await resp.json();
-      if (Array.isArray(days) && days.length > 0) {
+      if (Array.isArray(days) && days.length >= 2) {
         const rawPrice = Number(days[0].adjusted_close) || Number(days[0].close) || 0;
-        if (rawPrice > 0) {
+        const prevRaw = Number(days[1].adjusted_close) || Number(days[1].close) || 0;
+        if (rawPrice > 0 && prevRaw > 0) {
           const price = toNis(rawPrice);
-          let change = 0;
-          if (days.length > 1) {
-            const prevRaw = Number(days[1].adjusted_close) || Number(days[1].close) || 0;
-            if (prevRaw > 0) change = Math.round(((price - toNis(prevRaw)) / toNis(prevRaw)) * 10000) / 100;
+          const prev = toNis(prevRaw);
+          const change = Math.round(((price - prev) / prev) * 10000) / 100;
+          if (!isSaneChange(change)) {
+            console.log(`[EODHD-EOD] ${symbol} SKIPPED: change ${change}% exceeds sanity threshold`);
+            return null;
           }
           return { price, change };
         }
@@ -77,17 +90,20 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
     if (!result) return null;
 
     const meta = result.meta;
-    const price = Number(meta?.regularMarketPrice) || 0;
-    const prevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
+    const rawPrice = Number(meta?.regularMarketPrice) || 0;
+    const rawPrevClose = Number(meta?.chartPreviousClose) || Number(meta?.previousClose) || 0;
 
-    if (price > 0) {
-      // Indices (TA35 etc) are in points, stocks are in agorot
+    if (rawPrice > 0 && rawPrevClose > 0) {
       const isIndex = !!indexMap[ticker];
-      const nisPrice = isIndex ? price : toNis(price);
-      let change = 0;
-      if (prevClose > 0) {
-        const nisPrev = isIndex ? prevClose : toNis(prevClose);
-        change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
+      // Apply toNis consistently: both price and prevClose come from same source
+      const nisPrice = isIndex ? rawPrice : toNis(rawPrice);
+      const nisPrev = isIndex ? rawPrevClose : toNis(rawPrevClose);
+      const change = Math.round(((nisPrice - nisPrev) / nisPrev) * 10000) / 100;
+
+      // Skip stocks with insane change (unit mismatch)
+      if (!isSaneChange(change)) {
+        console.log(`[Yahoo] ${symbol} SKIPPED: change ${change}% exceeds sanity threshold (price=${nisPrice}, prev=${nisPrev})`);
+        return null;
       }
       return { price: nisPrice, change };
     }
