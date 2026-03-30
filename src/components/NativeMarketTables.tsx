@@ -84,10 +84,9 @@ export default function NativeMarketTables() {
       .from("tase_symbols")
       .select("ticker, name, name_he, logo_url")
       .eq("exchange", "TA")
-      .limit(50)
+      .limit(100)
       .then(({ data }) => {
         if (!data || data.length === 0) {
-          // Fallback to hardcoded list
           const fallbackTickers = ALL_STOCKS.map((s) => s.symbol);
           tickerListRef.current = fallbackTickers;
           const meta: Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }> = {};
@@ -97,7 +96,9 @@ export default function NativeMarketTables() {
         }
         const tickers: string[] = [];
         const meta: Record<string, { nameHe: string; nameEn: string; logoUrl?: string | null }> = {};
-        data.forEach((row) => {
+        data
+          .filter((row) => /^[A-Z]{2,10}$/.test(row.ticker)) // Only real stock tickers
+          .forEach((row) => {
           tickers.push(row.ticker);
           meta[row.ticker] = {
             nameHe: row.name_he || row.name,
