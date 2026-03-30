@@ -137,7 +137,7 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Debug: log data to verify it arrives
-  console.log("[DeepDive] data length:", data?.length, "first:", data?.[0]);
+  
 
   const years = useMemo(() => {
     if (!data.length) return [];
