@@ -113,7 +113,7 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get("EODHD_API_KEY") || "";
-    const tickerList = tickers.split(",").slice(0, 20);
+    const tickerList = tickers.split(",").slice(0, 50);
 
     const results = await Promise.all(
       tickerList.map(async (t) => {
