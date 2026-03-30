@@ -314,6 +314,11 @@ const translations: Record<Language, Record<string, string>> = {
     "fin.totalDeposits": "Total Deposits",
     "fin.totalInvestments": "Total Investments",
     "fin.researchDev": "R&D Expenses",
+    "fin.yoyGrowth": "YoY Growth",
+    "fin.exportExcel": "Export to Excel",
+    "fin.solvencyRatios": "Solvency & Liquidity Ratios",
+    "fin.currentRatio": "Current Ratio",
+    "fin.quickRatio": "Quick Ratio",
 
     // Deep Dive Financials
     "deepdive.title": "Deep Dive Balance Sheet",
