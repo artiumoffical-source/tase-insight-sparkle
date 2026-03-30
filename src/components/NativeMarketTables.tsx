@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
-import { TrendingUp, TrendingDown, Circle, RefreshCw, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw, BarChart3 } from "lucide-react";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
 import { supabase } from "@/integrations/supabase/client";
 
