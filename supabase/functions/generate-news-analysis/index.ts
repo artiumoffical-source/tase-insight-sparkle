@@ -143,6 +143,9 @@ CRITICAL RULES:
 - If you are unsure about a number, a date, or any fact — do NOT guess. State it is unverified or skip it.
 - If the news content appears to be from a previous quarter/year, clearly label it as historical data.
 - Do NOT fabricate any numbers, dates, percentages, or events not explicitly stated in the source content below.
+- TERMINOLOGY: Use 'המלצת קנייה' for Buy, 'תשואת יתר' for Outperform, 'המלצת מכירה' for Sell. NEVER use 'שורטי' as an analyst rating.
+- SENTIMENT ALIGNMENT: If overall sentiment is positive with high upside, analyst ratings must reflect Buy/Outperform. Do NOT mix positive sentiment with bearish ratings.
+- If referencing a conference or event, only state it occurred if the source content explicitly confirms it.
 
 News Title: ${title}
 News Content: ${content}
