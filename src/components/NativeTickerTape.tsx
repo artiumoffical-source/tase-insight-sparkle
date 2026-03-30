@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import StockLogo from "@/components/StockLogo";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TickerItem {
   symbol: string;
