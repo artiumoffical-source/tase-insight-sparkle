@@ -307,7 +307,7 @@ function IndexCard({ index, isRtl }: { index: IndexRow; isRtl: boolean }) {
           <p className="text-sm font-display font-bold tabular-nums text-foreground">
             {index.price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className={`text-[11px] font-bold tabular-nums ${isPositive ? "text-gain" : isNegative ? "text-loss" : "text-muted-foreground"}`}>
+          <p className={`text-[11px] font-bold tabular-nums ${change > 0 ? "text-gain" : change < 0 ? "text-loss" : "text-muted-foreground"}`}>
             {Math.abs(change).toFixed(2)}%
           </p>
         </>
