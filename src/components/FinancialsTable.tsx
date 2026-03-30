@@ -336,19 +336,18 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
     };
   });
 
+  const displayYears = years.map(y => y.replace(/-\d{2}$/, ""));
+
   const handleExport = () => {
-    const headers = [t("fin.metric"), ...years, t("fin.yoyGrowth")];
+    const headers = [t("fin.metric"), ...displayYears];
     const csvRows: string[][] = [];
     EXPANDABLE_BALANCE.forEach(node => {
       const vals = years.map(y => String((byYear[y]?.[node.field] as number) || 0));
-      const lastTwo = years.slice(-2);
-      const yoy = lastTwo.length === 2 ? formatYoYText((byYear[lastTwo[1]]?.[node.field] as number) || 0, (byYear[lastTwo[0]]?.[node.field] as number) || 0) : "—";
-      csvRows.push([`"${t(node.labelKey)}"`, ...vals, yoy]);
+      csvRows.push([`"${t(node.labelKey)}"`, ...vals]);
     });
-    // Add ratios
-    csvRows.push([`"${t("fin.currentRatio")}"`, ...solvencyRatios.map(r => r.currentRatio.toFixed(2)), "—"]);
-    csvRows.push([`"${t("fin.deRatio")}"`, ...solvencyRatios.map(r => r.debtToEquity.toFixed(2)), "—"]);
-    csvRows.push([`"${t("fin.quickRatio")}"`, ...solvencyRatios.map(r => r.quickRatio.toFixed(2)), "—"]);
+    csvRows.push([`"${t("fin.currentRatio")}"`, ...solvencyRatios.map(r => r.currentRatio.toFixed(2))]);
+    csvRows.push([`"${t("fin.deRatio")}"`, ...solvencyRatios.map(r => r.debtToEquity.toFixed(2))]);
+    csvRows.push([`"${t("fin.quickRatio")}"`, ...solvencyRatios.map(r => r.quickRatio.toFixed(2))]);
     exportToCSV(headers, csvRows, "balance-sheet.csv");
   };
 
@@ -369,14 +368,11 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                   <th className="text-start py-3 px-4 font-display text-muted-foreground font-medium min-w-[260px]">
                     {t("fin.metric")}
                   </th>
-                  {years.map(y => (
-                    <th key={y} className="text-end py-3 px-3 font-display text-muted-foreground font-medium min-w-[90px]">
+                  {displayYears.map((y, i) => (
+                    <th key={years[i]} className="text-end py-3 px-3 font-display text-muted-foreground font-medium min-w-[90px]">
                       {y}
                     </th>
                   ))}
-                  <th className="text-end py-3 px-3 font-display text-muted-foreground/60 font-medium min-w-[80px] text-xs">
-                    {t("fin.yoyGrowth")}
-                  </th>
                 </tr>
               </thead>
               <tbody>
