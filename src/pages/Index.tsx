@@ -2,6 +2,7 @@ import SearchBar from "@/components/SearchBar";
 import NativeTickerTape from "@/components/NativeTickerTape";
 import NativeMarketTables from "@/components/NativeMarketTables";
 import AdSlot from "@/components/AdSlot";
+import HomeSEO from "@/components/HomeSEO";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Compass, TrendingUp, Shield } from "lucide-react";
 
