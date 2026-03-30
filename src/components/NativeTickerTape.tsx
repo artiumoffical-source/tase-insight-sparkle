@@ -13,14 +13,16 @@ interface TickerItem {
 }
 
 const TICKER_SYMBOLS: TickerItem[] = [
-  { symbol: "TA35", nameHe: "ת\"א 35", nameEn: "TA-35", price: null, change: null },
-  { symbol: "TA125", nameHe: "ת\"א 125", nameEn: "TA-125", price: null, change: null },
-  { symbol: "TABANK", nameHe: "ת\"א בנקים", nameEn: "TA-Banks", price: null, change: null },
   { symbol: "LUMI", nameHe: "לאומי", nameEn: "Leumi", price: null, change: null },
   { symbol: "POLI", nameHe: "פועלים", nameEn: "Poalim", price: null, change: null },
   { symbol: "TEVA", nameHe: "טבע", nameEn: "Teva", price: null, change: null },
   { symbol: "ESLT", nameHe: "אלביט", nameEn: "Elbit", price: null, change: null },
+  { symbol: "ICL", nameHe: "כיל", nameEn: "ICL", price: null, change: null },
   { symbol: "NXSN", nameHe: "נקסט ויז'ן", nameEn: "Next Vision", price: null, change: null },
+  { symbol: "NICE", nameHe: "נייס", nameEn: "NICE", price: null, change: null },
+  { symbol: "AZRG", nameHe: "עזריאלי", nameEn: "Azrieli", price: null, change: null },
+  { symbol: "DSCT", nameHe: "דיסקונט", nameEn: "Discount", price: null, change: null },
+  { symbol: "MZTF", nameHe: "מזרחי", nameEn: "Mizrahi", price: null, change: null },
 ];
 
 // Indices don't have a stock page
