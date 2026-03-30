@@ -67,10 +67,10 @@ async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: 
   try {
     // Map index tickers to Yahoo Finance symbols
     const indexMap: Record<string, string> = {
-      "TA35": "%5ETA35",
-      "TA125": "%5ETA125",
-      "TABANK": "%5ETABNK",
-      "TAREALESTATE": "%5ETAREL",
+      "TA35": "TA35.TA",
+      "TA90": "TA90.TA",
+      "TABANKS": "TA-BANKS.TA",
+      "TATECH": "TA-TECH.TA",
     };
     const yahooSymbol = indexMap[ticker] || symbol;
     const resp = await fetch(
