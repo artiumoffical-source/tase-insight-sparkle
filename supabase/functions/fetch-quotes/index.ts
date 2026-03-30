@@ -50,9 +50,15 @@ async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: 
   return null;
 }
 
-async function fetchFromYahoo(symbol: string): Promise<{ price: number; change: number } | null> {
+async function fetchFromYahoo(symbol: string, ticker: string): Promise<{ price: number; change: number } | null> {
   try {
-    const yahooSymbol = symbol.replace(".TA", ".TA"); // Yahoo uses same .TA suffix
+    // Map index tickers to Yahoo symbols
+    const indexMap: Record<string, string> = {
+      "TA35": "^TA35.TA",
+      "TA125": "^TA125.TA",
+      "TABANK": "^TABANK.TA",
+    };
+    const yahooSymbol = indexMap[ticker] || symbol;
     const resp = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=2d`,
       {
