@@ -296,7 +296,7 @@ export default function DeepDiveFinancials({ data, loading }: DeepDiveFinancials
                               "hover:bg-muted/30"
                             )}
                           >
-                            <td className="py-2 px-4 ps-10 text-muted-foreground font-display">
+                            <td className="py-2 px-4 pe-10 text-muted-foreground font-display" dir="rtl">
                               {allZero ? (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
