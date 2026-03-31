@@ -133,6 +133,7 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       longTermDebt: p("longTermDebt") || p("longTermDebtTotal"),
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
       totalEquity: p("totalStockholderEquity"),
+      minorityInterest: p("minorityInterest") || p("nonControllingInterest"),
       commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
       retainedEarnings: p("retainedEarnings"),
       otherEquity: p("accumulatedOtherComprehensiveIncome") || p("otherStockholderEquity"),

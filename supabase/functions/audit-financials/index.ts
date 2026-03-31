@@ -19,8 +19,9 @@ function runBalanceCheck(years: any[]): CheckResult {
     const assets = Number(y.totalAssets || 0);
     const liab = Number(y.totalLiabilities || 0);
     const equity = Number(y.totalEquity || 0);
+    const minorityInterest = Number(y.minorityInterest || 0);
     if (assets === 0) continue;
-    const diff = Math.abs(assets - (liab + equity));
+    const diff = Math.abs(assets - (liab + equity + minorityInterest));
     const pct = diff / assets;
     if (pct > 0.02) {
       failures.push(`${y.year}: ${(pct * 100).toFixed(1)}% gap`);
