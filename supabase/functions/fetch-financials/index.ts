@@ -257,13 +257,27 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   }
   console.log(`[${ticker}] parseFundamentals currency: ${normalizedCurrency}`);
 
-  // ── Canonical Market Cap: use General.MarketCapitalization directly ──
-  // EODHD's MarketCapitalization is already in base currency (ILS not ILA), so do NOT divide by 100
+  // ── Canonical Market Cap: calculate from shares × price (most reliable) ──
+  // EODHD's General.MarketCapitalization is unreliable for TASE (e.g. LUMI shows 1B instead of 70B)
   const tradingCcy = (general.CurrencyCode || "").toUpperCase();
-  const rawMcapFromAPI = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
-  const canonicalMarketCap = rawMcapFromAPI;
   const marketCapCurrency = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
-  console.log(`[${ticker}] Canonical MarketCap: raw=${rawMcapFromAPI}, tradingCcy=${tradingCcy}, canonical=${canonicalMarketCap} ${marketCapCurrency}`);
+
+  // Get total shares outstanding
+  const latestShareYear = Object.keys(sharesMap).sort().reverse()[0];
+  const totalSharesForMcap = sharesMap[latestShareYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
+
+  // Calculate market cap: shares × price (price from eodPrice is already in ILS for TASE)
+  let canonicalMarketCap = 0;
+  const priceForMcap = eodPrice?.price || 0;
+  if (totalSharesForMcap > 0 && priceForMcap > 0) {
+    canonicalMarketCap = totalSharesForMcap * priceForMcap;
+    console.log(`[${ticker}] Calculated MarketCap: ${totalSharesForMcap} shares × ${priceForMcap} ${marketCapCurrency} = ${canonicalMarketCap}`);
+  } else {
+    // Fallback: use EODHD's value (better than nothing)
+    const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
+    canonicalMarketCap = eodhMcap;
+    console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
+  }
 
   const meta = {
     name: general.Name || ticker,
