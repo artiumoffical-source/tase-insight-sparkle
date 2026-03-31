@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper, Share2 } from "lucide-react";
+import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper, Share2, Trash2, RotateCcw } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuditTab from "@/components/admin/AuditTab";
@@ -69,10 +70,20 @@ function NewsTab() {
     onError: (err: any) => toast.error(`שגיאה: ${err.message}`),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("news_articles").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-news"] }); toast.success("המאמר נמחק"); },
+    onError: (err: any) => toast.error(`שגיאה במחיקה: ${err.message}`),
+  });
+
   const startEdit = (article: any) => { setEditingId(article.id); setEditTitle(article.ai_title_he); setEditBody(article.ai_body_he); setEditSummary(article.ai_summary_he); };
   const saveEdit = () => { if (!editingId) return; updateMutation.mutate({ id: editingId, updates: { ai_title_he: editTitle, ai_body_he: editBody, ai_summary_he: editSummary, updated_at: new Date().toISOString() } }); };
   const publish = (id: string) => { updateMutation.mutate({ id, updates: { status: "published", published_at: new Date().toISOString() } }); toast.success("המאמר פורסם!"); };
   const reject = (id: string) => { updateMutation.mutate({ id, updates: { status: "rejected" } }); };
+  const moveToDraft = (id: string) => { updateMutation.mutate({ id, updates: { status: "draft" } }); toast.success("המאמר הוחזר לטיוטה"); };
 
   const statusColor = (s: string) => s === "published" ? "bg-green-600" : s === "rejected" ? "bg-red-600" : "bg-yellow-600";
   const statusLabel = (s: string) => s === "published" ? "פורסם" : s === "rejected" ? "נדחה" : s === "draft" ? "טיוטה" : "ממתין";
@@ -150,7 +161,10 @@ function NewsTab() {
                 </div>
               )}
               {article.status === "published" && (
-                <div className="flex items-center gap-2 pt-2 border-t">
+                <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => moveToDraft(article.id)} className="gap-1 text-xs h-7 px-2">
+                    <RotateCcw className="h-3 w-3" /> החזר לטיוטה
+                  </Button>
                   <span className="text-xs text-muted-foreground flex items-center gap-1"><Share2 className="h-3 w-3" /> שתף:</span>
                   {(() => {
                     const articleUrl = `https://alpha-map.com/news/${article.id}`;
@@ -172,6 +186,30 @@ function NewsTab() {
                   })()}
                 </div>
               )}
+              {/* Delete button for ALL articles */}
+              <div className="flex justify-end pt-1">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive gap-1 text-xs h-7 px-2">
+                      <Trash2 className="h-3 w-3" /> מחק
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>מחיקת מאמר</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        האם אתה בטוח שברצונך למחוק את המאמר "{article.ai_title_he}"? פעולה זו אינה ניתנת לביטול.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>ביטול</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMutation.mutate(article.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        מחק לצמיתות
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </CardContent>
           </Card>
         ))
