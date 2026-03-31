@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
         runIncomeCheck(incomeStatement),
         runCoverageCheck(balanceSheet.length > 0 ? balanceSheet : incomeStatement),
         runCurrencyCheck(meta, incomeStatement),
+        runEpsCheck(incomeStatement),
       ];
 
       const health = computeHealth(checks);
