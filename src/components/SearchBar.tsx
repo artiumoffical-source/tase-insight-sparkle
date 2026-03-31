@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/hooks/useLanguage";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,12 +18,11 @@ export default function SearchBar() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SymbolRow[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [dbReady, setDbReady] = useState(true);
+  const [resolving, setResolving] = useState(false);
   const navigate = useNavigate();
   const { t, isRtl } = useLanguage();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Search from DB
   useEffect(() => {
     if (!query || query.length < 1) {
       setResults([]);
@@ -33,7 +32,6 @@ export default function SearchBar() {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const q = query.toLowerCase();
-      // Use ilike for English searches, or textSearch for Hebrew
       const { data, error } = await supabase
         .from("tase_symbols")
         .select("ticker, name, name_he, logo_url, security_id")
@@ -42,8 +40,6 @@ export default function SearchBar() {
 
       if (error) {
         console.error("Search query error:", error);
-        setDbReady(false);
-        // Fallback to local data
         const TASE_STOCKS = (await import("@/data/tase-stocks")).default;
         const filtered = TASE_STOCKS.filter(
           (s) =>
@@ -54,7 +50,6 @@ export default function SearchBar() {
         setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null, security_id: null })));
       } else {
         setResults(data ?? []);
-        setDbReady(true);
       }
     }, 150);
 
@@ -67,19 +62,50 @@ export default function SearchBar() {
     navigate(`/stock/${ticker}`);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Try to resolve an unknown ticker via the resolve-ticker edge function
+  const resolveTicker = async (ticker: string): Promise<boolean> => {
+    try {
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const resp = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/resolve-ticker?ticker=${encodeURIComponent(ticker)}`,
+        { headers: { apikey: anonKey, "Content-Type": "application/json" } }
+      );
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      return data?.found === true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (results.length > 0) {
       handleSelect(results[0].ticker);
-    } else if (query.trim()) {
-      handleSelect(query.trim().toUpperCase());
+      return;
     }
+    
+    const trimmed = query.trim().toUpperCase().replace(/\.TA$/i, "");
+    if (!trimmed) return;
+
+    // No DB results — try resolving the ticker on-the-fly
+    setResolving(true);
+    const found = await resolveTicker(trimmed);
+    setResolving(false);
+    
+    // Navigate regardless — StockPage will handle display
+    handleSelect(trimmed);
   };
 
   return (
     <form onSubmit={handleSubmit} className="relative w-full max-w-xl mx-auto">
       <div className="relative">
-        <Search className={`absolute top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground ${isRtl ? "right-4" : "left-4"}`} />
+        {resolving ? (
+          <Loader2 className={`absolute top-1/2 -translate-y-1/2 h-5 w-5 text-primary animate-spin ${isRtl ? "right-4" : "left-4"}`} />
+        ) : (
+          <Search className={`absolute top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground ${isRtl ? "right-4" : "left-4"}`} />
+        )}
         <Input
           value={query}
           onChange={(e) => {
@@ -91,6 +117,7 @@ export default function SearchBar() {
           placeholder={t("search.placeholder")}
           className={`h-14 text-base bg-secondary border-border rounded-xl focus:ring-2 focus:ring-primary ${isRtl ? "pr-12 pl-4 text-right" : "pl-12 pr-4 text-left"}`}
           dir={isRtl ? "rtl" : "ltr"}
+          disabled={resolving}
         />
       </div>
 

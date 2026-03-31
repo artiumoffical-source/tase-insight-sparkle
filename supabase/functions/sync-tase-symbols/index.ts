@@ -25,25 +25,30 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if we already have recent data (less than 7 days old)
-    const { data: existing } = await supabase
-      .from("tase_symbols")
-      .select("updated_at")
-      .limit(1)
-      .maybeSingle();
+    // Check for ?force=true to bypass cache
+    const url = new URL(req.url);
+    const force = url.searchParams.get("force") === "true";
 
-    if (existing) {
-      const age = Date.now() - new Date(existing.updated_at).getTime();
-      const sevenDays = 7 * 24 * 60 * 60 * 1000;
-      if (age < sevenDays) {
-        return new Response(
-          JSON.stringify({ message: "Symbols are up to date", skipped: true }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    if (!force) {
+      const { data: existing } = await supabase
+        .from("tase_symbols")
+        .select("updated_at")
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        const age = Date.now() - new Date(existing.updated_at).getTime();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        if (age < sevenDays) {
+          return new Response(
+            JSON.stringify({ message: "Symbols are up to date", skipped: true }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     }
 
-    console.log("Fetching TASE symbol list from EODHD...");
+    console.log("Fetching ALL TASE symbols from EODHD...");
     const resp = await fetch(
       `https://eodhd.com/api/exchange-symbol-list/TA?api_token=${apiKey}&fmt=json`
     );
@@ -60,7 +65,7 @@ serve(async (req) => {
     const symbols = await resp.json();
     console.log(`Received ${symbols.length} symbols from EODHD`);
 
-    // Map to our table format, filter for common stocks/ETFs
+    // Map to our table format - include ALL securities
     const rows = symbols
       .filter((s: any) => s.Code && s.Name)
       .map((s: any) => ({
@@ -74,22 +79,26 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       }));
 
+    console.log(`Prepared ${rows.length} rows for upsert`);
+
     // Upsert in batches of 500
     const batchSize = 500;
     let upserted = 0;
+    let errors = 0;
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
       const { error } = await supabase
         .from("tase_symbols")
         .upsert(batch, { onConflict: "ticker" });
       if (error) {
-        console.error("Upsert batch error:", error);
+        console.error(`Upsert batch ${i}-${i + batch.length} error:`, error);
+        errors++;
       } else {
         upserted += batch.length;
       }
     }
 
-    // Now overlay Hebrew names from our known list
+    // Overlay Hebrew names from our known list
     const hebrewMap: Record<string, string> = {
       TEVA: "טבע תעשיות פרמצבטיות",
       LUMI: "בנק לאומי",
@@ -116,6 +125,18 @@ serve(async (req) => {
       GZIT: "גזית גלוב",
       SHPG: "שפיר הנדסה",
       DLEKG: "קבוצת דלק",
+      QLTU: "קוואליטאו",
+      NXSN: "נקסן",
+      ARPT: "ארים תעשיות",
+      ILDC: "ישראל קנדה",
+      MISH: "משוב",
+      ALHE: "אלוני חץ",
+      BSEN: "אבני דרך",
+      ELRN: "אלרון",
+      KMDA: "כמהדע",
+      SPEN: "ספאנטק",
+      ENLT: "אנלייט אנרגיה",
+      ELWS: "אלקטרה",
     };
 
     for (const [ticker, nameHe] of Object.entries(hebrewMap)) {
@@ -125,8 +146,10 @@ serve(async (req) => {
         .eq("ticker", ticker);
     }
 
+    console.log(`Sync complete: ${upserted} upserted, ${errors} batch errors, ${Object.keys(hebrewMap).length} Hebrew names applied`);
+
     return new Response(
-      JSON.stringify({ message: `Synced ${upserted} symbols`, total: rows.length }),
+      JSON.stringify({ message: `Synced ${upserted} symbols`, total: rows.length, errors }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
