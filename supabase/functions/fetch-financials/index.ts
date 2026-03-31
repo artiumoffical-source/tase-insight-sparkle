@@ -530,7 +530,38 @@ serve(async (req) => {
       }
     }
 
-    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate);
+    // For dual-listed stocks: fetch primary exchange price (e.g. TEVA on NYSE) if TASE price is 0
+    let primaryPrice: number | undefined;
+    if (tradingCcy !== reportCcy && (!eodPrice || eodPrice.price === 0)) {
+      // Try common US exchanges
+      const primaryExchange = general.PrimaryExchange || "";
+      const listings = rawData.General?.Listings || {};
+      // Find a listing on a non-TA exchange
+      let primarySymbol = "";
+      for (const [, listing] of Object.entries(listings) as [string, any][]) {
+        const exch = listing?.Exchange || "";
+        if (exch && exch !== "TA" && exch !== "TASE") {
+          primarySymbol = `${listing.Code || ticker}.${exch === "NYSE" || exch === "NASDAQ" ? "US" : exch}`;
+          break;
+        }
+      }
+      // Fallback: try ticker.US directly
+      if (!primarySymbol) primarySymbol = `${ticker}.US`;
+
+      try {
+        console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
+        const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
+        if (pResp.ok) {
+          const pData = await pResp.json();
+          primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
+          console.log(`[${ticker}] Primary price (${primarySymbol}): ${primaryPrice} ${reportCcy}`);
+        }
+      } catch (e) {
+        console.error(`[${ticker}] Primary price fetch error:`, e);
+      }
+    }
+
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice);
 
     // Upsert cache
     const { error: upsertError } = await supabase
