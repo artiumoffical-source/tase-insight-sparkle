@@ -288,8 +288,8 @@ serve(async (req) => {
       console.error("Real-time price fetch error:", e);
     }
 
-    // Return cached if fresh
-    if (cached && isCacheFresh(cached.last_updated)) {
+    // Return cached if fresh (skip cache when force=true)
+    if (!force && cached && isCacheFresh(cached.last_updated)) {
       console.log(`Cache HIT for ${ticker} fundamentals`);
       const d = cached.data as any;
       const cachedMeta = d?.meta ?? {};
