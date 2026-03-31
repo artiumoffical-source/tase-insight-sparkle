@@ -203,7 +203,7 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
   });
 }
 
-function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number) {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number, overrideCurrency?: string) {
   const general = data.General || {};
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
