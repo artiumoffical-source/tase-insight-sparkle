@@ -181,7 +181,7 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
   });
 }
 
-function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }) {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number) {
   const general = data.General || {};
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
@@ -277,16 +277,55 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
-  // Key metrics
+  // Key metrics — handle cross-currency valuation multiples
   const rev5 = years5.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni5 = years5.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
   const rev10 = years10.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni10 = years10.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
 
+  // Detect trading vs reporting currency mismatch
+  const tradingCurrency = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
+  const needsCurrencyConversion = exchangeRate && exchangeRate !== 1 && tradingCurrency !== normalizedCurrency;
+
+  // Market cap from EODHD is in TRADING currency; financials are in REPORTING currency
+  const rawMarketCap = parseFloat(highlights.MarketCapitalization) || 0;
+  const adjustedMarketCap = needsCurrencyConversion ? rawMarketCap / exchangeRate! : rawMarketCap;
+  
+  if (needsCurrencyConversion) {
+    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, rawMcap=${rawMarketCap}, adjustedMcap=${adjustedMarketCap}`);
+  }
+
+  // Calculate valuation ratios using adjusted (same-currency) market cap
+  let peRatio: number | null = null;
+  let psRatio: number | null = null;
+  let pbRatio: number | null = null;
+
+  if (needsCurrencyConversion && adjustedMarketCap > 0) {
+    // Manually calculate all ratios with currency-adjusted market cap
+    const latestIncKey = allYears[allYears.length - 1];
+    const latestInc = latestIncKey ? incomeStatements[latestIncKey] : null;
+    const latestBal = latestIncKey ? (balanceSheets[latestIncKey] || {}) : {};
+    
+    const ttmRevenue = parseFloat(latestInc?.totalRevenue) || 0;
+    const ttmNetIncome = parseFloat(latestInc?.netIncome) || 0;
+    const bookValue = parseFloat(latestBal.totalStockholderEquity) || 0;
+
+    if (ttmNetIncome !== 0) peRatio = Math.round((adjustedMarketCap / ttmNetIncome) * 100) / 100;
+    if (ttmRevenue > 0) psRatio = Math.round((adjustedMarketCap / ttmRevenue) * 100) / 100;
+    if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
+    
+    console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
+  } else {
+    // Same currency — use EODHD's pre-calculated values
+    peRatio = valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null);
+    psRatio = valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null;
+    pbRatio = valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null;
+  }
+
   const keyMetrics = {
-    peRatio: valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null),
-    psRatio: valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null,
-    pbRatio: valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null,
+    peRatio,
+    psRatio,
+    pbRatio,
     roe: highlights.ReturnOnEquityTTM ? parseFloat(highlights.ReturnOnEquityTTM) * 100 : null,
     roa: highlights.ReturnOnAssetsTTM ? parseFloat(highlights.ReturnOnAssetsTTM) * 100 : null,
     revenueGrowth5Y: calcAvgGrowth(rev5),
