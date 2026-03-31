@@ -162,6 +162,27 @@ export default function AuditTab() {
     queryClient.invalidateQueries({ queryKey: ["cached-fundamentals-meta"] });
   };
 
+  const bulkRefreshEps = async () => {
+    setBulkRefreshing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-refresh-eps`,
+        { method: "POST", headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+      );
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      toast.success(`רוענו ${data.refreshed} מתוך ${data.total} מניות עם EPS=0`);
+      queryClient.invalidateQueries({ queryKey: ["audit-results"] });
+      queryClient.invalidateQueries({ queryKey: ["cached-fundamentals-meta"] });
+    } catch (err: any) {
+      toast.error(`שגיאה: ${err.message}`);
+    } finally {
+      setBulkRefreshing(false);
+    }
+  };
+
   const openManualEdit = (ticker: string) => {
     const fund = cachedFundamentals?.find((f: any) => f.ticker === ticker);
     if (!fund) { toast.error("לא נמצאו נתונים לעריכה"); return; }
