@@ -99,7 +99,7 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       totalAssets,
       totalLiabilities: totalLiab,
-      totalEquity,
+      totalEquity: totalEquity + mi, // Include MI so Assets = Liabilities + Equity
       minorityInterest: mi,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
@@ -141,7 +141,15 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       nonCurrentLiabilitiesTotal,
       longTermDebt: p("longTermDebt") || p("longTermDebtTotal"),
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
-      totalEquity: p("totalStockholderEquity"),
+      totalEquity: (() => {
+        const te = p("totalStockholderEquity");
+        const mi = p("minorityInterest") || p("nonControllingInterest") || (() => {
+          const ta = p("totalAssets"), tl = p("totalLiab");
+          const gap = ta - tl - te;
+          return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
+        })();
+        return te + mi; // Include MI so Assets = Liabilities + Equity
+      })(),
       minorityInterest: (() => {
         const mi = p("minorityInterest") || p("nonControllingInterest");
         if (mi !== 0) return mi;
@@ -439,15 +447,14 @@ serve(async (req) => {
       const bs = result.balanceSheet ?? [];
       const is = result.incomeStatement ?? [];
 
-      // Balance check: Assets = Liabilities + Equity + MinorityInterest
+      // Balance check: Assets = Liabilities + Equity (Equity already includes MI)
       const balanceFailures: string[] = [];
       for (const y of bs) {
         const assets = Number(y.totalAssets || 0);
         const liab = Number(y.totalLiabilities || 0);
         const equity = Number(y.totalEquity || 0);
-        const minority = Number((y as any).minorityInterest || 0);
         if (assets === 0) continue;
-        const diff = Math.abs(assets - (liab + equity + minority));
+        const diff = Math.abs(assets - (liab + equity));
         if (diff / assets > 0.02) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
       }
 
