@@ -141,7 +141,7 @@ export default function SearchBar() {
               <div className="flex items-center gap-3">
                 <StockLogo name={stock.name} logoUrl={stock.logo_url} size="sm" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{stock.name_he || stock.name}</span>
+                  <span className="text-sm font-medium">{stock.override_name_he || stock.name_he || stock.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-display font-semibold text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                       {stock.ticker}
