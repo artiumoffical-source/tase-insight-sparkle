@@ -1,50 +1,63 @@
 
 
-# Full TASE Coverage & Dynamic Stock Ingestion
+# Upgrade Live Market Data - Technical Overhaul
 
-## Overview
-Transform AlphaMap from a limited stock list to a complete Tel Aviv Stock Exchange terminal by: (1) syncing ALL TASE securities from EODHD, (2) adding on-the-fly ticker ingestion when users search for unknown stocks, and (3) ensuring all stocks get full financial data regardless of size.
+## Key Finding
+EODHD WebSockets only support **US stocks, Forex, and Crypto** — TASE (.TA) securities are **not available** via WebSocket. Therefore, we cannot implement push-style streaming for Israeli stocks. The plan focuses on maximizing perceived speed through high-frequency polling and polished UI feedback.
 
 ## Plan
 
-### 1. Upgrade sync-tase-symbols Edge Function
-- Remove the 7-day cache check (or make it configurable via query param `?force=true`)
-- Keep fetching from `exchange-symbol-list/TA` which already returns ALL TASE securities
-- The current function already does this correctly — the issue is it may not have been triggered recently
-- Add a secondary pass: for any row with empty `name_he`, attempt to extract Hebrew name from the EODHD `Name` field or leave blank for manual mapping later
-- Add logging for total count of symbols upserted
+### 1. Adaptive Polling: 2s During Market Hours, 15s When Closed
+**Files:** `src/components/NativeMarketTables.tsx`, `src/components/NativeTickerTape.tsx`
 
-### 2. Create "resolve-ticker" Edge Function (Dynamic Ingestion)
-New edge function `supabase/functions/resolve-ticker/index.ts`:
-- Accepts `?ticker=QLTU` 
-- Checks if ticker exists in `tase_symbols` table
-- If not found, fetches from EODHD: `https://eodhd.com/api/fundamentals/{ticker}.TA?api_token=...&fmt=json` to get company name, ISIN, type
-- If valid, inserts into `tase_symbols` and returns the symbol data
-- If invalid (404 from EODHD), returns `{ found: false }`
+- During market hours (Sun–Thu, 10:00–17:30 Israel time): poll every **2 seconds**
+- Outside market hours: poll every **15 seconds** (saves API calls)
+- Use the existing `useMarketOpen()` hook to drive the interval dynamically
+- On visibility change: immediately fetch + restart at correct interval
 
-### 3. Update SearchBar with Fallback Resolution
-- When DB search returns 0 results and user submits, call `resolve-ticker` function before navigating
-- If the ticker is resolved, navigate to the stock page; the new symbol is now in DB for future searches
-- Show a brief "searching..." state during resolution
+### 2. Enhanced Green/Red Flash Animation
+**File:** `src/index.css` (or `tailwind.config.ts`)
 
-### 4. Update StockPage for Unknown Stocks
-- Currently `StockPage` tries to find the stock in the local `TASE_STOCKS` array for display name — if not found, it falls back to `meta?.name` from the API response
-- This already works. No changes needed — `fetch-financials` already accepts any ticker and fetches from EODHD regardless of TA-35 membership
-- Remove the `TA35_TICKERS` gate on deep-dive financials so ALL stocks get hierarchical tables (not just TA-35)
+- Current flash animation exists but is subtle — make it more prominent
+- Add a brief background color pulse (green for price up, red for price down) that fades over ~600ms
+- Apply to individual price cells in both the Ticker Tape and Market Tables
+- Ensure the flash triggers only on actual price changes (already implemented via `prevPrices` ref)
 
-### 5. Re-trigger Full Sync
-- After deploying the updated `sync-tase-symbols`, trigger it to populate all ~1500+ TASE securities in the database
+### 3. Live Connection Status Indicator
+**File:** `src/components/NativeMarketTables.tsx`
+
+- Replace the current simple "last update" timestamp with a richer status line:
+  - Green pulsing dot + "נתונים חיים מהבורסה" during market hours when data is flowing
+  - Show seconds since last successful update (e.g., "עודכן לפני 2 שניות")
+  - If no update received for >10 seconds, show amber dot + "מתחבר מחדש..."
+  - When market closed: gray dot + "נתוני סוף יום"
+- Add the same indicator to the Ticker Tape component
+
+### 4. WebSocket-Ready Architecture (Future-Proof)
+**File:** Create `src/hooks/useMarketData.ts`
+
+- Extract the polling logic from NativeMarketTables into a shared custom hook
+- The hook accepts a `mode` parameter: `"polling"` (current) or `"websocket"` (future)
+- Both NativeMarketTables and NativeTickerTape consume this hook instead of duplicating fetch logic
+- When a WebSocket API becomes available for TASE, only the hook internals need to change — no UI changes required
+
+### 5. Batch Optimization for 2s Polling
+**File:** `supabase/functions/fetch-quotes/index.ts`
+
+- Add a lightweight server-side cache (in-memory Map with 1.5s TTL) so rapid requests within the same second don't hit EODHD/Yahoo twice
+- This prevents API rate-limiting when multiple clients poll at 2s intervals
+- Log cache hit/miss for monitoring
 
 ## Technical Details
 
 **Files to create:**
-- `supabase/functions/resolve-ticker/index.ts` — on-demand ticker resolution
+- `src/hooks/useMarketData.ts` — shared market data hook with adaptive polling
 
 **Files to modify:**
-- `supabase/functions/sync-tase-symbols/index.ts` — add force-refresh param, improve Hebrew name extraction
-- `src/components/SearchBar.tsx` — add fallback call to `resolve-ticker` when no DB results on submit
-- `src/pages/StockPage.tsx` — remove `TA35_TICKERS.has(upperTicker)` gate on deep-dive financials (line 294), also call `resolve-ticker` if ticker not in DB to ensure it gets indexed
-- `src/data/tase-stocks.ts` — keep as-is for local fallback, but it will no longer be the primary source
+- `src/components/NativeMarketTables.tsx` — use shared hook, add connection status indicator
+- `src/components/NativeTickerTape.tsx` — use shared hook, 2s polling during market hours
+- `src/index.css` — enhanced flash animations
+- `supabase/functions/fetch-quotes/index.ts` — add server-side micro-cache
 
-**No database schema changes needed** — `tase_symbols` table already has all required columns.
+**No database changes needed.**
 
