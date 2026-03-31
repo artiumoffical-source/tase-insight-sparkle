@@ -1,17 +1,15 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import StockLogo from "@/components/StockLogo";
 import { supabase } from "@/integrations/supabase/client";
+import { useMarketData } from "@/hooks/useMarketData";
 
 interface TickerItem {
   symbol: string;
   nameHe: string;
   nameEn: string;
-  price: number | null;
-  change: number | null;
-  flash?: "up" | "down" | "";
   logoUrl?: string | null;
   domain?: string | null;
 }
@@ -30,32 +28,30 @@ const COMPANY_DOMAINS: Record<string, string> = {
 };
 
 const TICKER_SYMBOLS: TickerItem[] = [
-  { symbol: "LUMI", nameHe: "לאומי", nameEn: "Leumi", price: null, change: null },
-  { symbol: "POLI", nameHe: "פועלים", nameEn: "Poalim", price: null, change: null },
-  { symbol: "TEVA", nameHe: "טבע", nameEn: "Teva", price: null, change: null },
-  { symbol: "ESLT", nameHe: "אלביט", nameEn: "Elbit", price: null, change: null },
-  { symbol: "ICL", nameHe: "כיל", nameEn: "ICL", price: null, change: null },
-  { symbol: "NXSN", nameHe: "נקסט ויז'ן", nameEn: "Next Vision", price: null, change: null },
-  { symbol: "NICE", nameHe: "נייס", nameEn: "NICE", price: null, change: null },
-  { symbol: "AZRG", nameHe: "עזריאלי", nameEn: "Azrieli", price: null, change: null },
-  { symbol: "DSCT", nameHe: "דיסקונט", nameEn: "Discount", price: null, change: null },
-  { symbol: "MZTF", nameHe: "מזרחי", nameEn: "Mizrahi", price: null, change: null },
+  { symbol: "LUMI", nameHe: "לאומי", nameEn: "Leumi" },
+  { symbol: "POLI", nameHe: "פועלים", nameEn: "Poalim" },
+  { symbol: "TEVA", nameHe: "טבע", nameEn: "Teva" },
+  { symbol: "ESLT", nameHe: "אלביט", nameEn: "Elbit" },
+  { symbol: "ICL", nameHe: "כיל", nameEn: "ICL" },
+  { symbol: "NXSN", nameHe: "נקסט ויז'ן", nameEn: "Next Vision" },
+  { symbol: "NICE", nameHe: "נייס", nameEn: "NICE" },
+  { symbol: "AZRG", nameHe: "עזריאלי", nameEn: "Azrieli" },
+  { symbol: "DSCT", nameHe: "דיסקונט", nameEn: "Discount" },
+  { symbol: "MZTF", nameHe: "מזרחי", nameEn: "Mizrahi" },
 ];
 
-// All items are stocks with internal pages
+const TAPE_TICKERS = TICKER_SYMBOLS.map((t) => t.symbol);
 
 export default function NativeTickerTape() {
   const { isRtl } = useLanguage();
   const [items, setItems] = useState<TickerItem[]>(TICKER_SYMBOLS);
-  const prevPrices = useRef<Record<string, number>>({});
 
   // Fetch logos from DB once
   useEffect(() => {
-    const tickers = TICKER_SYMBOLS.map((s) => s.symbol);
     supabase
       .from("tase_symbols")
       .select("ticker, logo_url")
-      .in("ticker", tickers)
+      .in("ticker", TAPE_TICKERS)
       .then(({ data }) => {
         if (!data || data.length === 0) return;
         const logoMap: Record<string, string> = {};
@@ -70,54 +66,9 @@ export default function NativeTickerTape() {
       });
   }, []);
 
+  const { quotes, flashes, status, marketOpen } = useMarketData({ tickers: TAPE_TICKERS });
 
-  const fetchData = useCallback(() => {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    if (!projectId || !anonKey) return;
-
-    const tickers = TICKER_SYMBOLS.map((t) => t.symbol).join(",");
-    fetch(
-      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${tickers}&_ts=${Date.now()}`,
-      { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data?.quotes) return;
-        setItems((prev) =>
-          prev.map((item) => {
-            const q = data.quotes.find(
-              (qq: any) => qq.ticker?.replace(".TA", "") === item.symbol
-            );
-            if (!q || q.error || q.price <= 0) return { ...item, flash: "" };
-            const oldPrice = prevPrices.current[item.symbol];
-            let flash: "up" | "down" | "" = "";
-            if (oldPrice != null && oldPrice !== q.price) {
-              flash = q.price > oldPrice ? "up" : "down";
-            }
-            prevPrices.current[item.symbol] = q.price;
-            return { ...item, price: q.price, change: q.change, flash };
-          })
-        );
-        setTimeout(() => {
-          setItems((prev) => prev.map((s) => ({ ...s, flash: "" })));
-        }, 800);
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-    let id: ReturnType<typeof setInterval> | null = null;
-    const start = () => { if (!id) id = setInterval(fetchData, 5_000); };
-    const stop = () => { if (id) { clearInterval(id); id = null; } };
-    const onVis = () => { if (document.hidden) { stop(); } else { fetchData(); start(); } };
-    document.addEventListener("visibilitychange", onVis);
-    start();
-    return () => { stop(); document.removeEventListener("visibilitychange", onVis); };
-  }, [fetchData]);
-
-  // Triple the items for seamless infinite loop
+  // Triple for seamless infinite loop
   const tripled = [...items, ...items, ...items];
 
   return (
@@ -127,12 +78,16 @@ export default function NativeTickerTape() {
         style={{ animation: "ticker-scroll 40s linear infinite" }}
       >
         {tripled.map((item, i) => {
-          const isPositive = (item.change ?? 0) > 0;
-          const isNegative = (item.change ?? 0) < 0;
+          const q = quotes[item.symbol];
+          const price = q?.price ?? null;
+          const change = q?.change ?? null;
+          const isPositive = (change ?? 0) > 0;
+          const isNegative = (change ?? 0) < 0;
+          const flash = flashes[item.symbol] || "";
 
-          const flashBg = item.flash === "up"
+          const flashBg = flash === "up"
             ? "animate-flash-green"
-            : item.flash === "down"
+            : flash === "down"
             ? "animate-flash-red"
             : "";
 
@@ -146,10 +101,10 @@ export default function NativeTickerTape() {
               <span className="font-medium text-foreground/70">
                 {isRtl ? item.nameHe : item.nameEn}
               </span>
-              {item.price !== null ? (
+              {price !== null ? (
                 <>
                   <span className="font-display font-bold text-foreground tabular-nums">
-                    ₪{item.price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₪{price.toLocaleString("he-IL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                   <span
                     className={`flex items-center gap-0.5 font-semibold tabular-nums ${
@@ -157,7 +112,7 @@ export default function NativeTickerTape() {
                     }`}
                   >
                     {isPositive ? <TrendingUp className="h-3 w-3" /> : isNegative ? <TrendingDown className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                    {Math.abs(item.change ?? 0).toFixed(2)}%
+                    {Math.abs(change ?? 0).toFixed(2)}%
                   </span>
                 </>
               ) : (
