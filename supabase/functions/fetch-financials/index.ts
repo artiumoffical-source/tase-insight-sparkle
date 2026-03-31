@@ -295,12 +295,20 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (techPrice > 0) console.log(`[${ticker}] Using Technicals price for mcap: ${techPrice}`);
   }
 
+  const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
+
   if (totalSharesForMcap > 0 && priceForMcap > 0) {
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
     console.log(`[${ticker}] Calculated MarketCap: ${totalSharesForMcap} shares × ${priceForMcap} ${marketCapCurrency} = ${canonicalMarketCap}`);
+
+    // Sanity check: if our calculated mcap is >3x or <0.3x the EODHD value, prefer EODHD
+    // This catches cases where Technicals MAs are stale/wrong (e.g. TSEM 405 ILS vs real 160 ILS)
+    if (eodhMcap > 0 && (canonicalMarketCap > eodhMcap * 3 || canonicalMarketCap < eodhMcap * 0.3)) {
+      console.warn(`[${ticker}] MarketCap sanity failed: calculated=${canonicalMarketCap} vs EODHD=${eodhMcap} (ratio=${(canonicalMarketCap/eodhMcap).toFixed(2)}). Using EODHD value.`);
+      canonicalMarketCap = eodhMcap;
+      // EODHD MarketCap is typically in trading currency
+    }
   } else {
-    // Last resort: use EODHD's value (may be wrong for some stocks)
-    const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
     canonicalMarketCap = eodhMcap;
     console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
   }
