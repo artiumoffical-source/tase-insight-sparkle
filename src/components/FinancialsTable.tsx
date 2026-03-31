@@ -194,6 +194,18 @@ function Sparkline({ values, invertColor }: { values: number[]; invertColor?: bo
 }
 
 function verifyChecksum(row: DetailedBalanceSheetRow, parent: keyof DetailedBalanceSheetRow, children: (keyof DetailedBalanceSheetRow)[]): "verified" | "mismatch" | "unavailable" {
+  // For Equity: if the top-level accounting equation balances (Assets = Liabilities + Equity),
+  // always show green — sub-item breakdowns are often incomplete in the API.
+  if (parent === "totalEquity") {
+    const assets = row.totalAssets as number;
+    const liab = row.totalLiabilities as number;
+    const equity = row.totalEquity as number;
+    if (assets && liab != null && equity != null) {
+      const topLevelTolerance = Math.abs(assets) * 0.02;
+      if (Math.abs(assets - (liab + equity)) <= topLevelTolerance) return "verified";
+    }
+  }
+
   const parentVal = row[parent] as number;
   if (!parentVal) return "unavailable";
   const childSum = children.reduce((s, c) => s + ((row[c] as number) || 0), 0);
@@ -659,7 +671,7 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
         </TabsList>
         {currency && (
           <span className="text-xs font-medium bg-secondary px-2 py-1 rounded-md text-muted-foreground">
-            {CURRENCY_SYMBOLS[currency] || currency} {currency}
+            {CURRENCY_SYMBOLS[currency] || currency} {currency === "ILA" ? "ILS" : currency}
           </span>
         )}
       </div>
