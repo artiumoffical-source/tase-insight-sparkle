@@ -435,13 +435,35 @@ serve(async (req) => {
       const rtResp = await fetch(`https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`);
       if (rtResp.ok) {
         const rtData = await rtResp.json();
-        console.log("EODHD Real-Time Response:", JSON.stringify(rtData));
-        const price = Number(rtData?.close) || Number(rtData?.previousClose) || Number(rtData?.open) || 0;
+        let price = Number(rtData?.close) || Number(rtData?.previousClose) || Number(rtData?.open) || 0;
         const change = Number(rtData?.change_p) || 0;
+        // EODHD returns TASE prices in agorot — convert to ILS
+        if (price > 0 && price > 500) {
+          price = price / 100;
+          console.log(`[${ticker}] EODHD real-time agorot→ILS: ${price}`);
+        }
         if (price > 0) eodPrice = { price, change };
       }
     } catch (e) {
       console.error("Real-time price fetch error:", e);
+    }
+
+    // EODHD EOD endpoint fallback
+    if (!eodPrice || eodPrice.price === 0) {
+      try {
+        const symbol = ticker.includes(".") ? ticker : `${ticker}.TA`;
+        const eodResp = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${apiKey}&fmt=json&order=d&limit=1`);
+        if (eodResp.ok) {
+          const eodData = await eodResp.json();
+          const entry = Array.isArray(eodData) ? eodData[0] : eodData;
+          let price = Number(entry?.close) || Number(entry?.adjusted_close) || 0;
+          if (price > 0 && price > 500) price = price / 100; // agorot→ILS
+          if (price > 0) {
+            eodPrice = { price, change: 0 };
+            console.log(`[${ticker}] EODHD EOD fallback price: ${price}`);
+          }
+        }
+      } catch (e) { /* ignore */ }
     }
 
     // Yahoo Finance fallback for TASE price when EODHD returns 0
@@ -460,6 +482,9 @@ serve(async (req) => {
         }
       } catch (e) { console.error("Yahoo TASE price fallback error:", e); }
     }
+
+    console.log(`[${ticker}] Final price for mcap: ${eodPrice?.price || 'NONE'}`);
+
 
     // Return cached if fresh (skip cache when force=true)
     if (!force && cached && isCacheFresh(cached.last_updated)) {
