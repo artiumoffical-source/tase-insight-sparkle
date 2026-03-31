@@ -214,15 +214,27 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   
   console.log(`[${ticker}] SharesMap: ${JSON.stringify(sharesMap)}, fallbackShares: ${fallbackShares}`);
 
-  // Detect REPORTING currency from financial statements (not trading currency)
+  // Use the already-detected reporting currency passed via eodPrice metadata
+  // The caller (serve handler) does the multi-signal detection; parseFundamentals just uses it
   const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
   const firstIncomeKey = Object.keys(incomeStatements).sort().reverse()[0];
-  const reportingCurrency = firstIncomeKey
-    ? (incomeStatements[firstIncomeKey]?.currency_symbol || general.CurrencyCode || "ILS")
-    : (general.CurrencyCode || "ILS");
-  // Normalize: ILA → ILS (both mean Israeli currency)
-  const normalizedCurrency = reportingCurrency === "ILA" ? "ILS" : reportingCurrency;
-  console.log(`[${ticker}] Reporting currency: ${reportingCurrency} → ${normalizedCurrency} (General.CurrencyCode=${general.CurrencyCode})`);
+  // Fallback detection within parseFundamentals (shouldn't be needed — caller overrides meta.currency)
+  const stmtCcyRaw = firstIncomeKey ? incomeStatements[firstIncomeKey]?.currency_symbol : null;
+  const stmtCcy = stmtCcyRaw === "ILA" ? "ILS" : stmtCcyRaw;
+  const generalReportingCcy = general.ReportingCurrency || general.reporting_currency || null;
+  let normalizedCurrency = generalReportingCcy ? (generalReportingCcy === "ILA" ? "ILS" : generalReportingCcy)
+    : (stmtCcy && stmtCcy !== "ILS" && stmtCcy !== "None") ? stmtCcy
+    : (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode || "ILS");
+  // Check for US listing as override signal
+  const listings = general.Listings || {};
+  for (const [, listing] of Object.entries(listings) as [string, any][]) {
+    const exch = (listing?.Exchange || "").toUpperCase();
+    if (["NYSE", "NASDAQ", "US"].includes(exch) && normalizedCurrency === "ILS") {
+      normalizedCurrency = "USD";
+      break;
+    }
+  }
+  console.log(`[${ticker}] parseFundamentals currency: ${normalizedCurrency}`);
 
   const meta = {
     name: general.Name || ticker,
@@ -333,6 +345,13 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
     
     console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
+  } else if (needsCurrencyConversion) {
+    // Cross-currency but no adjusted market cap available (price=0, market closed)
+    // Do NOT use EODHD's pre-calculated ratios — they divide ILS mcap by USD revenue = wrong
+    console.log(`[${ticker}] Cross-currency but no price available — skipping EODHD ratios`);
+    peRatio = null;
+    psRatio = null;
+    pbRatio = null;
   } else {
     // Same currency — use EODHD's pre-calculated values
     peRatio = valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null);
@@ -503,15 +522,49 @@ serve(async (req) => {
     const tradingCcy = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
     const incStmts = rawData.Financials?.Income_Statement?.yearly || {};
     const latestKey = Object.keys(incStmts).sort().reverse()[0];
-    const reportCcy = latestKey
-      ? ((incStmts[latestKey]?.currency_symbol === "ILA" ? "ILS" : incStmts[latestKey]?.currency_symbol) || tradingCcy)
-      : tradingCcy;
 
-    console.log(`[${ticker}] Currency check: tradingCcy=${tradingCcy}, reportCcy=${reportCcy}, match=${tradingCcy === reportCcy}`);
+    // Multi-signal reporting currency detection (EODHD currency_symbol is unreliable for TASE)
+    let reportCcy = tradingCcy; // default
+    const stmtCurrencyRaw = latestKey ? incStmts[latestKey]?.currency_symbol : null;
+    const stmtCurrency = stmtCurrencyRaw === "ILA" ? "ILS" : stmtCurrencyRaw;
+    const generalReportingCurrency = general.ReportingCurrency || general.reporting_currency || null;
+
+    // Signal 1: EODHD General.ReportingCurrency (most reliable when present)
+    if (generalReportingCurrency && generalReportingCurrency !== "ILA") {
+      reportCcy = generalReportingCurrency === "ILA" ? "ILS" : generalReportingCurrency;
+    }
+    // Signal 2: statement currency_symbol (if not ILS/ILA and not null)
+    else if (stmtCurrency && stmtCurrency !== "ILS" && stmtCurrency !== "None") {
+      reportCcy = stmtCurrency;
+    }
+    // Signal 3: stock has a US/non-TASE listing → likely reports in that exchange's currency
+    else {
+      const listings = general.Listings || {};
+      let hasUSListing = false;
+      for (const [, listing] of Object.entries(listings) as [string, any][]) {
+        const exch = (listing?.Exchange || "").toUpperCase();
+        if (["NYSE", "NASDAQ", "US"].includes(exch)) { hasUSListing = true; break; }
+      }
+      // Also check PrimaryExchange / HomeCategory from EODHD
+      const primaryExch = (general.Exchange || "").toUpperCase();
+      const countryISO = (general.CountryISO || "").toUpperCase();
+      if (hasUSListing || (general.PrimaryTicker && !String(general.PrimaryTicker).endsWith(".TA"))) {
+        reportCcy = "USD";
+      }
+      // Signal 4: heuristic — if ILS revenue > $500B, it's probably USD values mislabeled
+      if (reportCcy === "ILS" && latestKey) {
+        const latestRev = parseFloat(incStmts[latestKey]?.totalRevenue) || 0;
+        if (latestRev > 500_000_000_000) {
+          reportCcy = "USD";
+          console.log(`[${ticker}] Revenue ${latestRev} too large for ILS, overriding to USD`);
+        }
+      }
+    }
+
+    console.log(`[${ticker}] Currency detection: tradingCcy=${tradingCcy}, stmtCurrency=${stmtCurrency}, reportingCurrency=${generalReportingCurrency}, final=${reportCcy}`);
 
     if (tradingCcy !== reportCcy) {
       // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
-      // Using free exchangerate API (EODHD forex requires higher plan)
       try {
         const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`);
         if (fxResp.ok) {
