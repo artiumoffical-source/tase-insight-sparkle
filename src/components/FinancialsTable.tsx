@@ -216,7 +216,7 @@ function exportToCSV(headers: string[], rows: string[][], filename: string) {
 }
 
 // --- Simple MetricTable for Income & Cash Flow ---
-function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics: MetricDef[]; t: (k: string) => string; tabName?: string }) {
+function SimpleMetricTable({ rows, metrics, t, tabName, currency }: { rows: any[]; metrics: MetricDef[]; t: (k: string) => string; tabName?: string; currency?: string }) {
   if (!rows.length) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
