@@ -67,6 +67,7 @@ export default function AuditTab() {
   const [refetchingTicker, setRefetchingTicker] = useState<string | null>(null);
   const [manualEditTicker, setManualEditTicker] = useState<string | null>(null);
   const [manualEditData, setManualEditData] = useState<Record<string, string>>({});
+  const [nameOverride, setNameOverride] = useState<Record<string, string>>({});
 
   const { data: auditResults, isLoading } = useQuery({
     queryKey: ["audit-results"],
