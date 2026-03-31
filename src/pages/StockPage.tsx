@@ -299,6 +299,11 @@ export default function StockPage() {
             />
           </div>
 
+          {/* Report Data Issue */}
+          {user && (
+            <ReportIssueButton ticker={upperTicker} userEmail={user.email} />
+          )}
+
           <UpgradeModal open={showUpgrade} onOpenChange={setShowUpgrade} />
         </div>
 
