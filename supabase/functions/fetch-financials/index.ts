@@ -167,7 +167,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
 
   const sector = classifySector(general.GicsSector || "", general.Industry || "");
-  const sharesOutstanding = parseFloat(general.SharesOutstanding) || parseFloat(highlights.SharesOutstanding) || 0;
+  const sharesOutstanding = parseFloat(general.SharesOutstanding) || parseFloat(highlights.SharesOutstanding) || parseFloat(general.SharesFloat) || 0;
+  console.log(`[${ticker}] SharesOutstanding: ${sharesOutstanding}, General.SharesOutstanding: ${general.SharesOutstanding}, Highlights: ${highlights.SharesOutstanding}`);
 
   const meta = {
     name: general.Name || ticker,
