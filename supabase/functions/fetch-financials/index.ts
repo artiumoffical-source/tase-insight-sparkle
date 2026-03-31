@@ -317,97 +317,42 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
-  // Key metrics — handle cross-currency valuation multiples
+  // Key metrics — ALL ratios calculated from canonical market cap
   const rev5 = years5.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni5 = years5.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
   const rev10 = years10.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni10 = years10.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
 
-  // Detect trading vs reporting currency mismatch
-  const tradingCurrency = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
-  const needsCurrencyConversion = exchangeRate && exchangeRate !== 1 && tradingCurrency !== normalizedCurrency;
+  // For dual-listed stocks (reporting in USD/EUR but trading in ILS),
+  // convert canonical market cap to reporting currency
+  const needsCurrencyConversion = exchangeRate && exchangeRate !== 1 && marketCapCurrency !== normalizedCurrency;
+  let mcapForRatios = canonicalMarketCap;
 
-  // Market cap: for dual-listed stocks, EODHD's MarketCapitalization for .TA only reflects
-  // TASE-traded shares, NOT global market cap. Compute from total shares × price instead.
-  let adjustedMarketCap = 0;
-  const rawMarketCap = parseFloat(highlights.MarketCapitalization) || 0;
-
-  if (needsCurrencyConversion) {
-    // Compute global market cap from total shares outstanding × price, converted to reporting currency
-    const latestYear = Object.keys(sharesMap).sort().reverse()[0];
-    const totalShares = sharesMap[latestYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
-    const priceInTradingCcy = eodPrice?.price || 0;
-
-    if (totalShares > 0 && primaryPrice && primaryPrice > 0) {
-      // Best: use primary exchange price (already in reporting currency, e.g. USD)
-      adjustedMarketCap = totalShares * primaryPrice;
-      console.log(`[${ticker}] Using primary price: ${primaryPrice} ${normalizedCurrency}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
-    } else if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
-      // Fallback: TASE price converted to reporting currency
-      adjustedMarketCap = (totalShares * priceInTradingCcy) / exchangeRate;
-      console.log(`[${ticker}] TASE price fallback: ${priceInTradingCcy} / ${exchangeRate}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
-    }
-    // Fallback: use EODHD Technicals (50DayMA or 200DayMA) as price proxy
-    if (adjustedMarketCap === 0 && totalShares > 0 && exchangeRate) {
-      let techPrice = parseFloat(technicals["50DayMA"]) || parseFloat(technicals["200DayMA"]) || 0;
-      // EODHD fundamentals endpoint reports TASE technicals in Agorot (1/100 ILS) — always convert
-      if (techPrice > 0 && tradingCurrency === "ILS") {
-        techPrice = techPrice / 100;
-        console.log(`[${ticker}] Agorot→ILS correction: techPrice=${techPrice}`);
-      }
-      if (techPrice > 0) {
-        adjustedMarketCap = (totalShares * techPrice) / exchangeRate;
-        console.log(`[${ticker}] Technicals price fallback: price=${techPrice} ILS, shares=${totalShares}, mcap=${adjustedMarketCap} ${normalizedCurrency}`);
-      }
-    }
-    // Last resort: use EODHD's MarketCapitalization (WARNING: often wrong for dual-listed)
-    if (adjustedMarketCap === 0 && rawMarketCap > 0 && exchangeRate && exchangeRate > 0) {
-      adjustedMarketCap = rawMarketCap / exchangeRate;
-      console.log(`[${ticker}] Last resort: EODHD mcap ${rawMarketCap} / ${exchangeRate} = ${adjustedMarketCap} (may be inaccurate for dual-listed)`);
-    }
-    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, adjustedMcap=${adjustedMarketCap}`);
-  } else {
-    adjustedMarketCap = rawMarketCap;
+  if (needsCurrencyConversion && exchangeRate && exchangeRate > 0) {
+    mcapForRatios = canonicalMarketCap / exchangeRate;
+    console.log(`[${ticker}] Cross-currency mcap: ${canonicalMarketCap} ${marketCapCurrency} / ${exchangeRate} = ${mcapForRatios} ${normalizedCurrency}`);
   }
 
-  // Calculate valuation ratios using adjusted (same-currency) market cap
+  // Always calculate ratios ourselves from canonical market cap
   let peRatio: number | null = null;
   let psRatio: number | null = null;
   let pbRatio: number | null = null;
 
-  if (needsCurrencyConversion && adjustedMarketCap > 0) {
-    // Manually calculate all ratios with currency-adjusted market cap
+  if (mcapForRatios > 0) {
     const latestIncKey = allYears[allYears.length - 1];
     const latestInc = latestIncKey ? incomeStatements[latestIncKey] : null;
     const latestBal = latestIncKey ? (balanceSheets[latestIncKey] || {}) : {};
-    
+
     const ttmRevenue = parseFloat(latestInc?.totalRevenue) || 0;
     const ttmNetIncome = parseFloat(latestInc?.netIncome) || 0;
     const bookValue = parseFloat(latestBal.totalStockholderEquity) || 0;
 
-    if (ttmNetIncome !== 0) peRatio = Math.round((adjustedMarketCap / ttmNetIncome) * 100) / 100;
-    if (ttmRevenue > 0) psRatio = Math.round((adjustedMarketCap / ttmRevenue) * 100) / 100;
-    if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
-    
-    // Sanity check: if ratios are impossibly low, the market cap is likely wrong — null them out
-    if (psRatio !== null && psRatio < 0.1 && ttmRevenue > 100_000_000) {
-      console.warn(`[${ticker}] P/S=${psRatio} too low (rev=${ttmRevenue}, mcap=${adjustedMarketCap}) — likely bad MarketCap from EODHD. Nulling ratios.`);
-      peRatio = null;
-      psRatio = null;
-      pbRatio = null;
-    }
-    
-    console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
-  } else if (needsCurrencyConversion) {
-    // Cross-currency but no adjusted market cap available (price=0, market closed)
-    // Do NOT use EODHD's pre-calculated ratios — they divide ILS mcap by USD revenue = wrong
-    console.log(`[${ticker}] Cross-currency but no price available — skipping EODHD ratios`);
-    peRatio = null;
-    psRatio = null;
-    pbRatio = null;
-  } else {
-    // Same currency — use EODHD's pre-calculated values
-    peRatio = valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null);
+    if (ttmNetIncome !== 0) peRatio = Math.round((mcapForRatios / ttmNetIncome) * 100) / 100;
+    if (ttmRevenue > 0) psRatio = Math.round((mcapForRatios / ttmRevenue) * 100) / 100;
+    if (bookValue > 0) pbRatio = Math.round((mcapForRatios / bookValue) * 100) / 100;
+
+    console.log(`[${ticker}] Calculated multiples: mcap=${mcapForRatios}, P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
+  }
     psRatio = valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null;
     pbRatio = valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null;
   }
