@@ -181,7 +181,7 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
   });
 }
 
-function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }) {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number) {
   const general = data.General || {};
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
@@ -277,16 +277,73 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
-  // Key metrics
+  // Key metrics — handle cross-currency valuation multiples
   const rev5 = years5.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni5 = years5.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
   const rev10 = years10.map(y => parseFloat(incomeStatements[y]?.totalRevenue) || 0);
   const ni10 = years10.map(y => parseFloat(incomeStatements[y]?.netIncome) || 0);
 
+  // Detect trading vs reporting currency mismatch
+  const tradingCurrency = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
+  const needsCurrencyConversion = exchangeRate && exchangeRate !== 1 && tradingCurrency !== normalizedCurrency;
+
+  // Market cap: for dual-listed stocks, EODHD's MarketCapitalization for .TA only reflects
+  // TASE-traded shares, NOT global market cap. Compute from total shares × price instead.
+  let adjustedMarketCap = 0;
+  const rawMarketCap = parseFloat(highlights.MarketCapitalization) || 0;
+
+  if (needsCurrencyConversion) {
+    // Compute global market cap from total shares outstanding × price, converted to reporting currency
+    const latestYear = Object.keys(sharesMap).sort().reverse()[0];
+    const totalShares = sharesMap[latestYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
+    const priceInTradingCcy = eodPrice?.price || 0;
+
+    if (totalShares > 0 && primaryPrice && primaryPrice > 0) {
+      // Best: use primary exchange price (already in reporting currency, e.g. USD)
+      adjustedMarketCap = totalShares * primaryPrice;
+      console.log(`[${ticker}] Using primary price: ${primaryPrice} ${normalizedCurrency}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
+    } else if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
+      // Fallback: TASE price converted to reporting currency
+      adjustedMarketCap = (totalShares * priceInTradingCcy) / exchangeRate;
+    }
+    // Do NOT fall back to EODHD's MarketCapitalization for dual-listed stocks — it's TASE-only and wrong
+    // If no price available, adjustedMarketCap stays 0 → valuation metrics will be null
+    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, totalShares=${totalShares}, price=${priceInTradingCcy}, primaryPrice=${primaryPrice}, adjustedMcap=${adjustedMarketCap}`);
+  } else {
+    adjustedMarketCap = rawMarketCap;
+  }
+
+  // Calculate valuation ratios using adjusted (same-currency) market cap
+  let peRatio: number | null = null;
+  let psRatio: number | null = null;
+  let pbRatio: number | null = null;
+
+  if (needsCurrencyConversion && adjustedMarketCap > 0) {
+    // Manually calculate all ratios with currency-adjusted market cap
+    const latestIncKey = allYears[allYears.length - 1];
+    const latestInc = latestIncKey ? incomeStatements[latestIncKey] : null;
+    const latestBal = latestIncKey ? (balanceSheets[latestIncKey] || {}) : {};
+    
+    const ttmRevenue = parseFloat(latestInc?.totalRevenue) || 0;
+    const ttmNetIncome = parseFloat(latestInc?.netIncome) || 0;
+    const bookValue = parseFloat(latestBal.totalStockholderEquity) || 0;
+
+    if (ttmNetIncome !== 0) peRatio = Math.round((adjustedMarketCap / ttmNetIncome) * 100) / 100;
+    if (ttmRevenue > 0) psRatio = Math.round((adjustedMarketCap / ttmRevenue) * 100) / 100;
+    if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
+    
+    console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
+  } else {
+    // Same currency — use EODHD's pre-calculated values
+    peRatio = valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null);
+    psRatio = valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null;
+    pbRatio = valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null;
+  }
+
   const keyMetrics = {
-    peRatio: valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null),
-    psRatio: valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null,
-    pbRatio: valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null,
+    peRatio,
+    psRatio,
+    pbRatio,
     roe: highlights.ReturnOnEquityTTM ? parseFloat(highlights.ReturnOnEquityTTM) * 100 : null,
     roa: highlights.ReturnOnAssetsTTM ? parseFloat(highlights.ReturnOnAssetsTTM) * 100 : null,
     revenueGrowth5Y: calcAvgGrowth(rev5),
@@ -439,7 +496,92 @@ serve(async (req) => {
     }
 
     const rawData = await resp.json();
-    const result = parseFundamentals(rawData, ticker, eodPrice);
+
+    // Detect cross-currency mismatch and fetch exchange rate if needed
+    let exchangeRate: number | undefined;
+    const general = rawData.General || {};
+    const tradingCcy = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
+    const incStmts = rawData.Financials?.Income_Statement?.yearly || {};
+    const latestKey = Object.keys(incStmts).sort().reverse()[0];
+    const reportCcy = latestKey
+      ? ((incStmts[latestKey]?.currency_symbol === "ILA" ? "ILS" : incStmts[latestKey]?.currency_symbol) || tradingCcy)
+      : tradingCcy;
+
+    console.log(`[${ticker}] Currency check: tradingCcy=${tradingCcy}, reportCcy=${reportCcy}, match=${tradingCcy === reportCcy}`);
+
+    if (tradingCcy !== reportCcy) {
+      // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
+      // Using free exchangerate API (EODHD forex requires higher plan)
+      try {
+        const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`);
+        if (fxResp.ok) {
+          const fxData = await fxResp.json();
+          const rate = fxData?.rates?.[tradingCcy];
+          if (rate && rate > 0) {
+            exchangeRate = rate;
+            console.log(`[${ticker}] FX rate ${reportCcy}→${tradingCcy}: ${exchangeRate}`);
+          }
+        } else {
+          console.error(`[${ticker}] FX fetch failed: ${fxResp.status}`);
+        }
+      } catch (fxErr) {
+        console.error(`[${ticker}] Failed to fetch FX rate:`, fxErr);
+      }
+    }
+
+    // For dual-listed stocks: resolve a reliable price for market cap calculation
+    let primaryPrice: number | undefined;
+    if (tradingCcy !== reportCcy) {
+      const tasePrice = eodPrice?.price || 0;
+
+      if (tasePrice > 0 && exchangeRate) {
+        // TASE price available — will be used in parseFundamentals via shares * tasePrice / FX
+        // No need to set primaryPrice; the function handles this
+      } else {
+        // No TASE price — try fetching primary exchange (e.g. NYSE) price
+        const listings = rawData.General?.Listings || {};
+        let primarySymbol = "";
+        for (const [, listing] of Object.entries(listings) as [string, any][]) {
+          const exch = listing?.Exchange || "";
+          if (exch && exch !== "TA" && exch !== "TASE") {
+            primarySymbol = `${listing.Code || ticker}.${exch === "NYSE" || exch === "NASDAQ" ? "US" : exch}`;
+            break;
+          }
+        }
+        if (!primarySymbol) primarySymbol = `${ticker}.US`;
+
+        try {
+          console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
+          const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
+          if (pResp.ok) {
+            const pData = await pResp.json();
+            primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
+            if (primaryPrice) console.log(`[${ticker}] Primary price: ${primaryPrice} ${reportCcy}`);
+          }
+        } catch (e) { /* ignore rate limits */ }
+
+        // Yahoo Finance fallback
+        if (!primaryPrice) {
+          try {
+            const yTicker = primarySymbol.replace(".US", "");
+            const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`);
+            if (yResp.ok) {
+              const yData = await yResp.json();
+              const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+              primaryPrice = closes.filter((c: any) => c != null).pop() || undefined;
+              if (primaryPrice) console.log(`[${ticker}] Yahoo price: ${primaryPrice}`);
+            }
+          } catch (e) { /* ignore */ }
+        }
+
+        // If no price source worked, log it — valuation metrics will be null
+        if (!primaryPrice) {
+          console.warn(`[${ticker}] No price available for cross-currency valuation — metrics will be null`);
+        }
+      }
+    }
+
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice);
 
     // Upsert cache
     const { error: upsertError } = await supabase
