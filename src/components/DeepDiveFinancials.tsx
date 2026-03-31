@@ -103,7 +103,7 @@ const CHECKSUM_GROUPS: { parent: keyof DetailedBalanceSheetRow; children: (keyof
   { parent: "totalCurrentLiabilities", children: ["accountsPayable", "shortTermDebt", "otherCurrentLiabilities"] },
   { parent: "nonCurrentLiabilitiesTotal", children: ["longTermDebt", "otherNonCurrentLiabilities"] },
   { parent: "totalLiabilities", children: ["totalCurrentLiabilities", "nonCurrentLiabilitiesTotal"] },
-  { parent: "totalEquity", children: ["commonStock", "retainedEarnings", "otherEquity"] },
+  { parent: "totalEquity", children: ["commonStock", "retainedEarnings", "otherEquity", "minorityInterest"] },
 ];
 
 function formatNum(value: number): string {
