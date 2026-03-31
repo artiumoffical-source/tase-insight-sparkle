@@ -1,0 +1,1 @@
+UPDATE tase_symbols SET currency = 'USD' WHERE ticker IN ('AUDC', 'PERI') AND (currency IS NULL OR currency != 'USD');
