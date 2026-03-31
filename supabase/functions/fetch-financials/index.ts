@@ -345,6 +345,13 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
     
     console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
+  } else if (needsCurrencyConversion) {
+    // Cross-currency but no adjusted market cap available (price=0, market closed)
+    // Do NOT use EODHD's pre-calculated ratios — they divide ILS mcap by USD revenue = wrong
+    console.log(`[${ticker}] Cross-currency but no price available — skipping EODHD ratios`);
+    peRatio = null;
+    psRatio = null;
+    pbRatio = null;
   } else {
     // Same currency — use EODHD's pre-calculated values
     peRatio = valuation.TrailingPE ? parseFloat(valuation.TrailingPE) : (highlights.PERatio ? parseFloat(highlights.PERatio) : null);
