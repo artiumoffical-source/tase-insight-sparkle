@@ -86,12 +86,21 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
   return dateKeys.slice().reverse().map((dateKey) => {
     const bal = balanceSheets[dateKey] || {};
     const totalDebtVal = (parseFloat(bal.shortLongTermDebt) || 0) + (parseFloat(bal.longTermDebt) || 0);
+    const totalAssets = parseFloat(bal.totalAssets) || 0;
+    const totalLiab = parseFloat(bal.totalLiab) || 0;
+    const totalEquity = parseFloat(bal.totalStockholderEquity) || 0;
+    // Minority Interest: use API field if present, otherwise derive from balance equation gap
+    let mi = parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0;
+    if (mi === 0 && totalAssets > 0) {
+      const gap = totalAssets - totalLiab - totalEquity;
+      if (gap > 0 && gap / totalAssets < 0.5) mi = gap; // reasonable MI range
+    }
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
-      totalAssets: parseFloat(bal.totalAssets) || 0,
-      totalLiabilities: parseFloat(bal.totalLiab) || 0,
-      totalEquity: parseFloat(bal.totalStockholderEquity) || 0,
-      minorityInterest: parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0,
+      totalAssets,
+      totalLiabilities: totalLiab,
+      totalEquity,
+      minorityInterest: mi,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
       inventory: parseFloat(bal.inventory) || 0,
