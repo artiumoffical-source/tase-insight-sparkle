@@ -671,7 +671,7 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
         </TabsList>
         {currency && (
           <span className="text-xs font-medium bg-secondary px-2 py-1 rounded-md text-muted-foreground">
-            {CURRENCY_SYMBOLS[currency] || currency} {currency}
+            {CURRENCY_SYMBOLS[currency] || currency} {currency === "ILA" ? "ILS" : currency}
           </span>
         )}
       </div>
