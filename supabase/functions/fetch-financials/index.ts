@@ -214,15 +214,27 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   
   console.log(`[${ticker}] SharesMap: ${JSON.stringify(sharesMap)}, fallbackShares: ${fallbackShares}`);
 
-  // Detect REPORTING currency from financial statements (not trading currency)
+  // Use the already-detected reporting currency passed via eodPrice metadata
+  // The caller (serve handler) does the multi-signal detection; parseFundamentals just uses it
   const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
   const firstIncomeKey = Object.keys(incomeStatements).sort().reverse()[0];
-  const reportingCurrency = firstIncomeKey
-    ? (incomeStatements[firstIncomeKey]?.currency_symbol || general.CurrencyCode || "ILS")
-    : (general.CurrencyCode || "ILS");
-  // Normalize: ILA → ILS (both mean Israeli currency)
-  const normalizedCurrency = reportingCurrency === "ILA" ? "ILS" : reportingCurrency;
-  console.log(`[${ticker}] Reporting currency: ${reportingCurrency} → ${normalizedCurrency} (General.CurrencyCode=${general.CurrencyCode})`);
+  // Fallback detection within parseFundamentals (shouldn't be needed — caller overrides meta.currency)
+  const stmtCcyRaw = firstIncomeKey ? incomeStatements[firstIncomeKey]?.currency_symbol : null;
+  const stmtCcy = stmtCcyRaw === "ILA" ? "ILS" : stmtCcyRaw;
+  const generalReportingCcy = general.ReportingCurrency || general.reporting_currency || null;
+  let normalizedCurrency = generalReportingCcy ? (generalReportingCcy === "ILA" ? "ILS" : generalReportingCcy)
+    : (stmtCcy && stmtCcy !== "ILS" && stmtCcy !== "None") ? stmtCcy
+    : (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode || "ILS");
+  // Check for US listing as override signal
+  const listings = general.Listings || {};
+  for (const [, listing] of Object.entries(listings) as [string, any][]) {
+    const exch = (listing?.Exchange || "").toUpperCase();
+    if (["NYSE", "NASDAQ", "US"].includes(exch) && normalizedCurrency === "ILS") {
+      normalizedCurrency = "USD";
+      break;
+    }
+  }
+  console.log(`[${ticker}] parseFundamentals currency: ${normalizedCurrency}`);
 
   const meta = {
     name: general.Name || ticker,
