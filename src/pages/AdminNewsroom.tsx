@@ -97,6 +97,57 @@ function NewsTab() {
 
   const isDraft = (status: string) => status === "pending" || status === "draft";
 
+  const hasDataMismatch = (article: any) => {
+    const dl = article.data_lock as any;
+    return dl?.validation?.valid === false;
+  };
+
+  const renderDataLock = (article: any) => {
+    const dl = article.data_lock as any;
+    if (!dl?.dbData) return null;
+    const db = dl.dbData;
+    const ai = dl.aiNumbersUsed || {};
+    const validation = dl.validation;
+
+    const rows: Array<{ label: string; dbKey: string; dbVal: number | undefined; aiVal: number | undefined }> = [
+      { label: "צמיחת הכנסות %", dbKey: "revenueGrowthPct", dbVal: db.revenueGrowthPct, aiVal: ai.revenueGrowthPct },
+      { label: "צמיחת רווח נקי %", dbKey: "netIncomeGrowthPct", dbVal: db.netIncomeGrowthPct, aiVal: ai.netIncomeGrowthPct },
+      { label: "צמיחת רווח תפעולי %", dbKey: "opIncomeGrowthPct", dbVal: db.opIncomeGrowthPct, aiVal: ai.opIncomeGrowthPct },
+      { label: "מרווח תפעולי נוכחי %", dbKey: "currentOpMarginPct", dbVal: db.currentOpMarginPct, aiVal: ai.currentOpMarginPct },
+    ];
+
+    return (
+      <div className="mt-2 border rounded-md overflow-hidden">
+        <div className={`px-3 py-1.5 text-xs font-bold flex items-center gap-2 ${validation?.valid ? "bg-green-600/10 text-green-400" : "bg-red-600/10 text-red-400"}`}>
+          {validation?.valid ? "✅ נתונים מאומתים" : "❌ אי-התאמה בנתונים"}
+          <span className="text-muted-foreground font-normal">({db.currentLabel} vs {db.parallelLabel})</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead><tr className="border-b bg-muted/30"><th className="px-3 py-1 text-right">מדד</th><th className="px-3 py-1 text-center">DB (אמת)</th><th className="px-3 py-1 text-center">AI (כתב)</th><th className="px-3 py-1 text-center">סטטוס</th></tr></thead>
+          <tbody>
+            {rows.map(r => {
+              if (r.dbVal == null) return null;
+              const match = r.aiVal == null || Math.abs((r.aiVal - r.dbVal) / (r.dbVal || 1)) * 100 <= 1;
+              return (
+                <tr key={r.dbKey} className={`border-b ${!match ? "bg-red-600/5" : ""}`}>
+                  <td className="px-3 py-1 text-right font-medium">{r.label}</td>
+                  <td className="px-3 py-1 text-center font-mono">{r.dbVal?.toFixed(2)}</td>
+                  <td className="px-3 py-1 text-center font-mono">{r.aiVal != null ? r.aiVal.toFixed(2) : "—"}</td>
+                  <td className="px-3 py-1 text-center">{match ? "✅" : "❌"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {validation?.mismatches?.length > 0 && (
+          <div className="px-3 py-1.5 text-xs text-red-400 bg-red-600/5 border-t">
+            {validation.mismatches.map((m: string, i: number) => <div key={i}>⚠️ {m}</div>)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2 flex-wrap">
