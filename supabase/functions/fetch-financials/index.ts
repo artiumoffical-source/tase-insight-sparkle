@@ -367,6 +367,14 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (ttmRevenue > 0) psRatio = Math.round((adjustedMarketCap / ttmRevenue) * 100) / 100;
     if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
     
+    // Sanity check: if ratios are impossibly low, the market cap is likely wrong — null them out
+    if (psRatio !== null && psRatio < 0.1 && ttmRevenue > 100_000_000) {
+      console.warn(`[${ticker}] P/S=${psRatio} too low (rev=${ttmRevenue}, mcap=${adjustedMarketCap}) — likely bad MarketCap from EODHD. Nulling ratios.`);
+      peRatio = null;
+      psRatio = null;
+      pbRatio = null;
+    }
+    
     console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
   } else if (needsCurrencyConversion) {
     // Cross-currency but no adjusted market cap available (price=0, market closed)
