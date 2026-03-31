@@ -91,6 +91,7 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
       totalAssets: parseFloat(bal.totalAssets) || 0,
       totalLiabilities: parseFloat(bal.totalLiab) || 0,
       totalEquity: parseFloat(bal.totalStockholderEquity) || 0,
+      minorityInterest: parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
       inventory: parseFloat(bal.inventory) || 0,
