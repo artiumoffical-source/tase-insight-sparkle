@@ -90,6 +90,7 @@ const BALANCE_HIERARCHY: HierarchyNode[] = [
       { labelKey: "deepdive.commonStock", field: "commonStock" },
       { labelKey: "deepdive.retainedEarnings", field: "retainedEarnings" },
       { labelKey: "deepdive.otherEquity", field: "otherEquity" },
+      { labelKey: "deepdive.minorityInterest", field: "minorityInterest" },
     ],
   },
 ];
