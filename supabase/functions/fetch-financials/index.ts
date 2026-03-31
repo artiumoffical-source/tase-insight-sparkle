@@ -305,10 +305,9 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     } else if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
       // Fallback: TASE price converted to reporting currency
       adjustedMarketCap = (totalShares * priceInTradingCcy) / exchangeRate;
-    } else if (rawMarketCap > 0 && exchangeRate) {
-      // Last resort: use EODHD's market cap (may be TASE-only) divided by FX
-      adjustedMarketCap = rawMarketCap / exchangeRate;
     }
+    // Do NOT fall back to EODHD's MarketCapitalization for dual-listed stocks — it's TASE-only and wrong
+    // If no price available, adjustedMarketCap stays 0 → valuation metrics will be null
     console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, totalShares=${totalShares}, price=${priceInTradingCcy}, primaryPrice=${primaryPrice}, adjustedMcap=${adjustedMarketCap}`);
   } else {
     adjustedMarketCap = rawMarketCap;
