@@ -530,13 +530,10 @@ serve(async (req) => {
       }
     }
 
-    // For dual-listed stocks: fetch primary exchange price (e.g. TEVA on NYSE) if TASE price is 0
+    // For dual-listed stocks: fetch primary exchange price if TASE price is 0
     let primaryPrice: number | undefined;
     if (tradingCcy !== reportCcy && (!eodPrice || eodPrice.price === 0)) {
-      // Try common US exchanges
-      const primaryExchange = general.PrimaryExchange || "";
       const listings = rawData.General?.Listings || {};
-      // Find a listing on a non-TA exchange
       let primarySymbol = "";
       for (const [, listing] of Object.entries(listings) as [string, any][]) {
         const exch = listing?.Exchange || "";
@@ -545,19 +542,38 @@ serve(async (req) => {
           break;
         }
       }
-      // Fallback: try ticker.US directly
       if (!primarySymbol) primarySymbol = `${ticker}.US`;
 
+      // Try EODHD first, then Yahoo Finance as fallback
       try {
         console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
         const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
         if (pResp.ok) {
           const pData = await pResp.json();
           primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
-          console.log(`[${ticker}] Primary price (${primarySymbol}): ${primaryPrice} ${reportCcy}`);
+          console.log(`[${ticker}] EODHD primary price (${primarySymbol}): ${primaryPrice}`);
         }
       } catch (e) {
-        console.error(`[${ticker}] Primary price fetch error:`, e);
+        console.error(`[${ticker}] EODHD primary price error:`, e);
+      }
+
+      // Yahoo Finance fallback if EODHD didn't return a price
+      if (!primaryPrice) {
+        try {
+          const yTicker = primarySymbol.replace(".US", "");
+          const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`);
+          if (yResp.ok) {
+            const yData = await yResp.json();
+            const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+            const lastClose = closes.filter((c: any) => c != null).pop();
+            if (lastClose && lastClose > 0) {
+              primaryPrice = lastClose;
+              console.log(`[${ticker}] Yahoo primary price (${yTicker}): ${primaryPrice}`);
+            }
+          }
+        } catch (e) {
+          console.error(`[${ticker}] Yahoo primary price error:`, e);
+        }
       }
     }
 
