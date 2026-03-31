@@ -117,7 +117,7 @@ function buildSvg(title: string, ticker: string | null, sentiment: string | null
 </svg>`;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -144,12 +144,7 @@ serve(async (req) => {
       return new Response("Article not found", { status: 404, headers: corsHeaders });
     }
 
-    // Fetch font and init wasm in parallel
-    const [fontBuffer] = await Promise.all([
-      getFont(),
-      ensureWasm(),
-    ]);
-
+    const fontBuffer = await getFont();
     const fontBase64 = btoa(
       String.fromCharCode(...new Uint8Array(fontBuffer))
     );
@@ -162,16 +157,11 @@ serve(async (req) => {
       fontBase64
     );
 
-    const resvg = new Resvg(svg, {
-      fitTo: { mode: "width", value: 1200 },
-    });
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
-
-    return new Response(pngBuffer, {
+    // Serve SVG directly — most social platforms support it
+    return new Response(svg, {
       headers: {
         ...corsHeaders,
-        "Content-Type": "image/png",
+        "Content-Type": "image/svg+xml",
         "Cache-Control": "public, max-age=86400, s-maxage=604800",
       },
     });
