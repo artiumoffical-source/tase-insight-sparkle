@@ -82,6 +82,36 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
   });
 }
 
+// Dynamically search the balance sheet JSON for the equity gap
+function findEquityGap(bal: Record<string, any>, totalAssets: number, totalLiab: number, totalEquity: number): number {
+  // First try known MI fields
+  const knownMIFields = [
+    "minorityInterest", "nonControllingInterest", "noncontrollingInterestInConsolidatedEntity",
+    "minority_interest", "non_controlling_interest"
+  ];
+  for (const field of knownMIFields) {
+    const val = parseFloat(bal[field]);
+    if (val && !isNaN(val) && val > 0) return val;
+  }
+
+  // Try other equity-adjacent fields that EODHD sometimes uses
+  const otherEquityFields = [
+    "preferredStock", "preferredStockTotalEquity", "preferred_stock",
+    "otherEquity", "otherStockholderEquity", "accumulatedOtherComprehensiveIncome",
+    "treasuryStock", "capitalSurplus", "additionalPaidInCapital"
+  ];
+  let candidateSum = 0;
+  for (const field of otherEquityFields) {
+    const val = parseFloat(bal[field]);
+    if (val && !isNaN(val)) candidateSum += val;
+  }
+
+  // If known fields don't help, derive from the gap itself (Assets - Liab - Equity)
+  const gap = totalAssets - totalLiab - totalEquity;
+  if (gap > 0 && gap / totalAssets < 0.5) return gap;
+  return 0;
+}
+
 function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const bal = balanceSheets[dateKey] || {};
@@ -89,17 +119,12 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
     const totalAssets = parseFloat(bal.totalAssets) || 0;
     const totalLiab = parseFloat(bal.totalLiab) || 0;
     const totalEquity = parseFloat(bal.totalStockholderEquity) || 0;
-    // Minority Interest: use API field if present, otherwise derive from balance equation gap
-    let mi = parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0;
-    if (mi === 0 && totalAssets > 0) {
-      const gap = totalAssets - totalLiab - totalEquity;
-      if (gap > 0 && gap / totalAssets < 0.5) mi = gap; // reasonable MI range
-    }
+    const mi = findEquityGap(bal, totalAssets, totalLiab, totalEquity);
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       totalAssets,
       totalLiabilities: totalLiab,
-      totalEquity: totalEquity + mi, // Include MI so Assets = Liabilities + Equity
+      totalEquity: totalEquity + mi,
       minorityInterest: mi,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
