@@ -92,7 +92,7 @@ export default function NewsArticlePage() {
             author: { "@type": "Person", name: article.author },
             datePublished: article.published_at,
             publisher: { "@type": "Organization", name: "AlphaMap" },
-            url: `https://tase-insight-sparkle.lovable.app/news/${article.id}`,
+            url: `https://alpha-map.com/news/${article.id}`,
           })}
         </script>
       </Helmet>

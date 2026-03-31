@@ -153,7 +153,7 @@ function NewsTab() {
                 <div className="flex items-center gap-2 pt-2 border-t">
                   <span className="text-xs text-muted-foreground flex items-center gap-1"><Share2 className="h-3 w-3" /> שתף:</span>
                   {(() => {
-                    const articleUrl = `https://tase-insight-sparkle.lovable.app/news/${article.id}`;
+                    const articleUrl = `https://alpha-map.com/news/${article.id}`;
                     const title = encodeURIComponent(article.ai_title_he);
                     return (
                       <>
