@@ -153,15 +153,14 @@ function formatNum(n: number): string {
   return n.toFixed(0);
 }
 
-// ─── Fetch real-time data for a ticker ───
+// ─── Fetch real-time data with YOY comparison ───
 async function fetchTickerData(
   ticker: string,
   eodhKey: string
-): Promise<{ priceChange?: number; revenue?: number[]; opIncome?: number[]; expenses?: number[]; currency?: string } | null> {
+): Promise<TickerData | null> {
   if (!ticker) return null;
 
   try {
-    // Fetch quote for price change
     const quoteUrl = `https://eodhd.com/api/real-time/${ticker}.TA?api_token=${eodhKey}&fmt=json`;
     const fundUrl = `https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${eodhKey}&fmt=json&filter=Financials::Income_Statement::quarterly`;
 
@@ -176,29 +175,51 @@ async function fetchTickerData(
       priceChange = q.change_p ?? q.change_percent;
     }
 
-    let revenue: number[] = [];
-    let opIncome: number[] = [];
-    let expenses: number[] = [];
+    let yoyComparison: YoyComparison | undefined;
     let currency = "ILS";
 
     if (fundRes?.ok) {
       const fundData = await fundRes.json();
-      // Get last 2 quarters
       const quarters = Object.values(fundData || {}) as any[];
       const sorted = quarters
         .filter((q: any) => q?.date)
-        .sort((a: any, b: any) => a.date.localeCompare(b.date))
-        .slice(-2);
+        .sort((a: any, b: any) => b.date.localeCompare(a.date)); // newest first
 
-      for (const q of sorted) {
-        if (q.totalRevenue != null) revenue.push(Number(q.totalRevenue));
-        if (q.operatingIncome != null) opIncome.push(Number(q.operatingIncome));
-        if (q.totalOperatingExpenses != null) expenses.push(Number(q.totalOperatingExpenses));
-        if (q.currency_symbol) currency = q.currency_symbol;
+      if (sorted.length >= 1) {
+        const current = sorted[0];
+        const currentDate = new Date(current.date);
+        const currentQ = Math.ceil((currentDate.getMonth() + 1) / 3);
+        const currentYear = currentDate.getFullYear();
+        const parallelYear = currentYear - 1;
+
+        // Find the parallel quarter from last year
+        const parallel = sorted.find((q: any) => {
+          const d = new Date(q.date);
+          const qNum = Math.ceil((d.getMonth() + 1) / 3);
+          return qNum === currentQ && d.getFullYear() === parallelYear;
+        });
+
+        if (parallel) {
+          yoyComparison = {
+            currentLabel: `Q${currentQ} ${currentYear}`,
+            parallelLabel: `Q${currentQ} ${parallelYear}`,
+            currentRevenue: current.totalRevenue != null ? Number(current.totalRevenue) : undefined,
+            parallelRevenue: parallel.totalRevenue != null ? Number(parallel.totalRevenue) : undefined,
+            currentOpIncome: current.operatingIncome != null ? Number(current.operatingIncome) : undefined,
+            parallelOpIncome: parallel.operatingIncome != null ? Number(parallel.operatingIncome) : undefined,
+            currentNetIncome: current.netIncome != null ? Number(current.netIncome) : undefined,
+            parallelNetIncome: parallel.netIncome != null ? Number(parallel.netIncome) : undefined,
+          };
+          console.log(`YOY match: ${yoyComparison.currentLabel} vs ${yoyComparison.parallelLabel}`);
+        } else {
+          console.log(`No parallel quarter found for Q${currentQ} ${parallelYear}`);
+        }
+
+        if (current.currency_symbol) currency = current.currency_symbol;
       }
     }
 
-    return { priceChange, revenue, opIncome, expenses, currency };
+    return { priceChange, currency, yoyComparison };
   } catch (e) {
     console.error(`Data fetch error for ${ticker}:`, e);
     return null;
