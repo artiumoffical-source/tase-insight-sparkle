@@ -99,7 +99,7 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       totalAssets,
       totalLiabilities: totalLiab,
-      totalEquity,
+      totalEquity: totalEquity + mi, // Include MI so Assets = Liabilities + Equity
       minorityInterest: mi,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
