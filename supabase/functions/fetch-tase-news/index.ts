@@ -58,21 +58,23 @@ async function buildDataLock(
     .maybeSingle();
 
   if (!cached?.data) {
-    console.log(`No cached_fundamentals for ${ticker}, skipping`);
+    const daysOld = cached?.last_updated ? Math.floor((Date.now() - new Date(cached.last_updated).getTime()) / 86400000) : null;
+    console.log(`SKIP [${ticker}]: no cached_fundamentals data`, { last_updated: cached?.last_updated ?? "N/A", days_old: daysOld });
     return null;
   }
 
   // Freshness check
   const lastUpdated = new Date(cached.last_updated).getTime();
+  const daysOld = Math.floor((Date.now() - lastUpdated) / 86400000);
   if (Date.now() - lastUpdated > STALE_THRESHOLD_MS) {
-    console.log(`Skipped ${ticker}: fundamentals stale (last updated: ${cached.last_updated})`);
+    console.log(`SKIP [${ticker}]: fundamentals stale (>${Math.floor(STALE_THRESHOLD_MS / 86400000)}d)`, { last_updated: cached.last_updated, days_old: daysOld });
     return "stale";
   }
 
   const fundamentals = cached.data as any;
   const incomeStatement = fundamentals?.Financials?.Income_Statement?.quarterly;
   if (!incomeStatement) {
-    console.log(`No quarterly income statement for ${ticker}`);
+    console.log(`SKIP [${ticker}]: no quarterly income statement in fundamentals`, { last_updated: cached.last_updated, days_old: daysOld });
     return null;
   }
 
@@ -81,7 +83,10 @@ async function buildDataLock(
     .filter((q: any) => q?.date)
     .sort((a: any, b: any) => b.date.localeCompare(a.date));
 
-  if (sorted.length < 1) return null;
+  if (sorted.length < 1) {
+    console.log(`SKIP [${ticker}]: no dated quarters found`, { last_updated: cached.last_updated, days_old: daysOld });
+    return null;
+  }
 
   const current = sorted[0];
   const currentDate = new Date(current.date);
@@ -95,7 +100,7 @@ async function buildDataLock(
   });
 
   if (!parallel) {
-    console.log(`No parallel quarter for ${ticker} Q${currentQ} ${parallelYear}`);
+    console.log(`SKIP [${ticker}]: no parallel quarter Q${currentQ} ${parallelYear} for YOY comparison`, { last_updated: cached.last_updated, days_old: daysOld, latest_quarter: current.date });
     return null;
   }
 
