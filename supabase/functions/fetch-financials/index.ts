@@ -257,11 +257,18 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   }
   console.log(`[${ticker}] parseFundamentals currency: ${normalizedCurrency}`);
 
+  // ── Canonical Market Cap: use General.MarketCapitalization, normalize ILA→ILS ──
+  const tradingCcy = (general.CurrencyCode || "").toUpperCase();
+  const rawMcapFromAPI = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
+  const canonicalMarketCap = tradingCcy === "ILA" ? rawMcapFromAPI / 100 : rawMcapFromAPI;
+  const marketCapCurrency = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
+  console.log(`[${ticker}] Canonical MarketCap: raw=${rawMcapFromAPI}, tradingCcy=${tradingCcy}, canonical=${canonicalMarketCap} ${marketCapCurrency}`);
+
   const meta = {
     name: general.Name || ticker,
     price: eodPrice?.price ?? 0,
     change: eodPrice?.change ?? 0,
-    marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
+    marketCap: formatMarketCap(canonicalMarketCap),
     currency: normalizedCurrency,
     logoUrl,
     sector,
