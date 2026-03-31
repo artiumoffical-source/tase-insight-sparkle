@@ -75,11 +75,11 @@ export default function NewsArticlePage() {
       <Helmet>
         <title>{title} | AlphaMap</title>
         <meta name="description" content={summary || title} />
-        <link rel="canonical" href={`https://tase-insight-sparkle.lovable.app/news/${article.id}`} />
+        <link rel="canonical" href={`https://alpha-map.com/news/${article.id}`} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={summary || title} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://tase-insight-sparkle.lovable.app/news/${article.id}`} />
+        <meta property="og:url" content={`https://alpha-map.com/news/${article.id}`} />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={summary || title} />
@@ -92,7 +92,7 @@ export default function NewsArticlePage() {
             author: { "@type": "Person", name: article.author },
             datePublished: article.published_at,
             publisher: { "@type": "Organization", name: "AlphaMap" },
-            url: `https://tase-insight-sparkle.lovable.app/news/${article.id}`,
+            url: `https://alpha-map.com/news/${article.id}`,
           })}
         </script>
       </Helmet>
