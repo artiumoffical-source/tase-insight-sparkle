@@ -43,7 +43,7 @@ export default function SearchBar() {
       // Use the pre-computed search_text column with trigram similarity
       const { data, error } = await supabase
         .from("tase_symbols")
-        .select("ticker, name, name_he, logo_url, security_id")
+        .select("ticker, name, name_he, override_name_he, logo_url, security_id")
         .ilike("search_text", `%${normalized}%`)
         .limit(8);
 
