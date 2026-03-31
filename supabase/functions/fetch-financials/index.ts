@@ -142,7 +142,13 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       longTermDebt: p("longTermDebt") || p("longTermDebtTotal"),
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
       totalEquity: p("totalStockholderEquity"),
-      minorityInterest: p("minorityInterest") || p("nonControllingInterest"),
+      minorityInterest: (() => {
+        const mi = p("minorityInterest") || p("nonControllingInterest");
+        if (mi !== 0) return mi;
+        const ta = p("totalAssets"), tl = p("totalLiab"), te = p("totalStockholderEquity");
+        const gap = ta - tl - te;
+        return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
+      })(),
       commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
       retainedEarnings: p("retainedEarnings"),
       otherEquity: p("accumulatedOtherComprehensiveIncome") || p("otherStockholderEquity"),
