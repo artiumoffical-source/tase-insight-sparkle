@@ -65,6 +65,7 @@ interface FinancialsTableProps {
   detailedBalanceSheet?: DetailedBalanceSheetRow[];
   loading?: boolean;
   sector?: SectorType;
+  currency?: string;
 }
 
 interface MetricDef {
