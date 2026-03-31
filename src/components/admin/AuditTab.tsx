@@ -303,10 +303,14 @@ export default function AuditTab() {
             {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             הרץ ביקורת מלאה
           </Button>
-          <Button onClick={bulkRefreshEps} disabled={bulkRefreshing} variant="outline" className="gap-2">
-            {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            רענן כל EPS=0
-          </Button>
+           <Button onClick={bulkRefreshEps} disabled={bulkRefreshing} variant="outline" className="gap-2">
+             {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+             רענן כל EPS=0
+           </Button>
+           <Button onClick={bulkRefreshBalanceErrors} disabled={bulkRefreshing} variant="outline" className="gap-2 text-destructive border-destructive/50">
+             {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+             תקן שגיאות מאזן
+           </Button>
         </div>
       </div>
 
