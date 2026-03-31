@@ -360,6 +360,7 @@ Deno.serve(async (req) => {
     let skippedNoData = 0;
     let skippedStale = 0;
     let dataLockFails = 0;
+    const errors: Array<{ ticker: string; title: string; error: string }> = [];
     const maxItems = 8;
 
     for (const item of newItems.slice(0, maxItems)) {
