@@ -248,10 +248,16 @@ export default function AuditTab() {
             </Button>
           ))}
         </div>
-        <Button onClick={() => runAuditMutation.mutate()} disabled={runAuditMutation.isPending} className="gap-2">
-          {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-          הרץ ביקורת מלאה
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => runAuditMutation.mutate()} disabled={runAuditMutation.isPending} className="gap-2">
+            {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            הרץ ביקורת מלאה
+          </Button>
+          <Button onClick={bulkRefreshEps} disabled={bulkRefreshing} variant="outline" className="gap-2">
+            {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            רענן כל EPS=0
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
