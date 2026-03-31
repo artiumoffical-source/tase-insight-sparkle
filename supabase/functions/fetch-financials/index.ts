@@ -301,16 +301,36 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
     console.log(`[${ticker}] Calculated MarketCap: ${totalSharesForMcap} shares × ${priceForMcap} ${marketCapCurrency} = ${canonicalMarketCap}`);
 
-    // Sanity check: if our calculated mcap is >3x or <0.3x the EODHD value, prefer EODHD
-    // This catches cases where Technicals MAs are stale/wrong (e.g. TSEM 405 ILS vs real 160 ILS)
-    if (eodhMcap > 0 && (canonicalMarketCap > eodhMcap * 3 || canonicalMarketCap < eodhMcap * 0.3)) {
-      console.warn(`[${ticker}] MarketCap sanity failed: calculated=${canonicalMarketCap} vs EODHD=${eodhMcap} (ratio=${(canonicalMarketCap/eodhMcap).toFixed(2)}). Using EODHD value.`);
-      canonicalMarketCap = eodhMcap;
-      // EODHD MarketCap is typically in trading currency
+    // Sanity check: compare calculated mcap against EODHD value
+    // IMPORTANT: EODHD MarketCap for TASE stocks is in TRADING currency (ILS/ILA),
+    // but our calculated mcap may be in REPORTING currency (USD) when primaryPrice was used.
+    // Normalize EODHD mcap to the same currency as our calculated mcap before comparing.
+    if (eodhMcap > 0) {
+      let eodhMcapNormalized = eodhMcap;
+      const eodhMcapCcy = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
+      if (eodhMcapCcy !== marketCapCurrency && exchangeRate && exchangeRate > 0) {
+        // EODHD is in trading ccy (e.g. ILS), our mcap is in reporting ccy (e.g. USD)
+        // exchangeRate = how many tradingCcy per 1 reportingCcy (e.g. 3.17 ILS per 1 USD)
+        eodhMcapNormalized = eodhMcap / exchangeRate;
+        console.log(`[${ticker}] Normalized EODHD mcap: ${eodhMcap} ${eodhMcapCcy} / ${exchangeRate} = ${eodhMcapNormalized} ${marketCapCurrency}`);
+      }
+      if (canonicalMarketCap > eodhMcapNormalized * 3 || canonicalMarketCap < eodhMcapNormalized * 0.3) {
+        console.warn(`[${ticker}] MarketCap sanity failed: calculated=${canonicalMarketCap} vs EODHD(normalized)=${eodhMcapNormalized} (ratio=${(canonicalMarketCap/eodhMcapNormalized).toFixed(2)}). Using EODHD value.`);
+        canonicalMarketCap = eodhMcapNormalized;
+        marketCapCurrency = marketCapCurrency; // keep the current currency context
+      }
     }
   } else {
+    // Fallback to EODHD mcap — but normalize to reporting currency if needed
     canonicalMarketCap = eodhMcap;
-    console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
+    const eodhMcapCcy = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
+    if (eodhMcapCcy !== normalizedCurrency && exchangeRate && exchangeRate > 0) {
+      canonicalMarketCap = eodhMcap / exchangeRate;
+      marketCapCurrency = normalizedCurrency;
+      console.log(`[${ticker}] Fallback EODHD mcap normalized: ${eodhMcap} ${eodhMcapCcy} / ${exchangeRate} = ${canonicalMarketCap} ${normalizedCurrency}`);
+    } else {
+      console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
+    }
   }
 
   const meta = {
