@@ -50,14 +50,20 @@ function classifySector(gicsSector: string, industry: string): SectorType {
   return "general";
 }
 
-function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesOutstanding?: number) {
+function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const inc = incomeStatements[dateKey] || {};
     const netIncome = parseFloat(inc.netIncome) || 0;
-    // Try API EPS fields first, then calculate manually
+    // Try API EPS fields first
     let eps = parseFloat(inc.dilutedEPS) || parseFloat(inc.basicEPS) || parseFloat(inc.eps_actual) || 0;
-    if (eps === 0 && netIncome !== 0 && sharesOutstanding && sharesOutstanding > 0) {
-      eps = netIncome / sharesOutstanding;
+    
+    // If no API EPS, calculate from shares outstanding
+    if (eps === 0 && netIncome !== 0) {
+      const year = dateKey.substring(0, 4);
+      const shares = sharesMap[year] || fallbackShares;
+      if (shares > 0) {
+        eps = Math.round((netIncome / shares) * 100) / 100;
+      }
     }
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
@@ -159,7 +165,29 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
 
   const sector = classifySector(general.GicsSector || "", general.Industry || "");
-  const sharesOutstanding = parseFloat(general.SharesOutstanding) || parseFloat(highlights.SharesOutstanding) || 0;
+  // Build shares map from outstandingShares.annual (year -> shares count)
+  const sharesMap: Record<string, number> = {};
+  const outstandingSharesAnnual = data.outstandingShares?.annual || {};
+  for (const entry of Object.values(outstandingSharesAnnual) as any[]) {
+    const year = String(entry?.dateFormatted || entry?.date || "").substring(0, 4);
+    const shares = parseFloat(entry?.shares) || 0;
+    if (year && shares > 0) sharesMap[year] = shares;
+  }
+  
+  // Fallback: try General/Highlights or derive from MarketCap/Price
+  let fallbackShares = parseFloat(general.SharesOutstanding) || parseFloat(highlights.SharesOutstanding) || 0;
+  if (fallbackShares === 0) {
+    const mc = parseFloat(highlights.MarketCapitalization) || 0;
+    const earningsShare = parseFloat(highlights.EarningsShare) || 0;
+    const ni = parseFloat(highlights.NetIncomeTTM) || 0;
+    if (earningsShare > 0 && ni > 0) {
+      fallbackShares = Math.round(ni / earningsShare);
+    } else if (mc > 0 && eodPrice && eodPrice.price > 0) {
+      fallbackShares = Math.round(mc / eodPrice.price);
+    }
+  }
+  
+  console.log(`[${ticker}] SharesMap: ${JSON.stringify(sharesMap)}, fallbackShares: ${fallbackShares}`);
 
   const meta = {
     name: general.Name || ticker,
@@ -199,7 +227,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   });
 
   // Annual 3-statement
-  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesOutstanding);
+  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesMap, fallbackShares);
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
   const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
@@ -210,7 +238,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qCashFlowStatements = data.Financials?.Cash_Flow?.quarterly || {};
   const allQuarters = Object.keys(qIncomeStatements).sort((a, b) => a.localeCompare(b)).slice(-8);
 
-  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesOutstanding);
+  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesMap, fallbackShares);
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 

@@ -67,6 +67,7 @@ export default function AuditTab() {
   const [refetchingTicker, setRefetchingTicker] = useState<string | null>(null);
   const [manualEditTicker, setManualEditTicker] = useState<string | null>(null);
   const [manualEditData, setManualEditData] = useState<Record<string, string>>({});
+  const [bulkRefreshing, setBulkRefreshing] = useState(false);
 
   const { data: auditResults, isLoading } = useQuery({
     queryKey: ["audit-results"],
@@ -161,6 +162,27 @@ export default function AuditTab() {
     queryClient.invalidateQueries({ queryKey: ["cached-fundamentals-meta"] });
   };
 
+  const bulkRefreshEps = async () => {
+    setBulkRefreshing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/bulk-refresh-eps`,
+        { method: "POST", headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+      );
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      toast.success(`רוענו ${data.refreshed} מתוך ${data.total} מניות עם EPS=0`);
+      queryClient.invalidateQueries({ queryKey: ["audit-results"] });
+      queryClient.invalidateQueries({ queryKey: ["cached-fundamentals-meta"] });
+    } catch (err: any) {
+      toast.error(`שגיאה: ${err.message}`);
+    } finally {
+      setBulkRefreshing(false);
+    }
+  };
+
   const openManualEdit = (ticker: string) => {
     const fund = cachedFundamentals?.find((f: any) => f.ticker === ticker);
     if (!fund) { toast.error("לא נמצאו נתונים לעריכה"); return; }
@@ -226,10 +248,16 @@ export default function AuditTab() {
             </Button>
           ))}
         </div>
-        <Button onClick={() => runAuditMutation.mutate()} disabled={runAuditMutation.isPending} className="gap-2">
-          {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-          הרץ ביקורת מלאה
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => runAuditMutation.mutate()} disabled={runAuditMutation.isPending} className="gap-2">
+            {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            הרץ ביקורת מלאה
+          </Button>
+          <Button onClick={bulkRefreshEps} disabled={bulkRefreshing} variant="outline" className="gap-2">
+            {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            רענן כל EPS=0
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
