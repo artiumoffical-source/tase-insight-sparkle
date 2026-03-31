@@ -96,6 +96,15 @@ export default function AuditTab() {
     },
   });
 
+  const { data: taseSymbols } = useQuery({
+    queryKey: ["tase-symbols-overrides"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tase_symbols").select("ticker, name_he, override_name_he");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
   const runAuditMutation = useMutation({
     mutationFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
