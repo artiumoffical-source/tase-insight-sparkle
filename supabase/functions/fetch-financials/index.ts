@@ -86,12 +86,21 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
   return dateKeys.slice().reverse().map((dateKey) => {
     const bal = balanceSheets[dateKey] || {};
     const totalDebtVal = (parseFloat(bal.shortLongTermDebt) || 0) + (parseFloat(bal.longTermDebt) || 0);
+    const totalAssets = parseFloat(bal.totalAssets) || 0;
+    const totalLiab = parseFloat(bal.totalLiab) || 0;
+    const totalEquity = parseFloat(bal.totalStockholderEquity) || 0;
+    // Minority Interest: use API field if present, otherwise derive from balance equation gap
+    let mi = parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0;
+    if (mi === 0 && totalAssets > 0) {
+      const gap = totalAssets - totalLiab - totalEquity;
+      if (gap > 0 && gap / totalAssets < 0.5) mi = gap; // reasonable MI range
+    }
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
-      totalAssets: parseFloat(bal.totalAssets) || 0,
-      totalLiabilities: parseFloat(bal.totalLiab) || 0,
-      totalEquity: parseFloat(bal.totalStockholderEquity) || 0,
-      minorityInterest: parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0,
+      totalAssets,
+      totalLiabilities: totalLiab,
+      totalEquity,
+      minorityInterest: mi,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
       inventory: parseFloat(bal.inventory) || 0,
@@ -133,7 +142,13 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       longTermDebt: p("longTermDebt") || p("longTermDebtTotal"),
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
       totalEquity: p("totalStockholderEquity"),
-      minorityInterest: p("minorityInterest") || p("nonControllingInterest"),
+      minorityInterest: (() => {
+        const mi = p("minorityInterest") || p("nonControllingInterest");
+        if (mi !== 0) return mi;
+        const ta = p("totalAssets"), tl = p("totalLiab"), te = p("totalStockholderEquity");
+        const gap = ta - tl - te;
+        return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
+      })(),
       commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
       retainedEarnings: p("retainedEarnings"),
       otherEquity: p("accumulatedOtherComprehensiveIncome") || p("otherStockholderEquity"),
@@ -417,6 +432,67 @@ serve(async (req) => {
 
     if (result.meta.logoUrl) {
       await supabase.from("tase_symbols").update({ logo_url: result.meta.logoUrl }).eq("ticker", ticker);
+    }
+
+    // --- Inline audit: auto-compute health status on every fetch ---
+    try {
+      const bs = result.balanceSheet ?? [];
+      const is = result.incomeStatement ?? [];
+
+      // Balance check: Assets = Liabilities + Equity + MinorityInterest
+      const balanceFailures: string[] = [];
+      for (const y of bs) {
+        const assets = Number(y.totalAssets || 0);
+        const liab = Number(y.totalLiabilities || 0);
+        const equity = Number(y.totalEquity || 0);
+        const minority = Number((y as any).minorityInterest || 0);
+        if (assets === 0) continue;
+        const diff = Math.abs(assets - (liab + equity + minority));
+        if (diff / assets > 0.02) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
+      }
+
+      // Income check
+      const incomeFailures: string[] = [];
+      for (const y of is) {
+        const rev = Number(y.revenue || 0);
+        const cogs = Number(y.costOfRevenue || 0);
+        const gp = Number(y.grossProfit || 0);
+        if (rev === 0 || gp === 0) continue;
+        const diff = Math.abs((rev - cogs) - gp);
+        if (diff / Math.abs(rev) > 0.02) incomeFailures.push(`${y.year}: ${((diff / Math.abs(rev)) * 100).toFixed(1)}% gap`);
+      }
+
+      // Coverage check
+      const currentYear = new Date().getFullYear();
+      const expectedYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+      const presentYears = (bs.length > 0 ? bs : is).map((y: any) => parseInt(String(y.year || "").substring(0, 4))).filter(Boolean);
+      const covered = expectedYears.filter(y => presentYears.includes(y));
+      const coveragePassed = covered.length >= 4;
+
+      // EPS check
+      const epsFailures: string[] = [];
+      for (const y of is) {
+        const ni = Number(y.netIncome || 0);
+        const eps = Number(y.eps || 0);
+        if (Math.abs(ni) > 1000 && eps === 0) epsFailures.push(`${y.year}: EPS=0`);
+      }
+
+      const checks = [
+        { name: "balance_sheet", passed: balanceFailures.length === 0, details: balanceFailures.length ? balanceFailures.join("; ") : "OK", severity: "critical" },
+        { name: "income_statement", passed: incomeFailures.length === 0, details: incomeFailures.length ? incomeFailures.join("; ") : "OK", severity: "critical" },
+        { name: "coverage", passed: coveragePassed, details: `${covered.length}/5 years`, severity: coveragePassed ? "minor" : "critical" },
+        { name: "eps", passed: epsFailures.length === 0, details: epsFailures.length ? epsFailures.join("; ") : "OK", severity: "minor" },
+      ];
+
+      const health = checks.some(c => !c.passed && c.severity === "critical") ? "red" : checks.some(c => !c.passed) ? "yellow" : "green";
+
+      await supabase.from("stock_audit_results").upsert(
+        { ticker, health, checks, last_audited: new Date().toISOString() },
+        { onConflict: "ticker" }
+      );
+      console.log(`Auto-audited ${ticker}: ${health}`);
+    } catch (auditErr) {
+      console.error("Inline audit error:", auditErr);
     }
 
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
