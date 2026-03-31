@@ -266,15 +266,25 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   // ── Canonical Market Cap: calculate from shares × price (most reliable) ──
   // EODHD's General.MarketCapitalization is unreliable for TASE (e.g. LUMI shows 1B instead of 70B)
   const tradingCcy = (general.CurrencyCode || "").toUpperCase();
-  const marketCapCurrency = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
+  let marketCapCurrency = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
 
   // Get total shares outstanding
   const latestShareYear = Object.keys(sharesMap).sort().reverse()[0];
   const totalSharesForMcap = sharesMap[latestShareYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
 
-  // Calculate market cap: shares × price (price from eodPrice is already in ILS for TASE)
+  // Calculate market cap: shares × price
   let canonicalMarketCap = 0;
-  let priceForMcap = eodPrice?.price || 0;
+  let priceForMcap = 0;
+
+  // For dual-listed stocks: prefer primaryPrice (in reporting currency, e.g. USD)
+  // This avoids unreliable ILS→USD conversion via stale technicals or exchange rates
+  if (primaryPrice && primaryPrice > 0 && normalizedCurrency !== marketCapCurrency) {
+    priceForMcap = primaryPrice;
+    marketCapCurrency = normalizedCurrency; // mcap will be in reporting currency directly
+    console.log(`[${ticker}] Using primaryPrice for mcap: ${primaryPrice} ${normalizedCurrency}`);
+  } else {
+    priceForMcap = eodPrice?.price || 0;
+  }
 
   // If no live price, try Technicals as price proxy
   if (priceForMcap === 0) {
@@ -285,12 +295,20 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (techPrice > 0) console.log(`[${ticker}] Using Technicals price for mcap: ${techPrice}`);
   }
 
+  const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
+
   if (totalSharesForMcap > 0 && priceForMcap > 0) {
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
     console.log(`[${ticker}] Calculated MarketCap: ${totalSharesForMcap} shares × ${priceForMcap} ${marketCapCurrency} = ${canonicalMarketCap}`);
+
+    // Sanity check: if our calculated mcap is >3x or <0.3x the EODHD value, prefer EODHD
+    // This catches cases where Technicals MAs are stale/wrong (e.g. TSEM 405 ILS vs real 160 ILS)
+    if (eodhMcap > 0 && (canonicalMarketCap > eodhMcap * 3 || canonicalMarketCap < eodhMcap * 0.3)) {
+      console.warn(`[${ticker}] MarketCap sanity failed: calculated=${canonicalMarketCap} vs EODHD=${eodhMcap} (ratio=${(canonicalMarketCap/eodhMcap).toFixed(2)}). Using EODHD value.`);
+      canonicalMarketCap = eodhMcap;
+      // EODHD MarketCap is typically in trading currency
+    }
   } else {
-    // Last resort: use EODHD's value (may be wrong for some stocks)
-    const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
     canonicalMarketCap = eodhMcap;
     console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
   }
@@ -704,55 +722,110 @@ serve(async (req) => {
       }
     }
 
-    // For dual-listed stocks: resolve a reliable price for market cap calculation
+    // For dual-listed stocks: ALWAYS try to get the primary exchange price (e.g. USD)
+    // This is more reliable than ILS→USD conversion via exchange rates
     let primaryPrice: number | undefined;
     if (tradingCcy !== reportCcy) {
-      const tasePrice = eodPrice?.price || 0;
+      const listings = rawData.General?.Listings || {};
+      let primarySymbol = "";
+      for (const [, listing] of Object.entries(listings) as [string, any][]) {
+        const exch = listing?.Exchange || "";
+        if (exch && exch !== "TA" && exch !== "TASE") {
+          primarySymbol = `${listing.Code || ticker}.${exch === "NYSE" || exch === "NASDAQ" ? "US" : exch}`;
+          break;
+        }
+      }
+      if (!primarySymbol) primarySymbol = `${ticker}.US`;
 
-      if (tasePrice > 0 && exchangeRate) {
-        // TASE price available — will be used in parseFundamentals via shares * tasePrice / FX
-        // No need to set primaryPrice; the function handles this
-      } else {
-        // No TASE price — try fetching primary exchange (e.g. NYSE) price
-        const listings = rawData.General?.Listings || {};
-        let primarySymbol = "";
+      try {
+        console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
+        const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
+        if (pResp.ok) {
+          const pData = await pResp.json();
+          primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
+          if (primaryPrice) console.log(`[${ticker}] Primary price: ${primaryPrice} ${reportCcy}`);
+        }
+      } catch (e) { /* ignore rate limits */ }
+
+      // EODHD EOD fallback for primary listing
+      if (!primaryPrice) {
+        try {
+          const eodPrimaryResp = await fetch(`https://eodhd.com/api/eod/${primarySymbol}?api_token=${apiKey}&fmt=json&order=d&limit=1`);
+          if (eodPrimaryResp.ok) {
+            const eodPrimaryData = await eodPrimaryResp.json();
+            const entry = Array.isArray(eodPrimaryData) ? eodPrimaryData[0] : eodPrimaryData;
+            primaryPrice = Number(entry?.close) || Number(entry?.adjusted_close) || undefined;
+            if (primaryPrice) console.log(`[${ticker}] Primary EOD price: ${primaryPrice} ${reportCcy}`);
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      // Yahoo Finance fallback - try the US-listed code directly
+      if (!primaryPrice) {
+        // Extract just the US ticker code from listings (e.g., "TSEM" from NASDAQ)
+        let usTickerCode = "";
         for (const [, listing] of Object.entries(listings) as [string, any][]) {
-          const exch = listing?.Exchange || "";
-          if (exch && exch !== "TA" && exch !== "TASE") {
-            primarySymbol = `${listing.Code || ticker}.${exch === "NYSE" || exch === "NASDAQ" ? "US" : exch}`;
+          const exch = (listing?.Exchange || "").toUpperCase();
+          if (["NYSE", "NASDAQ", "US"].includes(exch)) {
+            usTickerCode = listing.Code || ticker;
             break;
           }
         }
-        if (!primarySymbol) primarySymbol = `${ticker}.US`;
+        if (!usTickerCode) usTickerCode = primarySymbol.replace(".US", "");
 
         try {
-          console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
-          const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
-          if (pResp.ok) {
-            const pData = await pResp.json();
-            primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
-            if (primaryPrice) console.log(`[${ticker}] Primary price: ${primaryPrice} ${reportCcy}`);
-          }
-        } catch (e) { /* ignore rate limits */ }
+          // Yahoo US stocks don't need a suffix
+          const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${usTickerCode}?interval=1d&range=5d`, {
+            headers: { "User-Agent": "Mozilla/5.0" },
+          });
+          if (yResp.ok) {
+            const yData = await yResp.json();
+            const meta = yData?.chart?.result?.[0]?.meta;
+            const yahooExchange = (meta?.exchangeName || meta?.exchange || "").toUpperCase();
+            const yahooCurrency = (meta?.currency || "").toUpperCase();
+            const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+            const lastClose = closes.filter((c: any) => c != null && c > 0).pop();
 
-        // Yahoo Finance fallback
-        if (!primaryPrice) {
-          try {
-            const yTicker = primarySymbol.replace(".US", "");
-            const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`);
-            if (yResp.ok) {
-              const yData = await yResp.json();
-              const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-              primaryPrice = closes.filter((c: any) => c != null).pop() || undefined;
-              if (primaryPrice) console.log(`[${ticker}] Yahoo price: ${primaryPrice}`);
+            // Only use this price if Yahoo confirms it's from a US exchange or in USD
+            if (lastClose && (yahooExchange.includes("NAS") || yahooExchange.includes("NYS") || yahooCurrency === "USD" || yahooCurrency === reportCcy)) {
+              primaryPrice = lastClose;
+              console.log(`[${ticker}] Yahoo US price (${usTickerCode}, exch=${yahooExchange}, ccy=${yahooCurrency}): ${primaryPrice}`);
+            } else if (lastClose) {
+              console.log(`[${ticker}] Yahoo returned ${usTickerCode} on ${yahooExchange} (${yahooCurrency}) — skipping, not US exchange`);
             }
-          } catch (e) { /* ignore */ }
+          }
+        } catch (e) { /* ignore */ }
+      }
+
+      // Final fallback for dual-listed: derive USD market cap from Highlights
+      // EODHD Highlights.MarketCapitalization for US-listed stocks is often in USD
+      if (!primaryPrice) {
+        const hlMcap = parseFloat(rawData.Highlights?.MarketCapitalization) || 0;
+        const hlMcapMln = parseFloat(rawData.Highlights?.MarketCapitalizationMln) || 0;
+        const genMcap = parseFloat(rawData.General?.MarketCapitalization) || 0;
+        // Compute shares for this scope
+        const sharesOutstanding = parseFloat(rawData.General?.SharesOutstanding) || 0;
+        const outstandingSharesAnnual = rawData.outstandingShares?.annual || {};
+        let latestShares = sharesOutstanding;
+        for (const entry of Object.values(outstandingSharesAnnual) as any[]) {
+          const s = parseFloat(entry?.shares) || 0;
+          if (s > 0) latestShares = s; // last entry is most recent
         }
 
-        // If no price source worked, log it — valuation metrics will be null
-        if (!primaryPrice) {
-          console.warn(`[${ticker}] No price available for cross-currency valuation — metrics will be null`);
+        if (hlMcapMln > 0 && latestShares > 0) {
+          primaryPrice = (hlMcapMln * 1_000_000) / latestShares;
+          console.log(`[${ticker}] Derived primaryPrice from Highlights.MarketCapitalizationMln: ${hlMcapMln}M / ${latestShares} shares = ${primaryPrice} (assumed ${reportCcy})`);
+        } else if (hlMcap > 0 && genMcap > 0 && latestShares > 0) {
+          const ratio = genMcap / hlMcap;
+          if (ratio > 2 && ratio < 6) {
+            primaryPrice = hlMcap / latestShares;
+            console.log(`[${ticker}] Derived primaryPrice from Highlights mcap (USD): ${hlMcap} / ${latestShares} = ${primaryPrice}`);
+          }
         }
+      }
+
+      if (!primaryPrice) {
+        console.warn(`[${ticker}] No primary price available — will use TASE price with FX conversion`);
       }
     }
 
