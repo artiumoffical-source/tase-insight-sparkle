@@ -206,6 +206,19 @@ export default function StockPage() {
       .finally(() => setLoading(false));
   }, [upperTicker]);
 
+  // Fetch override name from tase_symbols
+  useEffect(() => {
+    if (!upperTicker) return;
+    supabase
+      .from("tase_symbols")
+      .select("override_name_he")
+      .eq("ticker", upperTicker)
+      .maybeSingle()
+      .then(({ data }) => {
+        setOverrideNameHe((data as any)?.override_name_he ?? null);
+      });
+  }, [upperTicker]);
+
   useEffect(() => {
     if (!user) return;
     supabase
