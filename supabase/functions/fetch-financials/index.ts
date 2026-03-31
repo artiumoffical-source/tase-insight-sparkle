@@ -266,15 +266,25 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   // ── Canonical Market Cap: calculate from shares × price (most reliable) ──
   // EODHD's General.MarketCapitalization is unreliable for TASE (e.g. LUMI shows 1B instead of 70B)
   const tradingCcy = (general.CurrencyCode || "").toUpperCase();
-  const marketCapCurrency = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
+  let marketCapCurrency = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
 
   // Get total shares outstanding
   const latestShareYear = Object.keys(sharesMap).sort().reverse()[0];
   const totalSharesForMcap = sharesMap[latestShareYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
 
-  // Calculate market cap: shares × price (price from eodPrice is already in ILS for TASE)
+  // Calculate market cap: shares × price
   let canonicalMarketCap = 0;
-  let priceForMcap = eodPrice?.price || 0;
+  let priceForMcap = 0;
+
+  // For dual-listed stocks: prefer primaryPrice (in reporting currency, e.g. USD)
+  // This avoids unreliable ILS→USD conversion via stale technicals or exchange rates
+  if (primaryPrice && primaryPrice > 0 && normalizedCurrency !== marketCapCurrency) {
+    priceForMcap = primaryPrice;
+    marketCapCurrency = normalizedCurrency; // mcap will be in reporting currency directly
+    console.log(`[${ticker}] Using primaryPrice for mcap: ${primaryPrice} ${normalizedCurrency}`);
+  } else {
+    priceForMcap = eodPrice?.price || 0;
+  }
 
   // If no live price, try Technicals as price proxy
   if (priceForMcap === 0) {
