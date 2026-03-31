@@ -42,6 +42,7 @@ function putCache(symbol: string, data: CacheEntry["data"]) {
 async function fetchFromEodhd(symbol: string, apiKey: string): Promise<{ price: number; change: number } | null> {
   try {
     const resp = await fetch(`https://eodhd.com/api/real-time/${symbol}?api_token=${apiKey}&fmt=json`);
+    if (resp.status === 429) { console.warn(`EODHD 429 for ${symbol}`); return null; }
     if (resp.ok) {
       const data = await resp.json();
       const rawPrice = Number(data?.close) || Number(data?.last) || Number(data?.previousClose) || Number(data?.open) || 0;

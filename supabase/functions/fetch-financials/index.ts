@@ -334,7 +334,13 @@ serve(async (req) => {
 
     // Fetch from EODHD
     console.log(`Cache MISS for ${ticker}, fetching fundamentals from EODHD...`);
-    const resp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`);
+    let resp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`);
+    // Retry once on 429 after a short delay
+    if (resp.status === 429) {
+      console.warn(`EODHD 429 for ${ticker} fundamentals, retrying in 3s...`);
+      await new Promise(r => setTimeout(r, 3000));
+      resp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.TA?api_token=${apiKey}&fmt=json`);
+    }
 
     if (!resp.ok) {
       const text = await resp.text();

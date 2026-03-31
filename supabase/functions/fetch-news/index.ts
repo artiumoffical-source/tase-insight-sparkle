@@ -69,12 +69,17 @@ Deno.serve(async (req) => {
     const newsUrl = `https://eodhd.com/api/news?s=${ticker}.TA&offset=0&limit=${limit}&api_token=${apiKey}&fmt=json`;
     console.log("Fetching news:", newsUrl.replace(apiKey, "***"));
 
-    const res = await fetch(newsUrl);
+    let res = await fetch(newsUrl);
+    // Retry once on 429 after a short delay
+    if (res.status === 429) {
+      console.warn("EODHD 429 for news, retrying in 2s...");
+      await new Promise(r => setTimeout(r, 2000));
+      res = await fetch(newsUrl);
+    }
     if (!res.ok) {
       const body = await res.text();
-      console.error("EODHD news error:", res.status, body);
-      return new Response(JSON.stringify({ error: `EODHD ${res.status}` }), {
-        status: 502,
+      console.error("EODHD news error:", res.status, body.slice(0, 200));
+      return new Response(JSON.stringify({ items: [], avgSentiment: 0, warning: `EODHD ${res.status}` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

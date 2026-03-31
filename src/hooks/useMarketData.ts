@@ -83,7 +83,7 @@ export function useMarketData({ tickers, enabled = true }: UseMarketDataOptions)
   // Adaptive polling
   useEffect(() => {
     if (!enabled || tickers.length === 0) return;
-    const interval = marketOpen ? 2_000 : 15_000;
+    const interval = marketOpen ? 5_000 : 30_000;
 
     fetchData();
     let id: ReturnType<typeof setInterval> | null = setInterval(fetchData, interval);
