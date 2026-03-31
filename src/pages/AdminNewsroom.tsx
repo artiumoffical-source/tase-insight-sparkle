@@ -167,7 +167,7 @@ function NewsTab() {
         <Card><CardContent className="py-12 text-center text-muted-foreground">אין מאמרים עדיין.</CardContent></Card>
       ) : (
         articles.map((article: any) => (
-          <Card key={article.id} className="overflow-hidden">
+          <Card key={article.id} className={`overflow-hidden ${hasDataMismatch(article) ? "border-red-600/50 ring-1 ring-red-600/20" : ""}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
