@@ -50,22 +50,28 @@ function classifySector(gicsSector: string, industry: string): SectorType {
   return "general";
 }
 
-function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[]) {
+function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesOutstanding?: number) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const inc = incomeStatements[dateKey] || {};
+    const netIncome = parseFloat(inc.netIncome) || 0;
+    // Try API EPS fields first, then calculate manually
+    let eps = parseFloat(inc.dilutedEPS) || parseFloat(inc.basicEPS) || parseFloat(inc.eps_actual) || 0;
+    if (eps === 0 && netIncome !== 0 && sharesOutstanding && sharesOutstanding > 0) {
+      eps = netIncome / sharesOutstanding;
+    }
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       revenue: parseFloat(inc.totalRevenue) || 0,
       costOfRevenue: parseFloat(inc.costOfRevenue) || 0,
       grossProfit: parseFloat(inc.grossProfit) || 0,
       operatingIncome: parseFloat(inc.operatingIncome) || 0,
-      netIncome: parseFloat(inc.netIncome) || 0,
+      netIncome,
       ebitda: parseFloat(inc.ebitda) || 0,
-      eps: parseFloat(inc.dilutedEPS) || parseFloat(inc.basicEPS) || parseFloat(inc.eps_actual) || 0,
+      eps,
       researchDevelopment: parseFloat(inc.researchDevelopment) || 0,
       interestIncome: parseFloat(inc.interestIncome) || 0,
       nonInterestIncome: parseFloat(inc.nonRecurring) || parseFloat(inc.otherOperatingExpenses) || 0,
-      netPremiumsEarned: parseFloat(inc.totalRevenue) || 0, // For insurance, revenue ≈ premiums
+      netPremiumsEarned: parseFloat(inc.totalRevenue) || 0,
     };
   });
 }
@@ -153,6 +159,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
 
   const sector = classifySector(general.GicsSector || "", general.Industry || "");
+  const sharesOutstanding = parseFloat(general.SharesOutstanding) || parseFloat(highlights.SharesOutstanding) || 0;
 
   const meta = {
     name: general.Name || ticker,
@@ -192,7 +199,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   });
 
   // Annual 3-statement
-  const incomeStatement = buildIncomeRows(incomeStatements, years5);
+  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesOutstanding);
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
   const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
@@ -203,7 +210,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qCashFlowStatements = data.Financials?.Cash_Flow?.quarterly || {};
   const allQuarters = Object.keys(qIncomeStatements).sort((a, b) => a.localeCompare(b)).slice(-8);
 
-  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters);
+  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesOutstanding);
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
