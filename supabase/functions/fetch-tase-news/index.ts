@@ -42,22 +42,31 @@ function pctChange(current: number, previous: number): number {
 }
 
 // ─── Build data lock from cached_fundamentals ───
+const STALE_THRESHOLD_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
 async function buildDataLock(
   ticker: string,
   companyName: string,
   adminClient: any,
   eodhKey: string | undefined
-): Promise<DataLock | null> {
+): Promise<DataLock | null | "stale"> {
   // 1. Get financials from our DB (source of truth)
   const { data: cached } = await adminClient
     .from("cached_fundamentals")
-    .select("data")
+    .select("data, last_updated")
     .eq("ticker", ticker)
     .maybeSingle();
 
   if (!cached?.data) {
     console.log(`No cached_fundamentals for ${ticker}, skipping`);
     return null;
+  }
+
+  // Freshness check
+  const lastUpdated = new Date(cached.last_updated).getTime();
+  if (Date.now() - lastUpdated > STALE_THRESHOLD_MS) {
+    console.log(`Skipped ${ticker}: fundamentals stale (last updated: ${cached.last_updated})`);
+    return "stale";
   }
 
   const fundamentals = cached.data as any;
@@ -349,6 +358,7 @@ Deno.serve(async (req) => {
     let skippedNoTicker = 0;
     let skippedOutdated = 0;
     let skippedNoData = 0;
+    let skippedStale = 0;
     let dataLockFails = 0;
     const maxItems = 8;
 
@@ -375,12 +385,17 @@ Deno.serve(async (req) => {
 
       try {
         // BUILD DATA LOCK from our verified DB
-        const lock = await buildDataLock(ticker, companyName, adminClient, eodhKey);
-        if (!lock) {
+        const lockResult = await buildDataLock(ticker, companyName, adminClient, eodhKey);
+        if (lockResult === "stale") {
+          skippedStale++;
+          continue;
+        }
+        if (!lockResult) {
           skippedNoData++;
           console.log(`SKIPPED (no DB financials): "${item.title}" [${ticker}]`);
           continue;
         }
+        const lock = lockResult;
 
         console.log(`DATA LOCK for ${ticker}: Rev ${formatNum(lock.currentRevenue || 0)} (${lock.revenueGrowthPct}% YOY), NI ${formatNum(lock.currentNetIncome || 0)} (${lock.netIncomeGrowthPct}% YOY)`);
 
@@ -390,7 +405,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-pro",
             messages: [
               { role: "system", content: `You are a data-checking financial analyst. Return ONLY valid JSON. You MUST use ONLY the numbers from the provided DATABASE JSON. Include a "numbersUsed" field showing every financial figure you cited.` },
               { role: "user", content: prompt },
@@ -455,7 +470,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ generated, flagged, dataLockFails, skippedNoTicker, skippedOutdated, skippedNoData, total_feed: allItems.length, new_items: newItems.length }),
+      JSON.stringify({ generated, flagged, dataLockFails, skippedNoTicker, skippedOutdated, skippedNoData, skippedStale, total_feed: allItems.length, new_items: newItems.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

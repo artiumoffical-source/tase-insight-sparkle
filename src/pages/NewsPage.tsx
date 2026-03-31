@@ -38,7 +38,7 @@ export default function NewsPage() {
               : "Professional analysis and Israeli stock market news by Artium Mandvora, Market Analyst at AlphaMap"
           }
         />
-        <link rel="canonical" href="https://tase-insight-sparkle.lovable.app/news" />
+        <link rel="canonical" href="https://alpha-map.com/news" />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
@@ -47,7 +47,7 @@ export default function NewsPage() {
             description: isHe
               ? "ניתוחים מקצועיים של שוק ההון הישראלי"
               : "Professional Israeli market analysis",
-            url: "https://tase-insight-sparkle.lovable.app/news",
+            url: "https://alpha-map.com/news",
           })}
         </script>
       </Helmet>
