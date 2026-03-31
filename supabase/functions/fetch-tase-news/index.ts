@@ -329,23 +329,37 @@ Deno.serve(async (req) => {
     }
 
     // 3. Load symbols
-    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text");
+    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text, aliases");
     const symbolList = symbols || [];
 
     function matchTicker(headline: string, description: string): { ticker: string; companyName: string } {
       const searchText = (headline + " " + description).toLowerCase();
       let bestMatch = { ticker: "", companyName: "", score: 0 };
       for (const sym of symbolList) {
+        const displayName = sym.override_name_he || sym.name_he || sym.name;
+
+        // Check aliases first (highest priority — curated Hebrew keywords)
+        const aliases: string[] = sym.aliases || [];
+        for (const alias of aliases) {
+          if (alias && alias.length > 1 && searchText.includes(alias.toLowerCase())) {
+            const score = alias.length + 10; // aliases get priority boost
+            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+          }
+        }
+
+        // Then check name fields
         const names = [sym.override_name_he, sym.name_he, sym.name].filter(Boolean);
         for (const name of names) {
           if (name && name.length > 2 && searchText.includes(name.toLowerCase())) {
             const score = name.length;
-            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: sym.override_name_he || sym.name_he || sym.name, score };
+            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
           }
         }
+
+        // Then check ticker symbol
         if (sym.ticker && searchText.includes(sym.ticker.toLowerCase())) {
           const score = sym.ticker.length + 5;
-          if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: sym.override_name_he || sym.name_he || sym.name, score };
+          if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
         }
       }
       return { ticker: bestMatch.ticker, companyName: bestMatch.companyName };
