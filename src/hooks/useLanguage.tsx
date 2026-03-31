@@ -352,6 +352,7 @@ const translations: Record<Language, Record<string, string>> = {
     "deepdive.commonStock": "Common Stock",
     "deepdive.retainedEarnings": "Retained Earnings",
     "deepdive.otherEquity": "Other Equity",
+    "deepdive.minorityInterest": "Minority Interest",
 
     "upgrade.subtitle": "Unlock quarterly financials, remove ads, and get advanced market insights.",
     "upgrade.feat1": "Quarterly financial reports",
