@@ -343,14 +343,14 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     // Fallback: use EODHD Technicals (50DayMA or 200DayMA) as price proxy
     if (adjustedMarketCap === 0 && totalShares > 0 && exchangeRate) {
       let techPrice = parseFloat(technicals["50DayMA"]) || parseFloat(technicals["200DayMA"]) || 0;
-      // EODHD sometimes reports TASE prices in Agorot (1/100 ILS) — detect and convert
-      if (techPrice > 10000 && tradingCurrency === "ILS") {
+      // EODHD fundamentals endpoint reports TASE technicals in Agorot (1/100 ILS) — always convert
+      if (techPrice > 0 && tradingCurrency === "ILS") {
         techPrice = techPrice / 100;
         console.log(`[${ticker}] Agorot→ILS correction: techPrice=${techPrice}`);
       }
       if (techPrice > 0) {
         adjustedMarketCap = (totalShares * techPrice) / exchangeRate;
-        console.log(`[${ticker}] Technicals price fallback: 50DMA/200DMA=${techPrice}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
+        console.log(`[${ticker}] Technicals price fallback: price=${techPrice} ILS, shares=${totalShares}, mcap=${adjustedMarketCap} ${normalizedCurrency}`);
       }
     }
     // Last resort: use EODHD's MarketCapitalization (WARNING: often wrong for dual-listed)
