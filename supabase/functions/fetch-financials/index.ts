@@ -159,6 +159,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
 
   const sector = classifySector(general.GicsSector || "", general.Industry || "");
+  const sharesOutstanding = parseFloat(general.SharesOutstanding) || parseFloat(highlights.SharesOutstanding) || 0;
 
   const meta = {
     name: general.Name || ticker,
