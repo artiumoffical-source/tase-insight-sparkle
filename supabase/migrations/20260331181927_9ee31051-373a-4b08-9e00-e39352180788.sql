@@ -1,0 +1,1 @@
+ALTER TABLE public.tase_symbols ADD COLUMN aliases text[] DEFAULT '{}'::text[];
