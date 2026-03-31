@@ -478,7 +478,34 @@ serve(async (req) => {
     }
 
     const rawData = await resp.json();
-    const result = parseFundamentals(rawData, ticker, eodPrice);
+
+    // Detect cross-currency mismatch and fetch exchange rate if needed
+    let exchangeRate: number | undefined;
+    const general = rawData.General || {};
+    const tradingCcy = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
+    const incStmts = rawData.Financials?.Income_Statement?.yearly || {};
+    const latestKey = Object.keys(incStmts).sort().reverse()[0];
+    const reportCcy = latestKey
+      ? ((incStmts[latestKey]?.currency_symbol === "ILA" ? "ILS" : incStmts[latestKey]?.currency_symbol) || tradingCcy)
+      : tradingCcy;
+
+    if (tradingCcy !== reportCcy) {
+      // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
+      // e.g. for USD reporting + ILS trading: USDILS.FOREX gives ~3.7
+      try {
+        const fxPair = `${reportCcy}${tradingCcy}`;
+        const fxResp = await fetch(`https://eodhd.com/api/real-time/${fxPair}.FOREX?api_token=${apiKey}&fmt=json`);
+        if (fxResp.ok) {
+          const fxData = await fxResp.json();
+          exchangeRate = parseFloat(fxData.close) || parseFloat(fxData.previousClose) || undefined;
+          console.log(`[${ticker}] FX rate ${fxPair}: ${exchangeRate}`);
+        }
+      } catch (fxErr) {
+        console.error(`[${ticker}] Failed to fetch FX rate:`, fxErr);
+      }
+    }
+
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate);
 
     // Upsert cache
     const { error: upsertError } = await supabase
