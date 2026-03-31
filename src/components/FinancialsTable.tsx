@@ -133,13 +133,16 @@ const EXPANDABLE_BALANCE: ExpandableRow[] = [
   { labelKey: "fin.totalDebt", field: "longTermDebt", invertColor: true },
 ];
 
-function formatNum(value: number): string {
+const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪", GBP: "£", ILA: "₪" };
+
+function formatNum(value: number, currencyCode?: string): string {
   if (value === 0) return "—";
+  const prefix = currencyCode ? (CURRENCY_SYMBOLS[currencyCode] || "") : "";
   const abs = Math.abs(value);
-  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
-  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
-  return value.toFixed(2);
+  if (abs >= 1e9) return `${prefix}${(value / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${prefix}${(value / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${prefix}${(value / 1e3).toFixed(1)}K`;
+  return `${prefix}${value.toFixed(2)}`;
 }
 
 function formatYoY(current: number, previous: number): { text: string; color: string } | null {
