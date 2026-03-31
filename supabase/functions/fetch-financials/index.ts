@@ -503,15 +503,49 @@ serve(async (req) => {
     const tradingCcy = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
     const incStmts = rawData.Financials?.Income_Statement?.yearly || {};
     const latestKey = Object.keys(incStmts).sort().reverse()[0];
-    const reportCcy = latestKey
-      ? ((incStmts[latestKey]?.currency_symbol === "ILA" ? "ILS" : incStmts[latestKey]?.currency_symbol) || tradingCcy)
-      : tradingCcy;
 
-    console.log(`[${ticker}] Currency check: tradingCcy=${tradingCcy}, reportCcy=${reportCcy}, match=${tradingCcy === reportCcy}`);
+    // Multi-signal reporting currency detection (EODHD currency_symbol is unreliable for TASE)
+    let reportCcy = tradingCcy; // default
+    const stmtCurrencyRaw = latestKey ? incStmts[latestKey]?.currency_symbol : null;
+    const stmtCurrency = stmtCurrencyRaw === "ILA" ? "ILS" : stmtCurrencyRaw;
+    const generalReportingCurrency = general.ReportingCurrency || general.reporting_currency || null;
+
+    // Signal 1: EODHD General.ReportingCurrency (most reliable when present)
+    if (generalReportingCurrency && generalReportingCurrency !== "ILA") {
+      reportCcy = generalReportingCurrency === "ILA" ? "ILS" : generalReportingCurrency;
+    }
+    // Signal 2: statement currency_symbol (if not ILS/ILA and not null)
+    else if (stmtCurrency && stmtCurrency !== "ILS" && stmtCurrency !== "None") {
+      reportCcy = stmtCurrency;
+    }
+    // Signal 3: stock has a US/non-TASE listing → likely reports in that exchange's currency
+    else {
+      const listings = general.Listings || {};
+      let hasUSListing = false;
+      for (const [, listing] of Object.entries(listings) as [string, any][]) {
+        const exch = (listing?.Exchange || "").toUpperCase();
+        if (["NYSE", "NASDAQ", "US"].includes(exch)) { hasUSListing = true; break; }
+      }
+      // Also check PrimaryExchange / HomeCategory from EODHD
+      const primaryExch = (general.Exchange || "").toUpperCase();
+      const countryISO = (general.CountryISO || "").toUpperCase();
+      if (hasUSListing || (general.PrimaryTicker && !String(general.PrimaryTicker).endsWith(".TA"))) {
+        reportCcy = "USD";
+      }
+      // Signal 4: heuristic — if ILS revenue > $500B, it's probably USD values mislabeled
+      if (reportCcy === "ILS" && latestKey) {
+        const latestRev = parseFloat(incStmts[latestKey]?.totalRevenue) || 0;
+        if (latestRev > 500_000_000_000) {
+          reportCcy = "USD";
+          console.log(`[${ticker}] Revenue ${latestRev} too large for ILS, overriding to USD`);
+        }
+      }
+    }
+
+    console.log(`[${ticker}] Currency detection: tradingCcy=${tradingCcy}, stmtCurrency=${stmtCurrency}, reportingCurrency=${generalReportingCurrency}, final=${reportCcy}`);
 
     if (tradingCcy !== reportCcy) {
       // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
-      // Using free exchangerate API (EODHD forex requires higher plan)
       try {
         const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`);
         if (fxResp.ok) {
