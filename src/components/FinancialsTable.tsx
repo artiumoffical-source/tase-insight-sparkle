@@ -604,7 +604,7 @@ function getCashFlowMetrics(sector: SectorType): MetricDef[] {
   ];
 }
 
-export default function FinancialsTable({ data, incomeStatement, balanceSheet, cashFlow, detailedBalanceSheet, loading, sector = "general" }: FinancialsTableProps) {
+export default function FinancialsTable({ data, incomeStatement, balanceSheet, cashFlow, detailedBalanceSheet, loading, sector = "general", currency }: FinancialsTableProps) {
   const { t } = useLanguage();
 
   if (loading) {
