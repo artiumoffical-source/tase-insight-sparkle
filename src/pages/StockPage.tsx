@@ -256,7 +256,7 @@ export default function StockPage() {
   const displayName = isRtl
     ? (overrideNameHe ?? stock?.nameHe ?? stock?.name ?? meta?.name ?? upperTicker)
     : (stock?.name ?? meta?.name ?? upperTicker);
-  const currency = meta?.currency ?? "ILS";
+  const currency = overrideCurrency || meta?.currency || "ILS";
 
   return (
     <div className="container max-w-7xl py-8 animate-fade-in">
