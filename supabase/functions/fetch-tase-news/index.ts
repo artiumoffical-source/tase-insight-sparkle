@@ -358,6 +358,7 @@ Deno.serve(async (req) => {
     let skippedNoTicker = 0;
     let skippedOutdated = 0;
     let skippedNoData = 0;
+    let skippedStale = 0;
     let dataLockFails = 0;
     const maxItems = 8;
 
