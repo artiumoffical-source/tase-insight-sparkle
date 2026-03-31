@@ -5,102 +5,218 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MACRO_KEYWORDS = [
-  "bank of israel", "interest rate", "inflation", "cpi", "gdp",
-  "בנק ישראל", "ריבית", "אינפלציה", "מדד המחירים", "תוצר",
-  "monetary policy", "fiscal", "shekel", "שקל", "תקציב", "budget",
-  "unemployment", "אבטלה", "housing", "דיור", "משכנתא", "mortgage",
-];
+// ─── DataLock types & helpers (ported from fetch-tase-news) ───
 
-function isMacroArticle(title: string, content: string): boolean {
-  const text = `${title} ${content}`.toLowerCase();
-  return MACRO_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()));
+interface DataLock {
+  ticker: string;
+  companyName: string;
+  currentLabel: string;
+  parallelLabel: string;
+  currentRevenue?: number;
+  parallelRevenue?: number;
+  revenueGrowthPct?: number;
+  currentNetIncome?: number;
+  parallelNetIncome?: number;
+  netIncomeGrowthPct?: number;
+  currentOpIncome?: number;
+  parallelOpIncome?: number;
+  opIncomeGrowthPct?: number;
+  currentOpMarginPct?: number;
+  parallelOpMarginPct?: number;
+  priceChange?: number;
 }
 
-const STOCK_PROMPT = (title: string, content: string, relatedTicker: string, source: string, date: string | null) =>
-  `You are "ארטיום מנדבורה", a senior market analyst with 10 years of experience covering the Tel Aviv Stock Exchange. You write for AlphaMap, an Israeli financial platform.
+function pctChange(current: number, previous: number): number {
+  return +((current - previous) / Math.abs(previous || 1) * 100).toFixed(2);
+}
 
-WRITING STYLE — THIS IS CRITICAL:
-- You are NOT an AI. You are a sharp, experienced human analyst. Write like one.
-- Use clear, direct Hebrew. Write at eye-level for sophisticated investors, not academics.
-- Mix sentence lengths: short punchy lines for impact, longer ones for explanation. Never use uniform medium-length sentences.
-- BANNED phrases (these sound robotic, never use them): "סולל את הדרך", "קפיצת מדרגה", "חשוב לזכור", "מהווה אבן דרך", "בשורה משמעותית", "נדבך מרכזי", "שינוי פרדיגמה", "פורץ דרך"
-- BANNED formatting: Never use double dashes (--). Use commas, periods, or line breaks like a human writer.
-- NO "Heblish": Do not put English words in parentheses unless it is a proper noun or a technical term with zero Hebrew equivalent (e.g., "ROI" is OK). When you must use English, weave it into the sentence naturally.
-- Do NOT start paragraphs with generic transitions like "במקביל", "בנוסף", "יתרה מכך". Vary your openings.
+function formatNum(n: number): string {
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
+  return n.toFixed(0);
+}
 
-ANALYTICAL DEPTH:
-- Connect the dots. Don't just state numbers. Explain cause and effect for the investor.
-- Always tie the news to the Israeli market context: impact on the relevant TASE index, peer companies, macro trends in Israel.
-- If the news affects a TA-35 company, mention the index implications.
+const STALE_THRESHOLD_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
-STRUCTURE:
-- titleHe: A compelling, click-worthy Hebrew headline. Max 80 chars. No generic titles.
-- summaryHe: One sharp sentence that makes investors want to read more. Max 150 chars.
-- bodyHe: 3-4 paragraphs. Start with the core news, move to analysis, end with investor takeaway. Sign off with "מאת: ארטיום מנדבורה, אנליסט שוק ההון"
+async function buildDataLock(
+  ticker: string,
+  companyName: string,
+  adminClient: any,
+  eodhKey: string | undefined
+): Promise<DataLock | null | "stale"> {
+  const { data: cached } = await adminClient
+    .from("cached_fundamentals")
+    .select("data, last_updated")
+    .eq("ticker", ticker)
+    .maybeSingle();
 
-ACCURACY RULES:
-- Be objective and data-driven. NO financial advice (no buy/sell signals).
-- The article date is: ${date || "unknown"}. Use ONLY this date. Do NOT assume today's date.
-- If you are unsure about a number, a date, or any fact, do NOT guess. State it is unverified or skip it.
-- If the news content appears to be from a previous quarter/year, clearly label it as historical data.
-- Do NOT fabricate any numbers, dates, percentages, or events not explicitly stated in the source content below.
-- TERMINOLOGY: Use 'המלצת קנייה' for Buy, 'תשואת יתר' for Outperform, 'המלצת מכירה' for Sell. NEVER use 'שורטי' as an analyst rating.
-- SENTIMENT ALIGNMENT: If overall sentiment is positive with high upside, analyst ratings must reflect Buy/Outperform. Do NOT mix positive sentiment with bearish ratings.
-- If referencing a conference or event, only state it occurred if the source content explicitly confirms it.
+  if (!cached?.data) {
+    console.log(`No cached_fundamentals for ${ticker}, skipping`);
+    return null;
+  }
 
-News Title: ${title}
-News Content: ${content}
-Related Stock: ${relatedTicker} (TASE)
+  // Freshness check
+  const lastUpdated = new Date(cached.last_updated).getTime();
+  if (Date.now() - lastUpdated > STALE_THRESHOLD_MS) {
+    console.log(`Skipped ${ticker}: fundamentals stale (last updated: ${cached.last_updated})`);
+    return "stale";
+  }
+
+  const fundamentals = cached.data as any;
+  const incomeStatement = fundamentals?.Financials?.Income_Statement?.quarterly;
+  if (!incomeStatement) {
+    console.log(`No quarterly income statement for ${ticker}`);
+    return null;
+  }
+
+  const quarters = Object.values(incomeStatement) as any[];
+  const sorted = quarters
+    .filter((q: any) => q?.date)
+    .sort((a: any, b: any) => b.date.localeCompare(a.date));
+
+  if (sorted.length < 1) return null;
+
+  const current = sorted[0];
+  const currentDate = new Date(current.date);
+  const currentQ = Math.ceil((currentDate.getMonth() + 1) / 3);
+  const currentYear = currentDate.getFullYear();
+  const parallelYear = currentYear - 1;
+
+  const parallel = sorted.find((q: any) => {
+    const d = new Date(q.date);
+    return Math.ceil((d.getMonth() + 1) / 3) === currentQ && d.getFullYear() === parallelYear;
+  });
+
+  if (!parallel) {
+    console.log(`No parallel quarter for ${ticker} Q${currentQ} ${parallelYear}`);
+    return null;
+  }
+
+  const curRev = current.totalRevenue != null ? Number(current.totalRevenue) : undefined;
+  const parRev = parallel.totalRevenue != null ? Number(parallel.totalRevenue) : undefined;
+  const curNI = current.netIncome != null ? Number(current.netIncome) : undefined;
+  const parNI = parallel.netIncome != null ? Number(parallel.netIncome) : undefined;
+  const curOI = current.operatingIncome != null ? Number(current.operatingIncome) : undefined;
+  const parOI = parallel.operatingIncome != null ? Number(parallel.operatingIncome) : undefined;
+
+  const lock: DataLock = {
+    ticker,
+    companyName,
+    currentLabel: `Q${currentQ} ${currentYear}`,
+    parallelLabel: `Q${currentQ} ${parallelYear}`,
+    currentRevenue: curRev,
+    parallelRevenue: parRev,
+    revenueGrowthPct: curRev != null && parRev != null ? pctChange(curRev, parRev) : undefined,
+    currentNetIncome: curNI,
+    parallelNetIncome: parNI,
+    netIncomeGrowthPct: curNI != null && parNI != null ? pctChange(curNI, parNI) : undefined,
+    currentOpIncome: curOI,
+    parallelOpIncome: parOI,
+    opIncomeGrowthPct: curOI != null && parOI != null ? pctChange(curOI, parOI) : undefined,
+    currentOpMarginPct: curRev && curOI != null ? +(curOI / curRev * 100).toFixed(2) : undefined,
+    parallelOpMarginPct: parRev && parOI != null ? +(parOI / parRev * 100).toFixed(2) : undefined,
+  };
+
+  if (eodhKey) {
+    try {
+      const quoteRes = await fetch(`https://eodhd.com/api/real-time/${ticker}.TA?api_token=${eodhKey}&fmt=json`).catch(() => null);
+      if (quoteRes?.ok) {
+        const q = await quoteRes.json();
+        lock.priceChange = q.change_p ?? q.change_percent;
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  return lock;
+}
+
+function buildLockedPrompt(title: string, content: string, lock: DataLock, source: string, date: string | null): string {
+  const lockJson = JSON.stringify(lock, null, 2);
+
+  return `You are "ארטיום מנדבורה", a senior quantitative market analyst for AlphaMap.
+
+═══════════════════════════════════════════════════
+ DATABASE FINANCIAL DATA — THIS IS THE ONLY TRUTH
+═══════════════════════════════════════════════════
+${lockJson}
+
+ABSOLUTE RULES:
+1. You are STRICTLY FORBIDDEN from using ANY financial number that is NOT in the JSON above.
+2. If the news source mentions a number that contradicts the JSON, you MUST write the JSON number and note: "בניגוד לדיווחים, הנתונים הרשמיים מצביעים על..."
+3. SHOW YOUR MATH: For every growth percentage you cite, verify it matches the pre-calculated *GrowthPct fields exactly. If your manual calculation ((Current-Previous)/Previous*100) doesn't match, use the pre-calculated value.
+4. Operating Margin = (Operating Income / Revenue) × 100. Use currentOpMarginPct and parallelOpMarginPct from the JSON.
+5. Compare ${lock.currentLabel} to ${lock.parallelLabel} (YOY). NEVER compare to adjacent quarters.
+6. The current date is ${new Date().toISOString().slice(0, 10)}. Do NOT reference old data as current.
+7. The article date is: ${date || "unknown"}. Use ONLY this date context.
+
+ARTICLE CONTEXT:
+Headline: ${title}
+Content: ${content.slice(0, 1500)}
+Company: ${lock.companyName}
+Ticker: ${lock.ticker}.TA
 Source: ${source}
-Article Date: ${date || "unknown"}
+${lock.priceChange != null ? `Today's price change: ${lock.priceChange > 0 ? "+" : ""}${lock.priceChange.toFixed(2)}%` : ""}
 
-Return a JSON object with these fields:
-- titleHe: Hebrew headline (max 80 chars)
-- bodyHe: Full Hebrew analysis (3-4 paragraphs)
-- summaryHe: One-line Hebrew summary (max 150 chars)`;
-
-const MACRO_PROMPT = (title: string, content: string, source: string, date: string | null) =>
-  `You are "ארטיום מנדבורה", a senior market analyst with 10 years of experience covering the Israeli economy and the Tel Aviv Stock Exchange. You write macro briefings for AlphaMap.
-
-WRITING STYLE — THIS IS CRITICAL:
-- You are NOT an AI. You are a sharp analyst writing a market briefing. Sound human.
-- Use clear, direct Hebrew at eye-level for investors.
-- Mix sentence lengths. Short lines for impact, longer ones for context.
-- BANNED phrases: "סולל את הדרך", "קפיצת מדרגה", "חשוב לזכור", "מהווה אבן דרך", "בשורה משמעותית", "נדבך מרכזי", "שינוי פרדיגמה", "פורץ דרך"
-- BANNED formatting: No double dashes (--). No parenthetical English unless absolutely necessary.
+WRITING RULES:
+- Professional institutional-grade Hebrew.
+- Mix sentence lengths. Short punchy lines for impact.
+- Use: "המלצת קנייה", "תשואת יתר", "מרווח תפעולי", "תזרים מזומנים חופשי"
+- BANNED: "סולל את הדרך", "קפיצת מדרגה", "חשוב לזכור", "מהווה אבן דרך", "בשורה משמעותית", "נדבך מרכזי", "שינוי פרדיגמה", "פורץ דרך"
+- No double dashes (--). No unnecessary English.
 - Do NOT start paragraphs with "במקביל", "בנוסף", "יתרה מכך".
-
-MACRO ANALYSIS STRUCTURE — "What happened, then why it matters":
-1. Open with the event itself in one clear sentence.
-2. Explain the RIPPLE EFFECT across sectors:
-   - Banks: How does this affect net interest margins, lending, profitability?
-   - Real Estate: Impact on mortgage rates, housing stocks, construction?
-   - Tech/Growth: How does this change valuations and risk appetite for growth companies?
-3. Tie it to the TA-35 index and specific major stocks when relevant (Leumi, Poalim, Azrieli, etc.)
-4. End with what investors should watch next. Sign off with "מאת: ארטיום מנדבורה, אנליסט שוק ההון"
-
-ACCURACY RULES:
+- Write as a PRIMARY source. No credits to external outlets.
 - Be objective. NO financial advice.
-- The article date is: ${date || "unknown"}. Use ONLY this date.
-- Do NOT fabricate numbers, dates, or events not in the source.
-- If unsure about a fact, skip it or say it is unverified.
 
-News Title: ${title}
-News Content: ${content}
-Source: ${source}
-Article Date: ${date || "unknown"}
+SIGN-OFF:
+"הניתוח מבוסס על דוחות כספיים רשמיים ונתוני שוק מהבורסה לניירות ערך בתל אביב."
+"מאת: ארטיום מנדבורה, אנליסט שוק ההון"
 
-Return a JSON object with these fields:
-- titleHe: Hebrew headline (max 80 chars)
-- bodyHe: Full Hebrew macro analysis (3-4 paragraphs)
-- summaryHe: One-line Hebrew summary (max 150 chars)`;
+Return a JSON with:
+- titleHe: Hebrew headline (max 80 chars, include a number)
+- bodyHe: Full Hebrew analysis (2-3 paragraphs, data-driven, YOY explicit)
+- summaryHe: One quantitative sentence (max 150 chars, must include a number)
+- sentiment: "positive" | "negative" | "neutral" — MUST match netIncomeGrowthPct direction
+- numbersUsed: object with every financial number you cited in the article, e.g. {"revenueGrowthPct": -6.2, "currentRevenue": 5200000000}
+- flagged: boolean — true if source contradicts DB or sentiment doesn't match`;
+}
+
+function validateNumbers(lock: DataLock, numbersUsed: Record<string, number> | undefined): { valid: boolean; mismatches: string[] } {
+  if (!numbersUsed) return { valid: false, mismatches: ["AI did not return numbersUsed"] };
+
+  const mismatches: string[] = [];
+  const checkFields: Array<[string, number | undefined]> = [
+    ["revenueGrowthPct", lock.revenueGrowthPct],
+    ["netIncomeGrowthPct", lock.netIncomeGrowthPct],
+    ["opIncomeGrowthPct", lock.opIncomeGrowthPct],
+    ["currentOpMarginPct", lock.currentOpMarginPct],
+    ["parallelOpMarginPct", lock.parallelOpMarginPct],
+    ["currentRevenue", lock.currentRevenue],
+    ["parallelRevenue", lock.parallelRevenue],
+    ["currentNetIncome", lock.currentNetIncome],
+    ["parallelNetIncome", lock.parallelNetIncome],
+  ];
+
+  for (const [key, dbVal] of checkFields) {
+    if (dbVal == null) continue;
+    const aiVal = numbersUsed[key];
+    if (aiVal == null) continue;
+    const diff = Math.abs((aiVal - dbVal) / (dbVal || 1)) * 100;
+    if (diff > 1) {
+      mismatches.push(`${key}: DB=${dbVal}, AI=${aiVal} (${diff.toFixed(1)}% off)`);
+    }
+  }
+
+  return { valid: mismatches.length === 0, mismatches };
+}
+
+// ─── Main handler ───
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -146,6 +262,10 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const ticker = url.searchParams.get("ticker");
 
+    // Load symbols for company name lookup
+    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he");
+    const symbolMap = new Map((symbols || []).map(s => [s.ticker, s.override_name_he || s.name_he || s.name]));
+
     // --- Fetch stock news from EODHD ---
     const tickers = ticker
       ? [ticker]
@@ -175,28 +295,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- Fetch macro/economic news from EODHD ---
-    const macroSearchTerms = ["Bank+of+Israel", "Israel+interest+rate", "Israel+rate+decision", "Israel+CPI", "Israel+inflation", "Israel+economy", "Israel+monetary+policy", "shekel+exchange+rate"];
-    for (const term of macroSearchTerms) {
-      try {
-        const res = await fetch(
-          `https://eodhd.com/api/news?s=GENERAL&t=${term}&offset=0&limit=5&api_token=${eodhd}&fmt=json`
-        );
-        if (res.ok) {
-          const articles = await res.json();
-          if (Array.isArray(articles)) {
-            for (const a of articles) {
-              const articleDate = a.date ? new Date(a.date).getTime() : 0;
-              if (!articleDate || (now - articleDate) > TWENTY_FOUR_HOURS) continue;
-              allArticles.push({ ...a, _ticker: "", _macro: true });
-            }
-          }
-        }
-      } catch (e) {
-        console.error(`Macro news fetch error for ${term}:`, e);
-      }
-    }
-
     if (allArticles.length === 0) {
       return new Response(JSON.stringify({ generated: 0, message: "No recent news found in the last 24 hours" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -215,8 +313,13 @@ Deno.serve(async (req) => {
     });
 
     let generated = 0;
+    let flagged = 0;
+    let skippedNoData = 0;
+    let skippedStale = 0;
+    let dataLockFails = 0;
+    const maxItems = 8;
 
-    for (const article of newArticles.slice(0, 8)) {
+    for (const article of newArticles.slice(0, maxItems)) {
       const title = article.title || "";
       const content = (article.content || article.text || article.summary || "").slice(0, 1500);
       const articleUrl = article.link || article.url || "";
@@ -224,13 +327,30 @@ Deno.serve(async (req) => {
       const date = article.date || null;
       const relatedTicker = article._ticker || "";
 
-      // Determine category
-      const isMacro = article._macro || isMacroArticle(title, content);
-      const category = isMacro ? "macro" : "stock";
+      if (!relatedTicker) {
+        skippedNoData++;
+        console.log(`SKIPPED (no ticker): "${title}"`);
+        continue;
+      }
 
-      const prompt = isMacro
-        ? MACRO_PROMPT(title, content, source, date)
-        : STOCK_PROMPT(title, content, relatedTicker, source, date);
+      const companyName = symbolMap.get(relatedTicker) || relatedTicker;
+
+      // BUILD DATA LOCK
+      const lockResult = await buildDataLock(relatedTicker, companyName, adminClient, eodhd);
+      if (lockResult === "stale") {
+        skippedStale++;
+        continue;
+      }
+      if (!lockResult) {
+        skippedNoData++;
+        console.log(`SKIPPED (no DB financials): "${title}" [${relatedTicker}]`);
+        continue;
+      }
+      const lock = lockResult;
+
+      console.log(`DATA LOCK for ${relatedTicker}: Rev ${formatNum(lock.currentRevenue || 0)} (${lock.revenueGrowthPct}% YOY), NI ${formatNum(lock.currentNetIncome || 0)} (${lock.netIncomeGrowthPct}% YOY)`);
+
+      const prompt = buildLockedPrompt(title, content, lock, source, date);
 
       try {
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -240,9 +360,9 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-pro",
             messages: [
-              { role: "system", content: "You are a professional financial analyst. Return ONLY valid JSON." },
+              { role: "system", content: "You are a data-checking financial analyst. Return ONLY valid JSON. You MUST use ONLY the numbers from the provided DATABASE JSON. Include a \"numbersUsed\" field showing every financial figure you cited." },
               { role: "user", content: prompt },
             ],
           }),
@@ -250,19 +370,29 @@ Deno.serve(async (req) => {
 
         if (!aiRes.ok) {
           console.error("AI error:", aiRes.status);
+          if (aiRes.status === 429) break;
           continue;
         }
 
         const aiData = await aiRes.json();
         const raw = aiData.choices?.[0]?.message?.content ?? "";
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) continue;
+        if (!jsonMatch) { console.error(`No JSON in AI response for "${title}"`); continue; }
 
         const parsed = JSON.parse(jsonMatch[0]);
 
-        const { error: insertErr } = await supabase.from("news_articles").insert({
-          status: "pending",
-          category,
+        // POST-GENERATION VALIDATION
+        const validation = validateNumbers(lock, parsed.numbersUsed);
+        const isFlagged = parsed.flagged === true || !validation.valid;
+        if (!validation.valid) {
+          dataLockFails++;
+          console.warn(`⚠️ DATA LOCK MISMATCH for ${relatedTicker}: ${validation.mismatches.join(", ")}`);
+        }
+        if (isFlagged) flagged++;
+
+        const { error: insertErr } = await adminClient.from("news_articles").insert({
+          status: "draft",
+          category: "stock",
           original_title: title,
           original_url: articleUrl,
           original_source: source,
@@ -271,20 +401,30 @@ Deno.serve(async (req) => {
           ai_title_he: parsed.titleHe || title,
           ai_body_he: parsed.bodyHe || "",
           ai_summary_he: parsed.summaryHe || "",
+          content: parsed.bodyHe || "",
+          sentiment: parsed.sentiment || "neutral",
+          data_lock: {
+            dbData: lock,
+            aiNumbersUsed: parsed.numbersUsed || {},
+            validation: { valid: validation.valid, mismatches: validation.mismatches },
+          },
         });
 
         if (insertErr) {
           console.error("Insert error:", insertErr);
         } else {
           generated++;
+          console.log(`Generated: "${title}" (${relatedTicker}) [${parsed.sentiment}]${isFlagged ? " ⚠️ FLAGGED" : ""}${!validation.valid ? " ❌ DATA MISMATCH" : " ✅ DATA VERIFIED"}`);
         }
       } catch (e) {
         console.error("AI generation error:", e);
       }
+
+      await new Promise(r => setTimeout(r, 2000));
     }
 
     return new Response(
-      JSON.stringify({ generated, total_fetched: allArticles.length, new_articles: newArticles.length }),
+      JSON.stringify({ generated, flagged, dataLockFails, skippedNoData, skippedStale, total_fetched: allArticles.length, new_articles: newArticles.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

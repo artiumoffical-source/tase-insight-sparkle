@@ -47,7 +47,7 @@ export default function NewsPage() {
             description: isHe
               ? "ניתוחים מקצועיים של שוק ההון הישראלי"
               : "Professional Israeli market analysis",
-            url: "https://tase-insight-sparkle.lovable.app/news",
+            url: "https://alpha-map.com/news",
           })}
         </script>
       </Helmet>

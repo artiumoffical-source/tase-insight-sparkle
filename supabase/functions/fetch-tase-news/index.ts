@@ -405,7 +405,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: "google/gemini-2.5-pro",
             messages: [
               { role: "system", content: `You are a data-checking financial analyst. Return ONLY valid JSON. You MUST use ONLY the numbers from the provided DATABASE JSON. Include a "numbersUsed" field showing every financial figure you cited.` },
               { role: "user", content: prompt },
