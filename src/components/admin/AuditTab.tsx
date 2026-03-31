@@ -255,6 +255,7 @@ export default function AuditTab() {
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-right p-3 font-medium">טיקר</th>
+                <th className="text-right p-3 font-medium">שם עברי (override)</th>
                 <th className="text-right p-3 font-medium">בריאות</th>
                 <th className="text-right p-3 font-medium">פירוט</th>
                 <th className="text-right p-3 font-medium">מטבע</th>
