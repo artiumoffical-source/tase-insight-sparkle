@@ -10,6 +10,7 @@ interface SymbolRow {
   ticker: string;
   name: string;
   name_he: string;
+  override_name_he: string | null;
   logo_url: string | null;
   security_id: string | null;
 }
