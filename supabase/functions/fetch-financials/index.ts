@@ -236,7 +236,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     industry: general.Industry || "",
   };
 
-  const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
+  // incomeStatements already declared above for currency detection
   const balanceSheets = data.Financials?.Balance_Sheet?.yearly || {};
   const cashFlowStatements = data.Financials?.Cash_Flow?.yearly || {};
 
