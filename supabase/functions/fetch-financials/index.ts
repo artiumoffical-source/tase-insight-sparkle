@@ -441,7 +441,7 @@ serve(async (req) => {
       .eq("ticker", ticker)
       .maybeSingle();
 
-    // Always fetch fresh price
+    // Always fetch fresh price (EODHD + Yahoo fallback)
     let eodPrice: { price: number; change: number } | undefined;
     try {
       const symbol = ticker.includes(".") ? ticker : `${ticker}.TA`;
@@ -455,6 +455,23 @@ serve(async (req) => {
       }
     } catch (e) {
       console.error("Real-time price fetch error:", e);
+    }
+
+    // Yahoo Finance fallback for TASE price when EODHD returns 0
+    if (!eodPrice || eodPrice.price === 0) {
+      try {
+        const ySymbol = `${ticker}.TA`;
+        const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ySymbol}?interval=1d&range=5d`);
+        if (yResp.ok) {
+          const yData = await yResp.json();
+          const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+          const lastClose = closes.filter((c: any) => c != null && c > 0).pop();
+          if (lastClose) {
+            eodPrice = { price: lastClose, change: 0 };
+            console.log(`[${ticker}] Yahoo TASE fallback price: ${lastClose}`);
+          }
+        }
+      } catch (e) { console.error("Yahoo TASE price fallback error:", e); }
     }
 
     // Return cached if fresh (skip cache when force=true)
