@@ -190,18 +190,20 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
     const inc = incomeStatements[dateKey] || {};
     const capex = Math.abs(parseFloat(cf.capitalExpenditures) || 0);
     const opsFlow = parseFloat(cf.totalCashFromOperatingActivities) || 0;
+    // ALWAYS calculate FCF manually — API's freeCashFlow field is unreliable
+    const calculatedFCF = opsFlow - capex;
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       netIncome: parseFloat(inc.netIncome) || 0,
       depreciation: parseFloat(cf.depreciation) || 0,
       capex,
-      freeCashFlow: parseFloat(cf.freeCashFlow) || (opsFlow - capex),
+      freeCashFlow: calculatedFCF,
       cashFromOperations: opsFlow,
     };
   });
 }
 
-function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number) {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number, overrideCurrency?: string) {
   const general = data.General || {};
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
@@ -243,16 +245,20 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const stmtCcyRaw = firstIncomeKey ? incomeStatements[firstIncomeKey]?.currency_symbol : null;
   const stmtCcy = stmtCcyRaw === "ILA" ? "ILS" : stmtCcyRaw;
   const generalReportingCcy = general.ReportingCurrency || general.reporting_currency || null;
-  let normalizedCurrency = generalReportingCcy ? (generalReportingCcy === "ILA" ? "ILS" : generalReportingCcy)
+  let normalizedCurrency = overrideCurrency || (
+    generalReportingCcy ? (generalReportingCcy === "ILA" ? "ILS" : generalReportingCcy)
     : (stmtCcy && stmtCcy !== "ILS" && stmtCcy !== "None") ? stmtCcy
-    : (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode || "ILS");
-  // Check for US listing as override signal
-  const listings = general.Listings || {};
-  for (const [, listing] of Object.entries(listings) as [string, any][]) {
-    const exch = (listing?.Exchange || "").toUpperCase();
-    if (["NYSE", "NASDAQ", "US"].includes(exch) && normalizedCurrency === "ILS") {
-      normalizedCurrency = "USD";
-      break;
+    : (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode || "ILS")
+  );
+  // Check for US listing as override signal (only if no override was passed)
+  if (!overrideCurrency) {
+    const listings = general.Listings || {};
+    for (const [, listing] of Object.entries(listings) as [string, any][]) {
+      const exch = (listing?.Exchange || "").toUpperCase();
+      if (["NYSE", "NASDAQ", "US"].includes(exch) && normalizedCurrency === "ILS") {
+        normalizedCurrency = "USD";
+        break;
+      }
     }
   }
   console.log(`[${ticker}] parseFundamentals currency: ${normalizedCurrency}`);
@@ -591,13 +597,48 @@ serve(async (req) => {
     const stmtCurrency = stmtCurrencyRaw === "ILA" ? "ILS" : stmtCurrencyRaw;
     const generalReportingCurrency = general.ReportingCurrency || general.reporting_currency || null;
 
+    // Scan ALL financial statement types (yearly + quarterly) for any currency_symbol
+    // This catches stocks where only some statements have the field populated
+    function scanForCurrency(data: any): string | null {
+      const paths = [
+        "Financials.Income_Statement.yearly",
+        "Financials.Income_Statement.quarterly",
+        "Financials.Balance_Sheet.yearly",
+        "Financials.Balance_Sheet.quarterly",
+        "Financials.Cash_Flow.yearly",
+        "Financials.Cash_Flow.quarterly",
+      ];
+      for (const path of paths) {
+        const parts = path.split(".");
+        let obj = data;
+        for (const p of parts) { obj = obj?.[p]; if (!obj) break; }
+        if (!obj || typeof obj !== "object") continue;
+        const keys = Object.keys(obj).sort().reverse();
+        for (const k of keys) {
+          const sym = obj[k]?.currency_symbol;
+          if (sym && sym !== "None" && sym !== "null") {
+            const normalized = sym === "ILA" ? "ILS" : sym;
+            if (normalized !== "ILS") return normalized; // non-ILS found
+          }
+        }
+      }
+      return null;
+    }
+
+    const deepScanCurrency = scanForCurrency(rawData);
+
     // Signal 1: EODHD General.ReportingCurrency (most reliable when present)
     if (generalReportingCurrency && generalReportingCurrency !== "ILA") {
       reportCcy = generalReportingCurrency === "ILA" ? "ILS" : generalReportingCurrency;
     }
-    // Signal 2: statement currency_symbol (if not ILS/ILA and not null)
+    // Signal 2: yearly statement currency_symbol (if not ILS/ILA and not null)
     else if (stmtCurrency && stmtCurrency !== "ILS" && stmtCurrency !== "None") {
       reportCcy = stmtCurrency;
+    }
+    // Signal 2b: deep scan across all statement types
+    else if (deepScanCurrency) {
+      reportCcy = deepScanCurrency;
+      console.log(`[${ticker}] Currency from deep scan: ${reportCcy}`);
     }
     // Signal 3: stock has a US/non-TASE listing → likely reports in that exchange's currency
     else {
@@ -607,13 +648,16 @@ serve(async (req) => {
         const exch = (listing?.Exchange || "").toUpperCase();
         if (["NYSE", "NASDAQ", "US"].includes(exch)) { hasUSListing = true; break; }
       }
-      // Also check PrimaryExchange / HomeCategory from EODHD
-      const primaryExch = (general.Exchange || "").toUpperCase();
-      const countryISO = (general.CountryISO || "").toUpperCase();
       if (hasUSListing || (general.PrimaryTicker && !String(general.PrimaryTicker).endsWith(".TA"))) {
         reportCcy = "USD";
       }
-      // Signal 4: heuristic — if ILS revenue > $500B, it's probably USD values mislabeled
+      // Signal 4: Check ISIN — if starts with "US", the company reports in USD
+      const isin = general.ISIN || "";
+      if (isin.startsWith("US") && reportCcy === "ILS") {
+        reportCcy = "USD";
+        console.log(`[${ticker}] ISIN ${isin} indicates USD reporting`);
+      }
+      // Signal 5: heuristic — if ILS revenue > $500B, it's probably USD values mislabeled
       if (reportCcy === "ILS" && latestKey) {
         const latestRev = parseFloat(incStmts[latestKey]?.totalRevenue) || 0;
         if (latestRev > 500_000_000_000) {
@@ -712,7 +756,7 @@ serve(async (req) => {
       }
     }
 
-    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice);
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy);
 
     // Upsert cache
     const { error: upsertError } = await supabase
