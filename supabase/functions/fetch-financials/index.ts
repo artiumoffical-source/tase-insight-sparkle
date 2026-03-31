@@ -56,8 +56,16 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
     const netIncome = parseFloat(inc.netIncome) || 0;
     // Try API EPS fields first, then calculate manually
     let eps = parseFloat(inc.dilutedEPS) || parseFloat(inc.basicEPS) || parseFloat(inc.eps_actual) || 0;
-    if (eps === 0 && netIncome !== 0 && sharesOutstanding && sharesOutstanding > 0) {
-      eps = netIncome / sharesOutstanding;
+    
+    // If no API EPS, try per-row weighted average shares
+    if (eps === 0 && netIncome !== 0) {
+      const rowShares = parseFloat(inc.weightedAverageShsOutDil) || parseFloat(inc.weightedAverageShsOut) || parseFloat(inc.commonStockSharesOutstanding) || 0;
+      const shares = rowShares > 0 ? rowShares : (sharesOutstanding || 0);
+      if (shares > 0) {
+        eps = netIncome / shares;
+        // Round to 2 decimal places
+        eps = Math.round(eps * 100) / 100;
+      }
     }
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
