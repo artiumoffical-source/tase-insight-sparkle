@@ -470,7 +470,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ generated, flagged, dataLockFails, skippedNoTicker, skippedOutdated, skippedNoData, total_feed: allItems.length, new_items: newItems.length }),
+      JSON.stringify({ generated, flagged, dataLockFails, skippedNoTicker, skippedOutdated, skippedNoData, skippedStale, total_feed: allItems.length, new_items: newItems.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
