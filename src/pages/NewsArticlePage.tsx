@@ -70,6 +70,8 @@ export default function NewsArticlePage() {
     ? (isHe ? "שלילי" : "Negative")
     : (isHe ? "ניטרלי" : "Neutral");
 
+  const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-og-image?id=${article.id}`;
+
   return (
     <>
       <Helmet>
@@ -80,9 +82,13 @@ export default function NewsArticlePage() {
         <meta property="og:description" content={summary || title} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content={`https://alpha-map.com/news/${article.id}`} />
-        <meta name="twitter:card" content="summary" />
+        <meta property="og:image" content={ogImageUrl} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={summary || title} />
+        <meta name="twitter:image" content={ogImageUrl} />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
