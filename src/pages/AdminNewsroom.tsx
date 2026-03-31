@@ -121,9 +121,9 @@ function NewsTab() {
                 </div>
                 {article.original_url && <a href={article.original_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary"><ExternalLink className="h-4 w-4" /></a>}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                מקור: {article.original_source} | {article.original_headline || article.original_title}
-              </p>
+              {article.original_headline && article.original_headline !== article.ai_title_he && (
+                <p className="text-xs text-muted-foreground mt-1">{article.original_headline}</p>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               {editingId === article.id ? (
