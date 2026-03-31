@@ -296,7 +296,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName, currency }: { rows: any[
 }
 
 // --- Expandable Balance Sheet Table ---
-function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[] }) {
+function ExpandableBalanceTable({ rows, t, detailedBS, currency }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[]; currency?: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hoveredParent, setHoveredParent] = useState<string | null>(null);
 
