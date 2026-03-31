@@ -245,16 +245,20 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const stmtCcyRaw = firstIncomeKey ? incomeStatements[firstIncomeKey]?.currency_symbol : null;
   const stmtCcy = stmtCcyRaw === "ILA" ? "ILS" : stmtCcyRaw;
   const generalReportingCcy = general.ReportingCurrency || general.reporting_currency || null;
-  let normalizedCurrency = generalReportingCcy ? (generalReportingCcy === "ILA" ? "ILS" : generalReportingCcy)
+  let normalizedCurrency = overrideCurrency || (
+    generalReportingCcy ? (generalReportingCcy === "ILA" ? "ILS" : generalReportingCcy)
     : (stmtCcy && stmtCcy !== "ILS" && stmtCcy !== "None") ? stmtCcy
-    : (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode || "ILS");
-  // Check for US listing as override signal
-  const listings = general.Listings || {};
-  for (const [, listing] of Object.entries(listings) as [string, any][]) {
-    const exch = (listing?.Exchange || "").toUpperCase();
-    if (["NYSE", "NASDAQ", "US"].includes(exch) && normalizedCurrency === "ILS") {
-      normalizedCurrency = "USD";
-      break;
+    : (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode || "ILS")
+  );
+  // Check for US listing as override signal (only if no override was passed)
+  if (!overrideCurrency) {
+    const listings = general.Listings || {};
+    for (const [, listing] of Object.entries(listings) as [string, any][]) {
+      const exch = (listing?.Exchange || "").toUpperCase();
+      if (["NYSE", "NASDAQ", "US"].includes(exch) && normalizedCurrency === "ILS") {
+        normalizedCurrency = "USD";
+        break;
+      }
     }
   }
   console.log(`[${ticker}] parseFundamentals currency: ${normalizedCurrency}`);
