@@ -489,16 +489,22 @@ serve(async (req) => {
       ? ((incStmts[latestKey]?.currency_symbol === "ILA" ? "ILS" : incStmts[latestKey]?.currency_symbol) || tradingCcy)
       : tradingCcy;
 
+    console.log(`[${ticker}] Currency check: tradingCcy=${tradingCcy}, reportCcy=${reportCcy}, match=${tradingCcy === reportCcy}`);
+
     if (tradingCcy !== reportCcy) {
       // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
       // e.g. for USD reporting + ILS trading: USDILS.FOREX gives ~3.7
       try {
         const fxPair = `${reportCcy}${tradingCcy}`;
+        console.log(`[${ticker}] Fetching FX pair: ${fxPair}.FOREX`);
         const fxResp = await fetch(`https://eodhd.com/api/real-time/${fxPair}.FOREX?api_token=${apiKey}&fmt=json`);
         if (fxResp.ok) {
           const fxData = await fxResp.json();
+          console.log(`[${ticker}] FX response:`, JSON.stringify(fxData));
           exchangeRate = parseFloat(fxData.close) || parseFloat(fxData.previousClose) || undefined;
           console.log(`[${ticker}] FX rate ${fxPair}: ${exchangeRate}`);
+        } else {
+          console.error(`[${ticker}] FX fetch failed: ${fxResp.status}`);
         }
       } catch (fxErr) {
         console.error(`[${ticker}] Failed to fetch FX rate:`, fxErr);
