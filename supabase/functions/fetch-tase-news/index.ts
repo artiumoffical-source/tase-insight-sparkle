@@ -141,7 +141,7 @@ Return a JSON object with these fields:
 - bodyHe: Full Hebrew analysis (2-3 paragraphs, data-driven, YOY comparison explicit)
 - summaryHe: One sharp, quantitative sentence summary (max 150 chars, must include at least one number)
 - sentiment: one of "positive", "negative", or "neutral" — MUST match Net Income direction from DB
-- category: "stock" if about a specific company, "macro" if about economy/market
+- category: "stock" (always — we only cover specific companies)
 - flagged: boolean — true if headline contradicts DB data OR sentiment doesn't match Net Income direction`;
 }
 
