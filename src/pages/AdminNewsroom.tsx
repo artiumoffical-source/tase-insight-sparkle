@@ -205,9 +205,12 @@ function NewsTab() {
                 </>
               )}
               {isDraft(article.status) && editingId !== article.id && (
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
                   <Button size="sm" variant="ghost" onClick={() => startEdit(article)} className="gap-1"><Edit2 className="h-3 w-3" /> עריכה</Button>
-                  <Button size="sm" onClick={() => publish(article.id)} className="gap-1"><Check className="h-3 w-3" /> פרסום</Button>
+                  <Button size="sm" onClick={() => publish(article.id)} disabled={hasDataMismatch(article)} className="gap-1" title={hasDataMismatch(article) ? "לא ניתן לפרסם — אי-התאמה בנתונים" : undefined}>
+                    <Check className="h-3 w-3" /> פרסום
+                  </Button>
+                  {hasDataMismatch(article) && <span className="text-xs text-red-400">⚠️ אי-התאמה בנתונים — פרסום חסום</span>}
                   <Button size="sm" variant="destructive" onClick={() => reject(article.id)} className="gap-1"><X className="h-3 w-3" /> דחייה</Button>
                 </div>
               )}
