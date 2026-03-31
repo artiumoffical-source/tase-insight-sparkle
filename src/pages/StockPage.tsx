@@ -57,6 +57,38 @@ function ChartSkeleton() {
   );
 }
 
+function ReportIssueButton({ ticker, userEmail }: { ticker: string; userEmail?: string }) {
+  const [open, setOpen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    setSubmitting(true);
+    const { error } = await supabase.from("data_issue_reports" as any).insert({ ticker, reporter_email: userEmail ?? null, message } as any);
+    setSubmitting(false);
+    if (error) { toast.error("שגיאה בשליחת הדיווח"); return; }
+    toast.success("הדיווח נשלח, תודה!");
+    setMessage("");
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5 text-xs">
+          <Flag className="h-3.5 w-3.5" /> דווח על שגיאה בנתונים
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm" dir="rtl">
+        <DialogHeader><DialogTitle>דיווח על שגיאה</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">מצאת שגיאה בנתוני {ticker}? ספר לנו ונתקן בהקדם.</p>
+        <Textarea placeholder="תאר את השגיאה (אופציונלי)..." value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
+        <Button onClick={submit} disabled={submitting} className="w-full">{submitting ? "שולח..." : "שלח דיווח"}</Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function StockPage() {
   const { ticker } = useParams<{ ticker: string }>();
   const { user } = useAuth();
