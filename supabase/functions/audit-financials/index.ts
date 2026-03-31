@@ -96,6 +96,23 @@ function runCurrencyCheck(meta: any, incomeYears: any[]): CheckResult {
   };
 }
 
+function runEpsCheck(incomeYears: any[]): CheckResult {
+  const failures: string[] = [];
+  for (const y of incomeYears) {
+    const netIncome = Number(y.netIncome || 0);
+    const eps = Number(y.eps || 0);
+    if (Math.abs(netIncome) > 1000 && eps === 0) {
+      failures.push(`${y.year}: EPS=0 but NI=${(netIncome / 1e6).toFixed(1)}M`);
+    }
+  }
+  return {
+    name: "eps",
+    passed: failures.length === 0,
+    details: failures.length ? failures.join("; ") : "EPS values present",
+    severity: "minor",
+  };
+}
+
 function computeHealth(checks: CheckResult[]): string {
   if (checks.some((c) => !c.passed && c.severity === "critical")) return "red";
   if (checks.some((c) => !c.passed)) return "yellow";
