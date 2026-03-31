@@ -190,12 +190,14 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
     const inc = incomeStatements[dateKey] || {};
     const capex = Math.abs(parseFloat(cf.capitalExpenditures) || 0);
     const opsFlow = parseFloat(cf.totalCashFromOperatingActivities) || 0;
+    // ALWAYS calculate FCF manually — API's freeCashFlow field is unreliable
+    const calculatedFCF = opsFlow - capex;
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       netIncome: parseFloat(inc.netIncome) || 0,
       depreciation: parseFloat(cf.depreciation) || 0,
       capex,
-      freeCashFlow: parseFloat(cf.freeCashFlow) || (opsFlow - capex),
+      freeCashFlow: calculatedFCF,
       cashFromOperations: opsFlow,
     };
   });
