@@ -419,6 +419,67 @@ serve(async (req) => {
       await supabase.from("tase_symbols").update({ logo_url: result.meta.logoUrl }).eq("ticker", ticker);
     }
 
+    // --- Inline audit: auto-compute health status on every fetch ---
+    try {
+      const bs = result.balanceSheet ?? [];
+      const is = result.incomeStatement ?? [];
+
+      // Balance check: Assets = Liabilities + Equity + MinorityInterest
+      const balanceFailures: string[] = [];
+      for (const y of bs) {
+        const assets = Number(y.totalAssets || 0);
+        const liab = Number(y.totalLiabilities || 0);
+        const equity = Number(y.totalEquity || 0);
+        const minority = Number((y as any).minorityInterest || 0);
+        if (assets === 0) continue;
+        const diff = Math.abs(assets - (liab + equity + minority));
+        if (diff / assets > 0.02) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
+      }
+
+      // Income check
+      const incomeFailures: string[] = [];
+      for (const y of is) {
+        const rev = Number(y.revenue || 0);
+        const cogs = Number(y.costOfRevenue || 0);
+        const gp = Number(y.grossProfit || 0);
+        if (rev === 0 || gp === 0) continue;
+        const diff = Math.abs((rev - cogs) - gp);
+        if (diff / Math.abs(rev) > 0.02) incomeFailures.push(`${y.year}: ${((diff / Math.abs(rev)) * 100).toFixed(1)}% gap`);
+      }
+
+      // Coverage check
+      const currentYear = new Date().getFullYear();
+      const expectedYears = Array.from({ length: 5 }, (_, i) => currentYear - i);
+      const presentYears = (bs.length > 0 ? bs : is).map((y: any) => parseInt(String(y.year || "").substring(0, 4))).filter(Boolean);
+      const covered = expectedYears.filter(y => presentYears.includes(y));
+      const coveragePassed = covered.length >= 4;
+
+      // EPS check
+      const epsFailures: string[] = [];
+      for (const y of is) {
+        const ni = Number(y.netIncome || 0);
+        const eps = Number(y.eps || 0);
+        if (Math.abs(ni) > 1000 && eps === 0) epsFailures.push(`${y.year}: EPS=0`);
+      }
+
+      const checks = [
+        { name: "balance_sheet", passed: balanceFailures.length === 0, details: balanceFailures.length ? balanceFailures.join("; ") : "OK", severity: "critical" },
+        { name: "income_statement", passed: incomeFailures.length === 0, details: incomeFailures.length ? incomeFailures.join("; ") : "OK", severity: "critical" },
+        { name: "coverage", passed: coveragePassed, details: `${covered.length}/5 years`, severity: coveragePassed ? "minor" : "critical" },
+        { name: "eps", passed: epsFailures.length === 0, details: epsFailures.length ? epsFailures.join("; ") : "OK", severity: "minor" },
+      ];
+
+      const health = checks.some(c => !c.passed && c.severity === "critical") ? "red" : checks.some(c => !c.passed) ? "yellow" : "green";
+
+      await supabase.from("stock_audit_results").upsert(
+        { ticker, health, checks, last_audited: new Date().toISOString() },
+        { onConflict: "ticker" }
+      );
+      console.log(`Auto-audited ${ticker}: ${health}`);
+    } catch (auditErr) {
+      console.error("Inline audit error:", auditErr);
+    }
+
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("Edge function error:", err);
