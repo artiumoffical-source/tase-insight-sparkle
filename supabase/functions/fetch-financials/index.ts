@@ -50,21 +50,19 @@ function classifySector(gicsSector: string, industry: string): SectorType {
   return "general";
 }
 
-function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesOutstanding?: number) {
+function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const inc = incomeStatements[dateKey] || {};
     const netIncome = parseFloat(inc.netIncome) || 0;
-    // Try API EPS fields first, then calculate manually
+    // Try API EPS fields first
     let eps = parseFloat(inc.dilutedEPS) || parseFloat(inc.basicEPS) || parseFloat(inc.eps_actual) || 0;
     
-    // If no API EPS, try per-row weighted average shares
+    // If no API EPS, calculate from shares outstanding
     if (eps === 0 && netIncome !== 0) {
-      const rowShares = parseFloat(inc.weightedAverageShsOutDil) || parseFloat(inc.weightedAverageShsOut) || parseFloat(inc.commonStockSharesOutstanding) || 0;
-      const shares = rowShares > 0 ? rowShares : (sharesOutstanding || 0);
+      const year = dateKey.substring(0, 4);
+      const shares = sharesMap[year] || fallbackShares;
       if (shares > 0) {
-        eps = netIncome / shares;
-        // Round to 2 decimal places
-        eps = Math.round(eps * 100) / 100;
+        eps = Math.round((netIncome / shares) * 100) / 100;
       }
     }
     return {
