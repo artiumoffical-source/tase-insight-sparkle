@@ -354,7 +354,7 @@ serve(async (req) => {
           nonCurrentLiabilitiesTotal: 0,
           longTermDebt: row.totalDebt || 0, otherNonCurrentLiabilities: 0,
           totalEquity: row.totalEquity || 0,
-          commonStock: 0, retainedEarnings: 0, otherEquity: 0,
+          commonStock: 0, retainedEarnings: 0, otherEquity: 0, minorityInterest: row.minorityInterest || 0,
         }));
       }
       return new Response(JSON.stringify({
