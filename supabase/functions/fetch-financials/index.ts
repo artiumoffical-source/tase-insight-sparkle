@@ -448,8 +448,12 @@ serve(async (req) => {
     if (upsertError) console.error("Cache upsert error:", upsertError);
     else console.log(`Cached fundamentals for ${ticker}`);
 
-    if (result.meta.logoUrl) {
-      await supabase.from("tase_symbols").update({ logo_url: result.meta.logoUrl }).eq("ticker", ticker);
+    // Update tase_symbols with logo and correct reporting currency
+    const symbolUpdate: Record<string, string> = {};
+    if (result.meta.logoUrl) symbolUpdate.logo_url = result.meta.logoUrl;
+    if (result.meta.currency) symbolUpdate.currency = result.meta.currency;
+    if (Object.keys(symbolUpdate).length > 0) {
+      await supabase.from("tase_symbols").update(symbolUpdate).eq("ticker", ticker);
     }
 
     // --- Inline audit: auto-compute health status on every fetch ---
