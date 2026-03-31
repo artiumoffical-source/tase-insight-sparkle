@@ -760,18 +760,47 @@ serve(async (req) => {
         } catch (e) { /* ignore */ }
       }
 
-      // Yahoo Finance fallback
+      // Yahoo Finance fallback - try multiple ticker formats
       if (!primaryPrice) {
-        try {
-          const yTicker = primarySymbol.replace(".US", "");
-          const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`);
-          if (yResp.ok) {
-            const yData = await yResp.json();
-            const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-            primaryPrice = closes.filter((c: any) => c != null).pop() || undefined;
-            if (primaryPrice) console.log(`[${ticker}] Yahoo primary price: ${primaryPrice}`);
+        const yTickers = [primarySymbol.replace(".US", ""), ticker];
+        for (const yTicker of yTickers) {
+          try {
+            const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`, {
+              headers: { "User-Agent": "Mozilla/5.0" },
+            });
+            if (yResp.ok) {
+              const yData = await yResp.json();
+              const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+              primaryPrice = closes.filter((c: any) => c != null && c > 0).pop() || undefined;
+              if (primaryPrice) {
+                console.log(`[${ticker}] Yahoo primary price (${yTicker}): ${primaryPrice}`);
+                break;
+              }
+            }
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      // Final fallback for dual-listed: derive USD market cap from Highlights
+      // EODHD Highlights.MarketCapitalization for US-listed stocks is often in USD
+      if (!primaryPrice) {
+        const hlMcap = parseFloat(rawData.Highlights?.MarketCapitalization) || 0;
+        const hlMcapMln = parseFloat(rawData.Highlights?.MarketCapitalizationMln) || 0;
+        const genMcap = parseFloat(rawData.General?.MarketCapitalization) || 0;
+        // If Highlights mcap is significantly different from General mcap, it might be in different currencies
+        // For dual-listed, Highlights is often in reporting currency (USD)
+        if (hlMcapMln > 0 && totalSharesForMcap > 0) {
+          primaryPrice = (hlMcapMln * 1_000_000) / totalSharesForMcap;
+          console.log(`[${ticker}] Derived primaryPrice from Highlights.MarketCapitalizationMln: ${hlMcapMln}M / ${totalSharesForMcap} shares = ${primaryPrice} (assumed ${reportCcy})`);
+        } else if (hlMcap > 0 && genMcap > 0 && totalSharesForMcap > 0) {
+          // If Highlights and General are very different, Highlights might be in USD
+          const ratio = genMcap / hlMcap;
+          if (ratio > 2 && ratio < 6) {
+            // Looks like genMcap is in ILS and hlMcap is in USD (ratio ~3.5)
+            primaryPrice = hlMcap / totalSharesForMcap;
+            console.log(`[${ticker}] Derived primaryPrice from Highlights mcap (USD): ${hlMcap} / ${totalSharesForMcap} = ${primaryPrice}`);
           }
-        } catch (e) { /* ignore */ }
+        }
       }
 
       if (!primaryPrice) {
