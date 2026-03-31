@@ -447,7 +447,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS, currency }: { rows: Detai
                         </td>
                         {years.map(y => (
                           <td key={y} className="text-end py-3 px-3 font-mono font-bold text-foreground">
-                            {formatNum((byYear[y]?.[node.field] as number) || 0)}
+                            {formatNum((byYear[y]?.[node.field] as number) || 0, currency)}
                           </td>
                         ))}
                       </tr>
