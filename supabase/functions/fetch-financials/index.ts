@@ -298,14 +298,18 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     const totalShares = sharesMap[latestYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
     const priceInTradingCcy = eodPrice?.price || 0;
 
-    if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
-      // price is in trading currency (ILS), convert to reporting currency (USD)
+    if (totalShares > 0 && primaryPrice && primaryPrice > 0) {
+      // Best: use primary exchange price (already in reporting currency, e.g. USD)
+      adjustedMarketCap = totalShares * primaryPrice;
+      console.log(`[${ticker}] Using primary price: ${primaryPrice} ${normalizedCurrency}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
+    } else if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
+      // Fallback: TASE price converted to reporting currency
       adjustedMarketCap = (totalShares * priceInTradingCcy) / exchangeRate;
     } else if (rawMarketCap > 0 && exchangeRate) {
-      // Fallback: use EODHD's market cap (may be TASE-only) divided by FX
+      // Last resort: use EODHD's market cap (may be TASE-only) divided by FX
       adjustedMarketCap = rawMarketCap / exchangeRate;
     }
-    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, totalShares=${totalShares}, price=${priceInTradingCcy}, adjustedMcap=${adjustedMarketCap}`);
+    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, totalShares=${totalShares}, price=${priceInTradingCcy}, primaryPrice=${primaryPrice}, adjustedMcap=${adjustedMarketCap}`);
   } else {
     adjustedMarketCap = rawMarketCap;
   }
