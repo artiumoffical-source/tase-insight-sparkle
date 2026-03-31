@@ -287,12 +287,27 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const tradingCurrency = (general.CurrencyCode === "ILA" ? "ILS" : general.CurrencyCode) || "ILS";
   const needsCurrencyConversion = exchangeRate && exchangeRate !== 1 && tradingCurrency !== normalizedCurrency;
 
-  // Market cap from EODHD is in TRADING currency; financials are in REPORTING currency
+  // Market cap: for dual-listed stocks, EODHD's MarketCapitalization for .TA only reflects
+  // TASE-traded shares, NOT global market cap. Compute from total shares × price instead.
+  let adjustedMarketCap = 0;
   const rawMarketCap = parseFloat(highlights.MarketCapitalization) || 0;
-  const adjustedMarketCap = needsCurrencyConversion ? rawMarketCap / exchangeRate! : rawMarketCap;
-  
+
   if (needsCurrencyConversion) {
-    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, rawMcap=${rawMarketCap}, adjustedMcap=${adjustedMarketCap}`);
+    // Compute global market cap from total shares outstanding × price, converted to reporting currency
+    const latestYear = Object.keys(sharesMap).sort().reverse()[0];
+    const totalShares = sharesMap[latestYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
+    const priceInTradingCcy = eodPrice?.price || 0;
+
+    if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
+      // price is in trading currency (ILS), convert to reporting currency (USD)
+      adjustedMarketCap = (totalShares * priceInTradingCcy) / exchangeRate;
+    } else if (rawMarketCap > 0 && exchangeRate) {
+      // Fallback: use EODHD's market cap (may be TASE-only) divided by FX
+      adjustedMarketCap = rawMarketCap / exchangeRate;
+    }
+    console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, totalShares=${totalShares}, price=${priceInTradingCcy}, adjustedMcap=${adjustedMarketCap}`);
+  } else {
+    adjustedMarketCap = rawMarketCap;
   }
 
   // Calculate valuation ratios using adjusted (same-currency) market cap
