@@ -56,7 +56,7 @@ export default function SearchBar() {
             normalize(s.name).includes(normalized) ||
             normalize(s.nameHe).includes(normalized)
         ).slice(0, 8);
-        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null, security_id: null })));
+        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, override_name_he: null, logo_url: null, security_id: null })));
       } else {
         setResults(data ?? []);
       }
