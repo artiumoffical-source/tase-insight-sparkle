@@ -1,0 +1,2 @@
+ALTER TABLE public.news_articles DROP CONSTRAINT news_articles_status_check;
+ALTER TABLE public.news_articles ADD CONSTRAINT news_articles_status_check CHECK (status = ANY (ARRAY['pending'::text, 'published'::text, 'rejected'::text, 'draft'::text]));
