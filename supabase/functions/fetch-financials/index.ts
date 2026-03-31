@@ -264,6 +264,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const force = url.searchParams.get("force") === "true";
+
     const { data: cached } = await supabase
       .from("cached_fundamentals")
       .select("data, last_updated")
