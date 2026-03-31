@@ -206,9 +206,6 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
   const technicals = data.Technicals || {};
-  const general = data.General || {};
-  const highlights = data.Highlights || {};
-  const valuation = data.Valuation || {};
 
   const rawLogo = general.LogoURL || null;
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
