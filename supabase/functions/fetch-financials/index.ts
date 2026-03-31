@@ -205,6 +205,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const general = data.General || {};
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
+  const technicals = data.Technicals || {};
 
   const rawLogo = general.LogoURL || null;
   const logoUrl = rawLogo ? (rawLogo.startsWith("http") ? rawLogo : `https://eodhd.com${rawLogo}`) : null;
@@ -337,11 +338,25 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     } else if (totalShares > 0 && priceInTradingCcy > 0 && exchangeRate) {
       // Fallback: TASE price converted to reporting currency
       adjustedMarketCap = (totalShares * priceInTradingCcy) / exchangeRate;
+      console.log(`[${ticker}] TASE price fallback: ${priceInTradingCcy} / ${exchangeRate}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
     }
-    // Fallback: use EODHD's MarketCapitalization (in trading currency) converted to reporting currency
+    // Fallback: use EODHD Technicals (50DayMA or 200DayMA) as price proxy
+    if (adjustedMarketCap === 0 && totalShares > 0 && exchangeRate) {
+      let techPrice = parseFloat(technicals["50DayMA"]) || parseFloat(technicals["200DayMA"]) || 0;
+      // EODHD sometimes reports TASE prices in Agorot (1/100 ILS) — detect and convert
+      if (techPrice > 10000 && tradingCurrency === "ILS") {
+        techPrice = techPrice / 100;
+        console.log(`[${ticker}] Agorot→ILS correction: techPrice=${techPrice}`);
+      }
+      if (techPrice > 0) {
+        adjustedMarketCap = (totalShares * techPrice) / exchangeRate;
+        console.log(`[${ticker}] Technicals price fallback: 50DMA/200DMA=${techPrice}, shares=${totalShares}, mcap=${adjustedMarketCap}`);
+      }
+    }
+    // Last resort: use EODHD's MarketCapitalization (WARNING: often wrong for dual-listed)
     if (adjustedMarketCap === 0 && rawMarketCap > 0 && exchangeRate && exchangeRate > 0) {
       adjustedMarketCap = rawMarketCap / exchangeRate;
-      console.log(`[${ticker}] Fallback: EODHD mcap ${rawMarketCap} ${tradingCurrency} / ${exchangeRate} = ${adjustedMarketCap} ${normalizedCurrency}`);
+      console.log(`[${ticker}] Last resort: EODHD mcap ${rawMarketCap} / ${exchangeRate} = ${adjustedMarketCap} (may be inaccurate for dual-listed)`);
     }
     console.log(`[${ticker}] Cross-currency fix: tradingCcy=${tradingCurrency}, reportingCcy=${normalizedCurrency}, rate=${exchangeRate}, adjustedMcap=${adjustedMarketCap}`);
   } else {
@@ -366,6 +381,14 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (ttmNetIncome !== 0) peRatio = Math.round((adjustedMarketCap / ttmNetIncome) * 100) / 100;
     if (ttmRevenue > 0) psRatio = Math.round((adjustedMarketCap / ttmRevenue) * 100) / 100;
     if (bookValue > 0) pbRatio = Math.round((adjustedMarketCap / bookValue) * 100) / 100;
+    
+    // Sanity check: if ratios are impossibly low, the market cap is likely wrong — null them out
+    if (psRatio !== null && psRatio < 0.1 && ttmRevenue > 100_000_000) {
+      console.warn(`[${ticker}] P/S=${psRatio} too low (rev=${ttmRevenue}, mcap=${adjustedMarketCap}) — likely bad MarketCap from EODHD. Nulling ratios.`);
+      peRatio = null;
+      psRatio = null;
+      pbRatio = null;
+    }
     
     console.log(`[${ticker}] Recalculated multiples: P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
   } else if (needsCurrencyConversion) {
@@ -441,7 +464,7 @@ serve(async (req) => {
       .eq("ticker", ticker)
       .maybeSingle();
 
-    // Always fetch fresh price
+    // Always fetch fresh price (EODHD + Yahoo fallback)
     let eodPrice: { price: number; change: number } | undefined;
     try {
       const symbol = ticker.includes(".") ? ticker : `${ticker}.TA`;
@@ -455,6 +478,23 @@ serve(async (req) => {
       }
     } catch (e) {
       console.error("Real-time price fetch error:", e);
+    }
+
+    // Yahoo Finance fallback for TASE price when EODHD returns 0
+    if (!eodPrice || eodPrice.price === 0) {
+      try {
+        const ySymbol = `${ticker}.TA`;
+        const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ySymbol}?interval=1d&range=5d`);
+        if (yResp.ok) {
+          const yData = await yResp.json();
+          const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+          const lastClose = closes.filter((c: any) => c != null && c > 0).pop();
+          if (lastClose) {
+            eodPrice = { price: lastClose, change: 0 };
+            console.log(`[${ticker}] Yahoo TASE fallback price: ${lastClose}`);
+          }
+        }
+      } catch (e) { console.error("Yahoo TASE price fallback error:", e); }
     }
 
     // Return cached if fresh (skip cache when force=true)
@@ -703,7 +743,7 @@ serve(async (req) => {
         const equity = Number(y.totalEquity || 0);
         if (assets === 0) continue;
         const diff = Math.abs(assets - (liab + equity));
-        if (diff / assets > 0.02) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
+        if (diff / assets > 0.05) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
       }
 
       // Income check

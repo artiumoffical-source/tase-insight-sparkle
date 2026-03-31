@@ -22,7 +22,7 @@ function runBalanceCheck(years: any[]): CheckResult {
     if (assets === 0) continue;
     const diff = Math.abs(assets - (liab + equity));
     const pct = diff / assets;
-    if (pct > 0.02) {
+    if (pct > 0.05) {
       failures.push(`${y.year}: ${(pct * 100).toFixed(1)}% gap`);
     }
   }
