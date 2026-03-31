@@ -714,55 +714,60 @@ serve(async (req) => {
       }
     }
 
-    // For dual-listed stocks: resolve a reliable price for market cap calculation
+    // For dual-listed stocks: ALWAYS try to get the primary exchange price (e.g. USD)
+    // This is more reliable than ILS→USD conversion via exchange rates
     let primaryPrice: number | undefined;
     if (tradingCcy !== reportCcy) {
-      const tasePrice = eodPrice?.price || 0;
-
-      if (tasePrice > 0 && exchangeRate) {
-        // TASE price available — will be used in parseFundamentals via shares * tasePrice / FX
-        // No need to set primaryPrice; the function handles this
-      } else {
-        // No TASE price — try fetching primary exchange (e.g. NYSE) price
-        const listings = rawData.General?.Listings || {};
-        let primarySymbol = "";
-        for (const [, listing] of Object.entries(listings) as [string, any][]) {
-          const exch = listing?.Exchange || "";
-          if (exch && exch !== "TA" && exch !== "TASE") {
-            primarySymbol = `${listing.Code || ticker}.${exch === "NYSE" || exch === "NASDAQ" ? "US" : exch}`;
-            break;
-          }
+      const listings = rawData.General?.Listings || {};
+      let primarySymbol = "";
+      for (const [, listing] of Object.entries(listings) as [string, any][]) {
+        const exch = listing?.Exchange || "";
+        if (exch && exch !== "TA" && exch !== "TASE") {
+          primarySymbol = `${listing.Code || ticker}.${exch === "NYSE" || exch === "NASDAQ" ? "US" : exch}`;
+          break;
         }
-        if (!primarySymbol) primarySymbol = `${ticker}.US`;
+      }
+      if (!primarySymbol) primarySymbol = `${ticker}.US`;
 
+      try {
+        console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
+        const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
+        if (pResp.ok) {
+          const pData = await pResp.json();
+          primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
+          if (primaryPrice) console.log(`[${ticker}] Primary price: ${primaryPrice} ${reportCcy}`);
+        }
+      } catch (e) { /* ignore rate limits */ }
+
+      // EODHD EOD fallback for primary listing
+      if (!primaryPrice) {
         try {
-          console.log(`[${ticker}] Fetching primary listing price: ${primarySymbol}`);
-          const pResp = await fetch(`https://eodhd.com/api/real-time/${primarySymbol}?api_token=${apiKey}&fmt=json`);
-          if (pResp.ok) {
-            const pData = await pResp.json();
-            primaryPrice = Number(pData?.close) || Number(pData?.previousClose) || undefined;
-            if (primaryPrice) console.log(`[${ticker}] Primary price: ${primaryPrice} ${reportCcy}`);
+          const eodPrimaryResp = await fetch(`https://eodhd.com/api/eod/${primarySymbol}?api_token=${apiKey}&fmt=json&order=d&limit=1`);
+          if (eodPrimaryResp.ok) {
+            const eodPrimaryData = await eodPrimaryResp.json();
+            const entry = Array.isArray(eodPrimaryData) ? eodPrimaryData[0] : eodPrimaryData;
+            primaryPrice = Number(entry?.close) || Number(entry?.adjusted_close) || undefined;
+            if (primaryPrice) console.log(`[${ticker}] Primary EOD price: ${primaryPrice} ${reportCcy}`);
           }
-        } catch (e) { /* ignore rate limits */ }
+        } catch (e) { /* ignore */ }
+      }
 
-        // Yahoo Finance fallback
-        if (!primaryPrice) {
-          try {
-            const yTicker = primarySymbol.replace(".US", "");
-            const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`);
-            if (yResp.ok) {
-              const yData = await yResp.json();
-              const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-              primaryPrice = closes.filter((c: any) => c != null).pop() || undefined;
-              if (primaryPrice) console.log(`[${ticker}] Yahoo price: ${primaryPrice}`);
-            }
-          } catch (e) { /* ignore */ }
-        }
+      // Yahoo Finance fallback
+      if (!primaryPrice) {
+        try {
+          const yTicker = primarySymbol.replace(".US", "");
+          const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`);
+          if (yResp.ok) {
+            const yData = await yResp.json();
+            const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+            primaryPrice = closes.filter((c: any) => c != null).pop() || undefined;
+            if (primaryPrice) console.log(`[${ticker}] Yahoo primary price: ${primaryPrice}`);
+          }
+        } catch (e) { /* ignore */ }
+      }
 
-        // If no price source worked, log it — valuation metrics will be null
-        if (!primaryPrice) {
-          console.warn(`[${ticker}] No price available for cross-currency valuation — metrics will be null`);
-        }
+      if (!primaryPrice) {
+        console.warn(`[${ticker}] No primary price available — will use TASE price with FX conversion`);
       }
     }
 
