@@ -42,22 +42,31 @@ function pctChange(current: number, previous: number): number {
 }
 
 // ─── Build data lock from cached_fundamentals ───
+const STALE_THRESHOLD_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+
 async function buildDataLock(
   ticker: string,
   companyName: string,
   adminClient: any,
   eodhKey: string | undefined
-): Promise<DataLock | null> {
+): Promise<DataLock | null | "stale"> {
   // 1. Get financials from our DB (source of truth)
   const { data: cached } = await adminClient
     .from("cached_fundamentals")
-    .select("data")
+    .select("data, last_updated")
     .eq("ticker", ticker)
     .maybeSingle();
 
   if (!cached?.data) {
     console.log(`No cached_fundamentals for ${ticker}, skipping`);
     return null;
+  }
+
+  // Freshness check
+  const lastUpdated = new Date(cached.last_updated).getTime();
+  if (Date.now() - lastUpdated > STALE_THRESHOLD_MS) {
+    console.log(`Skipped ${ticker}: fundamentals stale (last updated: ${cached.last_updated})`);
+    return "stale";
   }
 
   const fundamentals = cached.data as any;
