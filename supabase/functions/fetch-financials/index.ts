@@ -586,10 +586,17 @@ serve(async (req) => {
 
     console.log(`[${ticker}] Currency detection: tradingCcy=${tradingCcy}, stmtCurrency=${stmtCurrency}, reportingCurrency=${generalReportingCurrency}, final=${reportCcy}`);
 
+    // Hardcoded fallback FX rates (last resort if live API fails)
+    const FALLBACK_FX: Record<string, Record<string, number>> = {
+      USD: { ILS: 3.75, EUR: 0.92, GBP: 0.79 },
+      EUR: { ILS: 4.05, USD: 1.09, GBP: 0.86 },
+      GBP: { ILS: 4.70, USD: 1.27, EUR: 1.16 },
+    };
+
     if (tradingCcy !== reportCcy) {
       // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
       try {
-        const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`);
+        const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`, { signal: AbortSignal.timeout(5000) });
         if (fxResp.ok) {
           const fxData = await fxResp.json();
           const rate = fxData?.rates?.[tradingCcy];
@@ -602,6 +609,15 @@ serve(async (req) => {
         }
       } catch (fxErr) {
         console.error(`[${ticker}] Failed to fetch FX rate:`, fxErr);
+      }
+
+      // Fallback to hardcoded rate if live fetch failed
+      if (!exchangeRate) {
+        const fallback = FALLBACK_FX[reportCcy]?.[tradingCcy];
+        if (fallback) {
+          exchangeRate = fallback;
+          console.log(`[${ticker}] Using FALLBACK FX rate ${reportCcy}→${tradingCcy}: ${exchangeRate}`);
+        }
       }
     }
 
