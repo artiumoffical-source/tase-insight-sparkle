@@ -447,15 +447,14 @@ serve(async (req) => {
       const bs = result.balanceSheet ?? [];
       const is = result.incomeStatement ?? [];
 
-      // Balance check: Assets = Liabilities + Equity + MinorityInterest
+      // Balance check: Assets = Liabilities + Equity (Equity already includes MI)
       const balanceFailures: string[] = [];
       for (const y of bs) {
         const assets = Number(y.totalAssets || 0);
         const liab = Number(y.totalLiabilities || 0);
         const equity = Number(y.totalEquity || 0);
-        const minority = Number((y as any).minorityInterest || 0);
         if (assets === 0) continue;
-        const diff = Math.abs(assets - (liab + equity + minority));
+        const diff = Math.abs(assets - (liab + equity));
         if (diff / assets > 0.02) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
       }
 
