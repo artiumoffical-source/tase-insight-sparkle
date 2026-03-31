@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
-import { Newspaper, Lock, BookOpen } from "lucide-react";
+import { Newspaper, Lock, BookOpen, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import NewsReaderModal, { type NewsArticle } from "@/components/NewsReaderModal";
 import { getCached, setCache } from "@/lib/stock-cache";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StockNewsSidebarProps {
   ticker: string;
@@ -22,17 +24,20 @@ function timeAgo(dateStr: string, lang: string): string {
   return lang === "he" ? `לפני ${days} ימים` : `${days}d ago`;
 }
 
+interface EnrichedNewsArticle extends NewsArticle {
+  isLocal?: boolean;
+}
+
 export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: StockNewsSidebarProps) {
   const { t, lang } = useLanguage();
-  const [items, setItems] = useState<NewsArticle[]>([]);
+  const [items, setItems] = useState<EnrichedNewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
   const [readerOpen, setReaderOpen] = useState(false);
 
   const fetchNews = useCallback(async (skipCache = false) => {
-    // Check cache first
     if (!skipCache) {
-      const cached = getCached<{ items: NewsArticle[] }>("news", ticker);
+      const cached = getCached<{ items: EnrichedNewsArticle[] }>("news", ticker);
       if (cached) {
         setItems(cached.items ?? []);
         setLoading(false);
@@ -41,16 +46,52 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
     }
 
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/fetch-news?ticker=${ticker}`,
-        { headers: { apikey: anonKey, "Content-Type": "application/json" } }
-      );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setItems(data.items ?? []);
-      setCache("news", ticker, data);
+      // 1. Fetch local published articles from news_articles table
+      const { data: localArticles } = await supabase
+        .from("news_articles")
+        .select("*")
+        .eq("related_ticker", ticker)
+        .eq("status", "published")
+        .order("published_at", { ascending: false })
+        .limit(10);
+
+      const localItems: EnrichedNewsArticle[] = (localArticles ?? []).map((a) => ({
+        title: a.original_title || a.ai_title_he,
+        titleHe: a.ai_title_he,
+        content: a.content || a.ai_body_he,
+        contentHe: a.ai_body_he,
+        url: a.original_url || "",
+        source: a.author || "AlphaMap",
+        date: a.published_at || a.created_at,
+        image: null,
+        sentiment: a.sentiment === "positive" ? 0.5 : a.sentiment === "negative" ? -0.5 : 0,
+        isLocal: true,
+      }));
+
+      // 2. Fetch external EODHD news
+      let externalItems: EnrichedNewsArticle[] = [];
+      try {
+        const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/fetch-news?ticker=${ticker}`,
+          { headers: { apikey: anonKey, "Content-Type": "application/json" } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          externalItems = ((data.items ?? []) as NewsArticle[]).map((item) => ({
+            ...item,
+            isLocal: false,
+          }));
+        }
+      } catch (err) {
+        console.error("External news fetch error:", err);
+      }
+
+      // 3. Merge: local first, then external
+      const merged = [...localItems, ...externalItems];
+      setItems(merged);
+      setCache("news", ticker, { items: merged });
     } catch (err) {
       console.error("News fetch error:", err);
     } finally {
@@ -64,7 +105,7 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
     return () => clearInterval(interval);
   }, [fetchNews]);
 
-  const handleArticleClick = (article: NewsArticle) => {
+  const handleArticleClick = (article: EnrichedNewsArticle) => {
     setSelectedArticle(article);
     setReaderOpen(true);
   };
@@ -74,7 +115,6 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
 
   return (
     <div className="space-y-4">
-      {/* News Feed */}
       <div className="rounded-xl border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -114,7 +154,7 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
                       className="h-8 w-8 rounded-md object-cover shrink-0 mt-0.5"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
-                  ) : item.source ? (
+                  ) : item.source && !item.isLocal ? (
                     <img
                       src={`https://logo.clearbit.com/${item.source.toLowerCase().replace(/\s/g, '')}.com`}
                       alt=""
@@ -123,12 +163,20 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
                     />
                   ) : null}
                   <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      {item.isLocal && (
+                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 gap-0.5 shrink-0">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          {isHe ? "ניתוח מקומי" : "Local Analysis"}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs font-medium leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                       {isHe && item.titleHe ? item.titleHe : item.title}
                     </p>
                     <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                      <span>{item.source}</span>
-                      <span>·</span>
+                      {!item.isLocal && <span>{item.source}</span>}
+                      {!item.isLocal && <span>·</span>}
                       <span>{timeAgo(item.date, lang)}</span>
                       <BookOpen className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity ms-auto" />
                     </div>
@@ -166,7 +214,6 @@ export default function StockNewsSidebar({ ticker, isPremium, onUpgrade }: Stock
         )}
       </div>
 
-      {/* Reader Modal */}
       <NewsReaderModal
         article={selectedArticle}
         open={readerOpen}
