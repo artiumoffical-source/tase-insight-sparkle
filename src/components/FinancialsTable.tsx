@@ -280,7 +280,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName, currency }: { rows: any[
                       const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
                       return (
                         <TableCell key={y} className={`text-end font-mono ${colorClass}`}>
-                          {m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : formatNum(val)}
+                          {m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : formatNum(val, currency)}
                         </TableCell>
                       );
                     })}
