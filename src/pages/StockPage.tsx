@@ -109,6 +109,7 @@ export default function StockPage() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [overrideNameHe, setOverrideNameHe] = useState<string | null>(null);
 
   const isPremium = user?.email === "artiumoffical@gmail.com";
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
