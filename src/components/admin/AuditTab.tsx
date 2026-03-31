@@ -183,6 +183,56 @@ export default function AuditTab() {
     }
   };
 
+  const bulkRefreshBalanceErrors = async () => {
+    setBulkRefreshing(true);
+    try {
+      // Get all red/yellow stocks with balance_sheet failures
+      const errorTickers = (auditResults ?? [])
+        .filter((r: any) => r.health === "red" || r.health === "yellow")
+        .filter((r: any) => {
+          const checks = (r.checks || []) as CheckResult[];
+          return checks.some(c => c.name === "balance_sheet" && !c.passed);
+        })
+        .map((r: any) => r.ticker);
+
+      if (!errorTickers.length) {
+        toast.info("אין מניות עם שגיאות מאזן");
+        setBulkRefreshing(false);
+        return;
+      }
+
+      let refreshed = 0;
+      for (const ticker of errorTickers) {
+        try {
+          const res = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-financials?ticker=${ticker}&force=true`,
+            { headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, "Content-Type": "application/json" } }
+          );
+          if (res.ok) refreshed++;
+          // Rate limit protection
+          await new Promise(r => setTimeout(r, 1500));
+        } catch {}
+      }
+
+      // Re-run audit
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/audit-financials`,
+          { headers: { Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+        );
+      }
+
+      toast.success(`רוענו ${refreshed}/${errorTickers.length} מניות עם שגיאות מאזן`);
+      queryClient.invalidateQueries({ queryKey: ["audit-results"] });
+      queryClient.invalidateQueries({ queryKey: ["cached-fundamentals-meta"] });
+    } catch (err: any) {
+      toast.error(`שגיאה: ${err.message}`);
+    } finally {
+      setBulkRefreshing(false);
+    }
+  };
+
   const openManualEdit = (ticker: string) => {
     const fund = cachedFundamentals?.find((f: any) => f.ticker === ticker);
     if (!fund) { toast.error("לא נמצאו נתונים לעריכה"); return; }
@@ -253,10 +303,14 @@ export default function AuditTab() {
             {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             הרץ ביקורת מלאה
           </Button>
-          <Button onClick={bulkRefreshEps} disabled={bulkRefreshing} variant="outline" className="gap-2">
-            {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            רענן כל EPS=0
-          </Button>
+           <Button onClick={bulkRefreshEps} disabled={bulkRefreshing} variant="outline" className="gap-2">
+             {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+             רענן כל EPS=0
+           </Button>
+           <Button onClick={bulkRefreshBalanceErrors} disabled={bulkRefreshing} variant="outline" className="gap-2 text-destructive border-destructive/50">
+             {bulkRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+             תקן שגיאות מאזן
+           </Button>
         </div>
       </div>
 

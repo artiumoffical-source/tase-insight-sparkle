@@ -35,6 +35,7 @@ export interface DetailedBalanceSheetRow {
   totalLiabilities: number;
   // Equity
   totalEquity: number;
+  minorityInterest: number;
   commonStock: number;
   retainedEarnings: number;
   otherEquity: number;
@@ -89,6 +90,7 @@ const BALANCE_HIERARCHY: HierarchyNode[] = [
       { labelKey: "deepdive.commonStock", field: "commonStock" },
       { labelKey: "deepdive.retainedEarnings", field: "retainedEarnings" },
       { labelKey: "deepdive.otherEquity", field: "otherEquity" },
+      { labelKey: "deepdive.minorityInterest", field: "minorityInterest" },
     ],
   },
 ];
@@ -101,7 +103,7 @@ const CHECKSUM_GROUPS: { parent: keyof DetailedBalanceSheetRow; children: (keyof
   { parent: "totalCurrentLiabilities", children: ["accountsPayable", "shortTermDebt", "otherCurrentLiabilities"] },
   { parent: "nonCurrentLiabilitiesTotal", children: ["longTermDebt", "otherNonCurrentLiabilities"] },
   { parent: "totalLiabilities", children: ["totalCurrentLiabilities", "nonCurrentLiabilitiesTotal"] },
-  { parent: "totalEquity", children: ["commonStock", "retainedEarnings", "otherEquity"] },
+  { parent: "totalEquity", children: ["commonStock", "retainedEarnings", "otherEquity", "minorityInterest"] },
 ];
 
 function formatNum(value: number): string {

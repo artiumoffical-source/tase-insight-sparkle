@@ -91,6 +91,7 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
       totalAssets: parseFloat(bal.totalAssets) || 0,
       totalLiabilities: parseFloat(bal.totalLiab) || 0,
       totalEquity: parseFloat(bal.totalStockholderEquity) || 0,
+      minorityInterest: parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
       inventory: parseFloat(bal.inventory) || 0,
@@ -132,6 +133,7 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       longTermDebt: p("longTermDebt") || p("longTermDebtTotal"),
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
       totalEquity: p("totalStockholderEquity"),
+      minorityInterest: p("minorityInterest") || p("nonControllingInterest"),
       commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
       retainedEarnings: p("retainedEarnings"),
       otherEquity: p("accumulatedOtherComprehensiveIncome") || p("otherStockholderEquity"),
@@ -352,7 +354,7 @@ serve(async (req) => {
           nonCurrentLiabilitiesTotal: 0,
           longTermDebt: row.totalDebt || 0, otherNonCurrentLiabilities: 0,
           totalEquity: row.totalEquity || 0,
-          commonStock: 0, retainedEarnings: 0, otherEquity: 0,
+          commonStock: 0, retainedEarnings: 0, otherEquity: 0, minorityInterest: row.minorityInterest || 0,
         }));
       }
       return new Response(JSON.stringify({
