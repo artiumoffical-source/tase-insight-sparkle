@@ -1,63 +1,86 @@
 
 
-# Upgrade Live Market Data - Technical Overhaul
+# Data Integrity Audit System
 
-## Key Finding
-EODHD WebSockets only support **US stocks, Forex, and Crypto** — TASE (.TA) securities are **not available** via WebSocket. Therefore, we cannot implement push-style streaming for Israeli stocks. The plan focuses on maximizing perceived speed through high-frequency polling and polished UI feedback.
+## Database Changes (2 migrations)
 
-## Plan
+### Migration 1: `stock_audit_results` table
+```sql
+CREATE TABLE public.stock_audit_results (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticker text NOT NULL UNIQUE,
+  health text NOT NULL DEFAULT 'red',
+  checks jsonb NOT NULL DEFAULT '{}'::jsonb,
+  verified_by_admin boolean NOT NULL DEFAULT false,
+  last_audited timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-### 1. Adaptive Polling: 2s During Market Hours, 15s When Closed
-**Files:** `src/components/NativeMarketTables.tsx`, `src/components/NativeTickerTape.tsx`
+ALTER TABLE public.stock_audit_results ENABLE ROW LEVEL SECURITY;
 
-- During market hours (Sun–Thu, 10:00–17:30 Israel time): poll every **2 seconds**
-- Outside market hours: poll every **15 seconds** (saves API calls)
-- Use the existing `useMarketOpen()` hook to drive the interval dynamically
-- On visibility change: immediately fetch + restart at correct interval
+CREATE POLICY "Anyone can read audit results" ON public.stock_audit_results
+  FOR SELECT TO anon, authenticated USING (true);
 
-### 2. Enhanced Green/Red Flash Animation
-**File:** `src/index.css` (or `tailwind.config.ts`)
+CREATE POLICY "Superadmins can manage audit results" ON public.stock_audit_results
+  FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'superadmin'))
+  WITH CHECK (public.has_role(auth.uid(), 'superadmin'));
+```
 
-- Current flash animation exists but is subtle — make it more prominent
-- Add a brief background color pulse (green for price up, red for price down) that fades over ~600ms
-- Apply to individual price cells in both the Ticker Tape and Market Tables
-- Ensure the flash triggers only on actual price changes (already implemented via `prevPrices` ref)
+### Migration 2: `data_issue_reports` table
+```sql
+CREATE TABLE public.data_issue_reports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticker text NOT NULL,
+  reporter_email text,
+  message text NOT NULL DEFAULT '',
+  resolved boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 
-### 3. Live Connection Status Indicator
-**File:** `src/components/NativeMarketTables.tsx`
+ALTER TABLE public.data_issue_reports ENABLE ROW LEVEL SECURITY;
 
-- Replace the current simple "last update" timestamp with a richer status line:
-  - Green pulsing dot + "נתונים חיים מהבורסה" during market hours when data is flowing
-  - Show seconds since last successful update (e.g., "עודכן לפני 2 שניות")
-  - If no update received for >10 seconds, show amber dot + "מתחבר מחדש..."
-  - When market closed: gray dot + "נתוני סוף יום"
-- Add the same indicator to the Ticker Tape component
+CREATE POLICY "Authenticated users can report issues" ON public.data_issue_reports
+  FOR INSERT TO authenticated
+  WITH CHECK (true);
 
-### 4. WebSocket-Ready Architecture (Future-Proof)
-**File:** Create `src/hooks/useMarketData.ts`
+CREATE POLICY "Superadmins can manage reports" ON public.data_issue_reports
+  FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'superadmin'))
+  WITH CHECK (public.has_role(auth.uid(), 'superadmin'));
+```
 
-- Extract the polling logic from NativeMarketTables into a shared custom hook
-- The hook accepts a `mode` parameter: `"polling"` (current) or `"websocket"` (future)
-- Both NativeMarketTables and NativeTickerTape consume this hook instead of duplicating fetch logic
-- When a WebSocket API becomes available for TASE, only the hook internals need to change — no UI changes required
+## Edge Function: `supabase/functions/audit-financials/index.ts`
 
-### 5. Batch Optimization for 2s Polling
-**File:** `supabase/functions/fetch-quotes/index.ts`
+Accepts optional `?ticker=LUMI` or audits all tickers in `cached_fundamentals`.
 
-- Add a lightweight server-side cache (in-memory Map with 1.5s TTL) so rapid requests within the same second don't hit EODHD/Yahoo twice
-- This prevents API rate-limiting when multiple clients poll at 2s intervals
-- Log cache hit/miss for monitoring
+For each ticker, runs these checks against cached data:
+1. **Balance Check**: `|Total Assets - (Total Liabilities + Equity)| / Total Assets < 2%`
+2. **Income Check**: `|Revenue - Cost of Revenue - Gross Profit| / Revenue < 2%`
+3. **Coverage Check**: At least 4 of last 5 years present
+4. **Currency Check**: If currency is ILS but values look USD-scale (e.g., revenue > $1B for a small-cap), flag as suspect
+
+Scoring: all pass = green, minor issues = yellow, any critical fail = red. Upserts into `stock_audit_results`.
+
+## Admin Panel: Add Audit Tab to AdminNewsroom
+
+Add a tabbed UI (News | Audit) to `src/pages/AdminNewsroom.tsx`:
+- **Audit tab** shows a table: Ticker, Name, Health (green/yellow/red badge), Last Audited, Verified checkbox
+- Filter buttons: All / Red / Yellow / Green
+- "Run Full Audit" button calls the edge function
+- "Data Issue Reports" section with ticker, message, date, and Resolve button
+- Verified checkbox toggles `verified_by_admin` via direct update
+
+## Public Stock Page: Report Button
+
+In `src/pages/StockPage.tsx`, add a small "דווח על שגיאה" button near the financials section. Opens a dialog, submits to `data_issue_reports`, shows toast confirmation. Auth-only.
 
 ## Technical Details
 
 **Files to create:**
-- `src/hooks/useMarketData.ts` — shared market data hook with adaptive polling
+- `supabase/functions/audit-financials/index.ts`
 
 **Files to modify:**
-- `src/components/NativeMarketTables.tsx` — use shared hook, add connection status indicator
-- `src/components/NativeTickerTape.tsx` — use shared hook, 2s polling during market hours
-- `src/index.css` — enhanced flash animations
-- `supabase/functions/fetch-quotes/index.ts` — add server-side micro-cache
-
-**No database changes needed.**
+- `src/pages/AdminNewsroom.tsx` — tabbed layout + audit dashboard
+- `src/pages/StockPage.tsx` — report issue button + dialog
 
