@@ -756,7 +756,7 @@ serve(async (req) => {
       }
     }
 
-    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice);
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy);
 
     // Upsert cache
     const { error: upsertError } = await supabase
