@@ -760,25 +760,41 @@ serve(async (req) => {
         } catch (e) { /* ignore */ }
       }
 
-      // Yahoo Finance fallback - try multiple ticker formats
+      // Yahoo Finance fallback - try the US-listed code directly
       if (!primaryPrice) {
-        const yTickers = [primarySymbol.replace(".US", ""), ticker];
-        for (const yTicker of yTickers) {
-          try {
-            const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yTicker}?interval=1d&range=5d`, {
-              headers: { "User-Agent": "Mozilla/5.0" },
-            });
-            if (yResp.ok) {
-              const yData = await yResp.json();
-              const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-              primaryPrice = closes.filter((c: any) => c != null && c > 0).pop() || undefined;
-              if (primaryPrice) {
-                console.log(`[${ticker}] Yahoo primary price (${yTicker}): ${primaryPrice}`);
-                break;
-              }
-            }
-          } catch (e) { /* ignore */ }
+        // Extract just the US ticker code from listings (e.g., "TSEM" from NASDAQ)
+        let usTickerCode = "";
+        for (const [, listing] of Object.entries(listings) as [string, any][]) {
+          const exch = (listing?.Exchange || "").toUpperCase();
+          if (["NYSE", "NASDAQ", "US"].includes(exch)) {
+            usTickerCode = listing.Code || ticker;
+            break;
+          }
         }
+        if (!usTickerCode) usTickerCode = primarySymbol.replace(".US", "");
+
+        try {
+          // Yahoo US stocks don't need a suffix
+          const yResp = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${usTickerCode}?interval=1d&range=5d`, {
+            headers: { "User-Agent": "Mozilla/5.0" },
+          });
+          if (yResp.ok) {
+            const yData = await yResp.json();
+            const meta = yData?.chart?.result?.[0]?.meta;
+            const yahooExchange = (meta?.exchangeName || meta?.exchange || "").toUpperCase();
+            const yahooCurrency = (meta?.currency || "").toUpperCase();
+            const closes = yData?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+            const lastClose = closes.filter((c: any) => c != null && c > 0).pop();
+
+            // Only use this price if Yahoo confirms it's from a US exchange or in USD
+            if (lastClose && (yahooExchange.includes("NAS") || yahooExchange.includes("NYS") || yahooCurrency === "USD" || yahooCurrency === reportCcy)) {
+              primaryPrice = lastClose;
+              console.log(`[${ticker}] Yahoo US price (${usTickerCode}, exch=${yahooExchange}, ccy=${yahooCurrency}): ${primaryPrice}`);
+            } else if (lastClose) {
+              console.log(`[${ticker}] Yahoo returned ${usTickerCode} on ${yahooExchange} (${yahooCurrency}) — skipping, not US exchange`);
+            }
+          }
+        } catch (e) { /* ignore */ }
       }
 
       // Final fallback for dual-listed: derive USD market cap from Highlights
