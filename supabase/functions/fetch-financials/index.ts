@@ -352,10 +352,6 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     if (bookValue > 0) pbRatio = Math.round((mcapForRatios / bookValue) * 100) / 100;
 
     console.log(`[${ticker}] Calculated multiples: mcap=${mcapForRatios}, P/E=${peRatio}, P/S=${psRatio}, P/B=${pbRatio}`);
-  }
-    psRatio = valuation.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null;
-    pbRatio = valuation.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null;
-  }
 
   const keyMetrics = {
     peRatio,
