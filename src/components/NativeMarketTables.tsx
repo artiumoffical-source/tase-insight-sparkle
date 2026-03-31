@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
-import { TrendingUp, TrendingDown, RefreshCw, BarChart3 } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import { prefetchFinancials, prefetchNews } from "@/lib/stock-cache";
 import { supabase } from "@/integrations/supabase/client";
+import { useMarketData, useMarketOpen, type ConnectionStatus } from "@/hooks/useMarketData";
+import { useEffect, useState, useRef } from "react";
 
 interface StockRow {
   symbol: string;
@@ -23,7 +25,6 @@ interface IndexRow {
   flash?: "up" | "down" | "";
 }
 
-// TA-125 tier stocks whitelist — only well-known, high-cap companies
 const TA125_TICKERS = new Set([
   "LUMI","POLI","TEVA","ICL","ESLT","AZRG","DSCT","MZTF","NICE","BEZQ",
   "NXSN","PHOE","CEL","CLIS","HARL","MGDL","FIBI","ORA","SPNS","PTNR",
@@ -37,6 +38,8 @@ const TA125_TICKERS = new Set([
   "TASE","DANH","KAFR","CLBV","DISI","BVC","FORTY","HOD","MDTR",
   "ORMP","LPSN","PAYT","ARBE","FRSX","BLRX",
 ]);
+
+const INDEX_TICKERS = ["TA35", "TA90", "TABANKS", "TATECH"];
 
 const INDICES: IndexRow[] = [
   { symbol: "TA35", nameHe: "מדד ת\"א 35", nameEn: "TA-35 Index", price: null, change: null },
@@ -58,34 +61,56 @@ const FALLBACK_STOCKS: StockRow[] = [
   { symbol: "BEZQ", nameHe: "בזק", nameEn: "Bezeq", price: null, change: null },
 ];
 
-function useMarketOpen() {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const check = () => {
-      const il = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" }));
-      const day = il.getDay();
-      const mins = il.getHours() * 60 + il.getMinutes();
-      setOpen(day >= 0 && day <= 4 && mins >= 600 && mins <= 1050);
-    };
-    check();
-    const id = setInterval(check, 60_000);
-    return () => clearInterval(id);
-  }, []);
-  return open;
+function ConnectionStatusIndicator({ status, secondsSinceUpdate, marketOpen, isRtl }: {
+  status: ConnectionStatus;
+  secondsSinceUpdate: number | null;
+  marketOpen: boolean;
+  isRtl: boolean;
+}) {
+  if (!marketOpen) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex rounded-full h-2 w-2 bg-muted-foreground/40" />
+        <span className="text-[10px] text-muted-foreground/60">
+          {isRtl ? "נתוני סוף יום" : "End of day data"}
+        </span>
+      </div>
+    );
+  }
+
+  if (status === "reconnecting") {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="inline-flex rounded-full h-2 w-2 bg-amber-400 animate-pulse" />
+        <span className="text-[10px] text-amber-400/80">
+          {isRtl ? "מתחבר מחדש..." : "Reconnecting..."}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--gain))] opacity-60" />
+        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[hsl(var(--gain))]" />
+      </span>
+      <span className="text-[10px] text-[hsl(var(--gain))]/80">
+        {isRtl
+          ? `נתונים חיים${secondsSinceUpdate != null ? ` · עודכן לפני ${secondsSinceUpdate} שניות` : ""}`
+          : `Live data${secondsSinceUpdate != null ? ` · ${secondsSinceUpdate}s ago` : ""}`}
+      </span>
+    </div>
+  );
 }
 
 export default function NativeMarketTables() {
   const { isRtl } = useLanguage();
-  const marketOpen = useMarketOpen();
-  const [stocks, setStocks] = useState<StockRow[]>([]);
-  const [indices, setIndices] = useState<IndexRow[]>(INDICES);
+  const [tickerList, setTickerList] = useState<string[]>([]);
+  const [stockMeta, setStockMeta] = useState<Record<string, { nameHe: string; nameEn: string }>>({});
   const [loading, setLoading] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  const prevPrices = useRef<Record<string, number>>({});
-  const tickerListRef = useRef<string[]>([]);
-  const stockMetaRef = useRef<Record<string, { nameHe: string; nameEn: string }>>({});
 
-  // Load tickers from DB, filtered to TA-125 quality
+  // Load tickers from DB
   useEffect(() => {
     supabase
       .from("tase_symbols")
@@ -93,112 +118,50 @@ export default function NativeMarketTables() {
       .eq("exchange", "TA")
       .limit(200)
       .then(({ data }) => {
-        if (!data || data.length === 0) {
-          tickerListRef.current = FALLBACK_STOCKS.map((s) => s.symbol);
-          const meta: Record<string, { nameHe: string; nameEn: string }> = {};
-          FALLBACK_STOCKS.forEach((s) => { meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn }; });
-          stockMetaRef.current = meta;
-          return;
-        }
-        const tickers: string[] = [];
         const meta: Record<string, { nameHe: string; nameEn: string }> = {};
-        data
-          .filter((row) => /^[A-Z]{2,10}$/.test(row.ticker) && TA125_TICKERS.has(row.ticker))
-          .forEach((row) => {
-            tickers.push(row.ticker);
-            meta[row.ticker] = {
-              nameHe: row.name_he || row.name,
-              nameEn: row.name,
-            };
-          });
-        // Ensure fallback stocks are included
+        let tickers: string[] = [];
+        if (data && data.length > 0) {
+          data
+            .filter((row) => /^[A-Z]{2,10}$/.test(row.ticker) && TA125_TICKERS.has(row.ticker))
+            .forEach((row) => {
+              tickers.push(row.ticker);
+              meta[row.ticker] = { nameHe: row.name_he || row.name, nameEn: row.name };
+            });
+        }
         FALLBACK_STOCKS.forEach((s) => {
           if (!meta[s.symbol]) {
             tickers.push(s.symbol);
             meta[s.symbol] = { nameHe: s.nameHe, nameEn: s.nameEn };
           }
         });
-        tickerListRef.current = tickers;
-        stockMetaRef.current = meta;
+        setTickerList(tickers);
+        setStockMeta(meta);
+        setLoading(false);
       });
   }, []);
 
-  const fetchData = useCallback(() => {
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    if (!projectId || !anonKey) { setLoading(false); return; }
+  const allTickers = useMemo(() => [...INDEX_TICKERS, ...tickerList], [tickerList]);
 
-    const stockTickers = tickerListRef.current.length > 0
-      ? tickerListRef.current
-      : FALLBACK_STOCKS.map((s) => s.symbol);
+  const { quotes, flashes, status, marketOpen, secondsSinceUpdate } = useMarketData({
+    tickers: allTickers,
+    enabled: !loading,
+  });
 
-    const indexTickers = ["TA35", "TA90", "TABANKS", "TATECH"];
-    const allTickers = [...indexTickers, ...stockTickers].join(",");
+  const indexSet = new Set(INDEX_TICKERS);
+  const indices: IndexRow[] = INDICES.map((idx) => {
+    const q = quotes[idx.symbol];
+    if (!q) return idx;
+    return { ...idx, price: q.price, change: q.change, flash: flashes[idx.symbol] || "" };
+  });
 
-    fetch(
-      `https://${projectId}.supabase.co/functions/v1/fetch-quotes?tickers=${allTickers}&_ts=${Date.now()}`,
-      { headers: { apikey: anonKey, "Content-Type": "application/json" }, cache: "no-store" }
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data?.quotes) return;
-        const meta = stockMetaRef.current;
-        const indexSet = new Set(indexTickers);
-
-        // Process indices
-        const updatedIndices = INDICES.map((idx) => {
-          const q = data.quotes.find((qq: any) => qq.ticker === idx.symbol);
-          if (!q || q.error || q.price <= 0) return idx;
-          const oldPrice = prevPrices.current[idx.symbol];
-          let flash: "up" | "down" | "" = "";
-          if (oldPrice != null && oldPrice !== q.price) {
-            flash = q.price > oldPrice ? "up" : "down";
-          }
-          prevPrices.current[idx.symbol] = q.price;
-          return { ...idx, price: q.price, change: q.change, flash };
-        });
-        setIndices(updatedIndices);
-
-        // Process stocks
-        const updatedStocks: StockRow[] = data.quotes
-          .filter((q: any) => !q.error && q.price > 0 && !indexSet.has(q.ticker))
-          .map((q: any) => {
-            const sym = q.ticker?.replace(".TA", "") ?? q.ticker;
-            if (!TA125_TICKERS.has(sym)) return null;
-            const m = meta[sym] || { nameHe: sym, nameEn: sym };
-            const oldPrice = prevPrices.current[sym];
-            let flash: "up" | "down" | "" = "";
-            if (oldPrice != null && oldPrice !== q.price) {
-              flash = q.price > oldPrice ? "up" : "down";
-            }
-            prevPrices.current[sym] = q.price;
-            return { symbol: sym, nameHe: m.nameHe, nameEn: m.nameEn, price: q.price, change: q.change, flash };
-          })
-          .filter(Boolean) as StockRow[];
-
-        setStocks(updatedStocks);
-
-        setTimeout(() => {
-          setStocks((prev) => prev.map((s) => ({ ...s, flash: "" })));
-          setIndices((prev) => prev.map((s) => ({ ...s, flash: "" })));
-        }, 800);
-
-        setLastUpdate(new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    const initTimeout = setTimeout(fetchData, 300);
-    let id: ReturnType<typeof setInterval> | null = null;
-    const start = () => { if (!id) id = setInterval(fetchData, 5_000); };
-    const stop = () => { if (id) { clearInterval(id); id = null; } };
-    const onVis = () => { if (document.hidden) { stop(); } else { fetchData(); start(); } };
-    document.addEventListener("visibilitychange", onVis);
-    start();
-    return () => { clearTimeout(initTimeout); stop(); document.removeEventListener("visibilitychange", onVis); };
-  }, [fetchData]);
+  const stocks: StockRow[] = useMemo(() => {
+    return Object.entries(quotes)
+      .filter(([key]) => !indexSet.has(key) && TA125_TICKERS.has(key))
+      .map(([key, q]) => {
+        const m = stockMeta[key] || { nameHe: key, nameEn: key };
+        return { symbol: key, nameHe: m.nameHe, nameEn: m.nameEn, price: q.price, change: q.change, flash: flashes[key] || "" };
+      });
+  }, [quotes, flashes, stockMeta]);
 
   const gainers = [...stocks].filter((s) => (s.change ?? 0) > 0).sort((a, b) => (b.change ?? 0) - (a.change ?? 0)).slice(0, 10);
   const losers = [...stocks].filter((s) => (s.change ?? 0) < 0).sort((a, b) => (a.change ?? 0) - (b.change ?? 0)).slice(0, 10);
@@ -210,27 +173,12 @@ export default function NativeMarketTables() {
         <h2 className="font-display text-base font-semibold text-foreground/90">
           {isRtl ? "סקירת שוק" : "Market Overview"}
         </h2>
-        <div className="flex items-center gap-3">
-          {lastUpdate && (
-            <span className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-              <RefreshCw className="h-2.5 w-2.5" />
-              {lastUpdate}
-            </span>
-          )}
-          <div className="flex items-center gap-1.5">
-            <span className="relative flex h-2.5 w-2.5">
-              {marketOpen && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--gain))] opacity-60" />
-              )}
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${marketOpen ? "bg-[hsl(var(--gain))]" : "bg-muted-foreground/40"}`} />
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              {isRtl
-                ? marketOpen ? "הבורסה פתוחה" : "הבורסה סגורה"
-                : marketOpen ? "Market Open" : "Market Closed"}
-            </span>
-          </div>
-        </div>
+        <ConnectionStatusIndicator
+          status={status}
+          secondsSinceUpdate={secondsSinceUpdate}
+          marketOpen={marketOpen}
+          isRtl={isRtl}
+        />
       </div>
 
       {loading ? (
@@ -239,7 +187,7 @@ export default function NativeMarketTables() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Indices Section */}
+          {/* Indices */}
           <div className="rounded-xl border border-border/20 bg-card/30 overflow-hidden">
             <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
               <BarChart3 className="h-3.5 w-3.5 text-primary" />
@@ -259,32 +207,19 @@ export default function NativeMarketTables() {
             <div className="rounded-xl border border-gain/10 bg-card/30 overflow-hidden">
               <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
                 <TrendingUp className="h-3.5 w-3.5 text-gain" />
-                <h3 className="text-xs font-bold text-gain">
-                  {isRtl ? "המרוויחות" : "Top Gainers"}
-                </h3>
+                <h3 className="text-xs font-bold text-gain">{isRtl ? "המרוויחות" : "Top Gainers"}</h3>
               </div>
-              {gainers.length > 0 ? (
-                gainers.map((s) => <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />)
-              ) : (
-                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                  {isRtl ? "אין מניות עולות כרגע" : "No gainers right now"}
-                </div>
+              {gainers.length > 0 ? gainers.map((s) => <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />) : (
+                <div className="px-4 py-6 text-center text-xs text-muted-foreground">{isRtl ? "אין מניות עולות כרגע" : "No gainers right now"}</div>
               )}
             </div>
-
             <div className="rounded-xl border border-loss/10 bg-card/30 overflow-hidden">
               <div className="px-4 py-2.5 border-b border-border/15 flex items-center gap-1.5">
                 <TrendingDown className="h-3.5 w-3.5 text-loss" />
-                <h3 className="text-xs font-bold text-loss">
-                  {isRtl ? "המפסידות" : "Top Losers"}
-                </h3>
+                <h3 className="text-xs font-bold text-loss">{isRtl ? "המפסידות" : "Top Losers"}</h3>
               </div>
-              {losers.length > 0 ? (
-                losers.map((s) => <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />)
-              ) : (
-                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                  {isRtl ? "אין מניות יורדות כרגע" : "No losers right now"}
-                </div>
+              {losers.length > 0 ? losers.map((s) => <StockRowLink key={s.symbol} stock={s} isRtl={isRtl} />) : (
+                <div className="px-4 py-6 text-center text-xs text-muted-foreground">{isRtl ? "אין מניות יורדות כרגע" : "No losers right now"}</div>
               )}
             </div>
           </div>
@@ -296,8 +231,6 @@ export default function NativeMarketTables() {
 
 function IndexCard({ index, isRtl }: { index: IndexRow; isRtl: boolean }) {
   const change = index.change ?? 0;
-  const isPositive = change > 0;
-  const isNegative = change < 0;
   const flashClass = index.flash === "up" ? "animate-flash-green" : index.flash === "down" ? "animate-flash-red" : "";
 
   return (
@@ -323,8 +256,6 @@ function IndexCard({ index, isRtl }: { index: IndexRow; isRtl: boolean }) {
 
 function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
   const change = stock.change ?? 0;
-  const isPositive = change > 0;
-  const isNegative = change < 0;
   const flashClass = stock.flash === "up" ? "animate-flash-green" : stock.flash === "down" ? "animate-flash-red" : "";
 
   const handleMouseEnter = () => {
@@ -339,9 +270,7 @@ function StockRowLink({ stock, isRtl }: { stock: StockRow; isRtl: boolean }) {
       className={`flex items-center justify-between px-4 py-3 hover:bg-secondary/20 transition-colors border-b border-border/8 last:border-b-0 ${flashClass}`}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground/90 truncate">
-          {isRtl ? stock.nameHe : stock.nameEn}
-        </p>
+        <p className="text-sm font-medium text-foreground/90 truncate">{isRtl ? stock.nameHe : stock.nameEn}</p>
         <p className="text-[10px] text-muted-foreground/60">{stock.symbol}</p>
       </div>
       <div className="text-end flex-shrink-0 ms-3">

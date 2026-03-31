@@ -97,23 +97,23 @@
 }
 
 @keyframes flash-green {
-  0% { background-color: transparent; }
-  20% { background-color: hsl(152 60% 50% / 0.15); }
-  100% { background-color: transparent; }
+  0% { background-color: transparent; box-shadow: none; }
+  15% { background-color: hsl(152 60% 50% / 0.2); box-shadow: inset 0 0 12px hsl(152 60% 50% / 0.1); }
+  100% { background-color: transparent; box-shadow: none; }
 }
 
 @keyframes flash-red {
-  0% { background-color: transparent; }
-  20% { background-color: hsl(0 72% 55% / 0.15); }
-  100% { background-color: transparent; }
+  0% { background-color: transparent; box-shadow: none; }
+  15% { background-color: hsl(0 72% 55% / 0.2); box-shadow: inset 0 0 12px hsl(0 72% 55% / 0.1); }
+  100% { background-color: transparent; box-shadow: none; }
 }
 
 .animate-flash-green {
-  animation: flash-green 0.8s ease-out;
+  animation: flash-green 0.7s ease-out;
 }
 
 .animate-flash-red {
-  animation: flash-red 0.8s ease-out;
+  animation: flash-red 0.7s ease-out;
 }
 
 @keyframes price-fade-in {
