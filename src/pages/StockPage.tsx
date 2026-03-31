@@ -109,6 +109,7 @@ export default function StockPage() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<"annual" | "quarterly">("annual");
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [overrideNameHe, setOverrideNameHe] = useState<string | null>(null);
 
   const isPremium = user?.email === "artiumoffical@gmail.com";
   const upperTicker = ticker?.toUpperCase()?.replace(/\.TA$/i, "") ?? "";
@@ -205,6 +206,19 @@ export default function StockPage() {
       .finally(() => setLoading(false));
   }, [upperTicker]);
 
+  // Fetch override name from tase_symbols
+  useEffect(() => {
+    if (!upperTicker) return;
+    supabase
+      .from("tase_symbols")
+      .select("override_name_he")
+      .eq("ticker", upperTicker)
+      .maybeSingle()
+      .then(({ data }) => {
+        setOverrideNameHe((data as any)?.override_name_he ?? null);
+      });
+  }, [upperTicker]);
+
   useEffect(() => {
     if (!user) return;
     supabase
@@ -237,8 +251,9 @@ export default function StockPage() {
   };
 
   const displayName = isRtl
-    ? (stock?.nameHe ?? stock?.name ?? meta?.name ?? upperTicker)
+    ? (overrideNameHe ?? stock?.nameHe ?? stock?.name ?? meta?.name ?? upperTicker)
     : (stock?.name ?? meta?.name ?? upperTicker);
+  const currency = meta?.currency ?? "ILS";
 
   return (
     <div className="container max-w-7xl py-8 animate-fade-in">
@@ -329,6 +344,7 @@ export default function StockPage() {
               detailedBalanceSheet={period === "annual" ? detailedBalanceSheet : undefined}
               loading={loading}
               sector={sector}
+              currency={currency}
             />
           </div>
 

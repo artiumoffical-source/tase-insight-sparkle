@@ -65,6 +65,7 @@ interface FinancialsTableProps {
   detailedBalanceSheet?: DetailedBalanceSheetRow[];
   loading?: boolean;
   sector?: SectorType;
+  currency?: string;
 }
 
 interface MetricDef {
@@ -132,13 +133,16 @@ const EXPANDABLE_BALANCE: ExpandableRow[] = [
   { labelKey: "fin.totalDebt", field: "longTermDebt", invertColor: true },
 ];
 
-function formatNum(value: number): string {
+const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", EUR: "€", ILS: "₪", GBP: "£", ILA: "₪" };
+
+function formatNum(value: number, currencyCode?: string): string {
   if (value === 0) return "—";
+  const prefix = currencyCode ? (CURRENCY_SYMBOLS[currencyCode] || "") : "";
   const abs = Math.abs(value);
-  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
-  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
-  return value.toFixed(2);
+  if (abs >= 1e9) return `${prefix}${(value / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${prefix}${(value / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${prefix}${(value / 1e3).toFixed(1)}K`;
+  return `${prefix}${value.toFixed(2)}`;
 }
 
 function formatYoY(current: number, previous: number): { text: string; color: string } | null {
@@ -212,7 +216,7 @@ function exportToCSV(headers: string[], rows: string[][], filename: string) {
 }
 
 // --- Simple MetricTable for Income & Cash Flow ---
-function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics: MetricDef[]; t: (k: string) => string; tabName?: string }) {
+function SimpleMetricTable({ rows, metrics, t, tabName, currency }: { rows: any[]; metrics: MetricDef[]; t: (k: string) => string; tabName?: string; currency?: string }) {
   if (!rows.length) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-muted-foreground">
@@ -276,7 +280,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
                       const colorClass = m.colored ? (val >= 0 ? "text-gain" : "text-loss") : "";
                       return (
                         <TableCell key={y} className={`text-end font-mono ${colorClass}`}>
-                          {m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : formatNum(val)}
+                          {m.isEps ? val.toFixed(2) : m.isRatio ? val.toFixed(2) : formatNum(val, currency)}
                         </TableCell>
                       );
                     })}
@@ -292,7 +296,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName }: { rows: any[]; metrics
 }
 
 // --- Expandable Balance Sheet Table ---
-function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[] }) {
+function ExpandableBalanceTable({ rows, t, detailedBS, currency }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[]; currency?: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hoveredParent, setHoveredParent] = useState<string | null>(null);
 
@@ -443,7 +447,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                         </td>
                         {years.map(y => (
                           <td key={y} className="text-end py-3 px-3 font-mono font-bold text-foreground">
-                            {formatNum((byYear[y]?.[node.field] as number) || 0)}
+                            {formatNum((byYear[y]?.[node.field] as number) || 0, currency)}
                           </td>
                         ))}
                       </tr>
@@ -485,7 +489,7 @@ function ExpandableBalanceTable({ rows, t, detailedBS }: { rows: DetailedBalance
                                         </td>
                                         {years.map(y => (
                                           <td key={y} className="text-end py-2 px-3 font-mono text-muted-foreground text-[13px] min-w-[90px]">
-                                            {formatNum((byYear[y]?.[child.field] as number) || 0)}
+                                            {formatNum((byYear[y]?.[child.field] as number) || 0, currency)}
                                           </td>
                                         ))}
                                       </tr>
@@ -600,7 +604,7 @@ function getCashFlowMetrics(sector: SectorType): MetricDef[] {
   ];
 }
 
-export default function FinancialsTable({ data, incomeStatement, balanceSheet, cashFlow, detailedBalanceSheet, loading, sector = "general" }: FinancialsTableProps) {
+export default function FinancialsTable({ data, incomeStatement, balanceSheet, cashFlow, detailedBalanceSheet, loading, sector = "general", currency }: FinancialsTableProps) {
   const { t } = useLanguage();
 
   if (loading) {
@@ -639,19 +643,30 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
 
   const useDetailedBS = detailedBalanceSheet && detailedBalanceSheet.length > 0;
 
+  const currencyLabel = currency && currency !== "ILS" && currency !== "ILA"
+    ? ` (${CURRENCY_SYMBOLS[currency] || currency})`
+    : "";
+
   return (
     <Tabs defaultValue="income" className="w-full">
-      <TabsList className="mb-4">
-        <TabsTrigger value="income">{t("fin.incomeStatement")}</TabsTrigger>
-        <TabsTrigger value="balance">{t("fin.balanceSheet")}</TabsTrigger>
-        <TabsTrigger value="cashflow">{t("fin.cashFlow")}</TabsTrigger>
-      </TabsList>
+      <div className="flex items-center gap-3 mb-4">
+        <TabsList>
+          <TabsTrigger value="income">{t("fin.incomeStatement")}</TabsTrigger>
+          <TabsTrigger value="balance">{t("fin.balanceSheet")}</TabsTrigger>
+          <TabsTrigger value="cashflow">{t("fin.cashFlow")}</TabsTrigger>
+        </TabsList>
+        {currency && (
+          <span className="text-xs font-medium bg-secondary px-2 py-1 rounded-md text-muted-foreground">
+            {CURRENCY_SYMBOLS[currency] || currency} {currency}
+          </span>
+        )}
+      </div>
       <TabsContent value="income">
-        <SimpleMetricTable rows={incomeStatement!} metrics={getIncomeMetrics(sector)} t={t} tabName="income-statement" />
+        <SimpleMetricTable rows={incomeStatement!} metrics={getIncomeMetrics(sector)} t={t} tabName="income-statement" currency={currency} />
       </TabsContent>
       <TabsContent value="balance">
         {useDetailedBS ? (
-          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} />
+          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} currency={currency} />
         ) : (
           <SimpleMetricTable rows={balanceSheet!} metrics={[
             { labelKey: "fin.totalAssets", getValue: (r) => r.totalAssets },
@@ -660,11 +675,11 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
             { labelKey: "fin.cashBs", getValue: (r) => r.cash },
             { labelKey: "fin.totalDebt", getValue: (r) => r.totalDebt, invertColor: true },
             { labelKey: "fin.inventory", getValue: (r) => r.inventory },
-          ]} t={t} tabName="balance-sheet" />
+          ]} t={t} tabName="balance-sheet" currency={currency} />
         )}
       </TabsContent>
       <TabsContent value="cashflow">
-        <SimpleMetricTable rows={cashFlow!} metrics={getCashFlowMetrics(sector)} t={t} tabName="cash-flow" />
+        <SimpleMetricTable rows={cashFlow!} metrics={getCashFlowMetrics(sector)} t={t} tabName="cash-flow" currency={currency} />
       </TabsContent>
     </Tabs>
   );

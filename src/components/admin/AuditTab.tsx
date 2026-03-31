@@ -67,6 +67,7 @@ export default function AuditTab() {
   const [refetchingTicker, setRefetchingTicker] = useState<string | null>(null);
   const [manualEditTicker, setManualEditTicker] = useState<string | null>(null);
   const [manualEditData, setManualEditData] = useState<Record<string, string>>({});
+  const [nameOverride, setNameOverride] = useState<Record<string, string>>({});
 
   const { data: auditResults, isLoading } = useQuery({
     queryKey: ["audit-results"],
@@ -90,6 +91,15 @@ export default function AuditTab() {
     queryKey: ["cached-fundamentals-meta"],
     queryFn: async () => {
       const { data, error } = await supabase.from("cached_fundamentals").select("ticker, data");
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const { data: taseSymbols } = useQuery({
+    queryKey: ["tase-symbols-overrides"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("tase_symbols").select("ticker, name_he, override_name_he");
       if (error) throw error;
       return data as any[];
     },
@@ -245,6 +255,7 @@ export default function AuditTab() {
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-right p-3 font-medium">טיקר</th>
+                <th className="text-right p-3 font-medium">שם עברי (override)</th>
                 <th className="text-right p-3 font-medium">בריאות</th>
                 <th className="text-right p-3 font-medium">פירוט</th>
                 <th className="text-right p-3 font-medium">מטבע</th>
@@ -257,9 +268,27 @@ export default function AuditTab() {
               {filtered.map((r: any) => {
                 const checks: CheckResult[] = Array.isArray(r.checks) ? r.checks : [];
                 const currency = getCurrency(r.ticker);
+                const sym = taseSymbols?.find((s: any) => s.ticker === r.ticker);
+                const currentOverride = nameOverride[r.ticker] ?? sym?.override_name_he ?? "";
                 return (
                   <tr key={r.ticker} className="border-t hover:bg-muted/30 transition-colors">
                     <td className="p-3 font-mono font-medium">{r.ticker}</td>
+                    <td className="p-3">
+                      <input
+                        type="text"
+                        className="w-full max-w-[160px] rounded border bg-background px-2 py-1 text-xs"
+                        placeholder={sym?.name_he || "שם עברי..."}
+                        value={currentOverride}
+                        onChange={(e) => setNameOverride(prev => ({ ...prev, [r.ticker]: e.target.value }))}
+                        onBlur={async () => {
+                          const val = currentOverride.trim() || null;
+                          await supabase.from("tase_symbols").update({ override_name_he: val } as any).eq("ticker", r.ticker);
+                          queryClient.invalidateQueries({ queryKey: ["tase-symbols-overrides"] });
+                          if (val) toast.success(`שם ${r.ticker} עודכן`);
+                        }}
+                        dir="rtl"
+                      />
+                    </td>
                     <td className="p-3"><Badge className={healthBadge(r.health)}>{healthLabel(r.health)}</Badge></td>
                     <td className="p-3"><ChecksTooltip checks={checks} /></td>
                     <td className="p-3">

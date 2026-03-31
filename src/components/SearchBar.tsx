@@ -10,6 +10,7 @@ interface SymbolRow {
   ticker: string;
   name: string;
   name_he: string;
+  override_name_he: string | null;
   logo_url: string | null;
   security_id: string | null;
 }
@@ -42,7 +43,7 @@ export default function SearchBar() {
       // Use the pre-computed search_text column with trigram similarity
       const { data, error } = await supabase
         .from("tase_symbols")
-        .select("ticker, name, name_he, logo_url, security_id")
+        .select("ticker, name, name_he, override_name_he, logo_url, security_id")
         .ilike("search_text", `%${normalized}%`)
         .limit(8);
 
@@ -55,7 +56,7 @@ export default function SearchBar() {
             normalize(s.name).includes(normalized) ||
             normalize(s.nameHe).includes(normalized)
         ).slice(0, 8);
-        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null, security_id: null })));
+        setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, override_name_he: null, logo_url: null, security_id: null })));
       } else {
         setResults(data ?? []);
       }
@@ -140,7 +141,7 @@ export default function SearchBar() {
               <div className="flex items-center gap-3">
                 <StockLogo name={stock.name} logoUrl={stock.logo_url} size="sm" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">{stock.name_he || stock.name}</span>
+                  <span className="text-sm font-medium">{stock.override_name_he || stock.name_he || stock.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-display font-semibold text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                       {stock.ticker}

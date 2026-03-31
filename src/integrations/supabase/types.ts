@@ -154,6 +154,7 @@ export type Database = {
           logo_url: string | null
           name: string
           name_he: string
+          override_name_he: string | null
           search_text: string
           security_id: string | null
           ticker: string
@@ -167,6 +168,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_he?: string
+          override_name_he?: string | null
           search_text?: string
           security_id?: string | null
           ticker: string
@@ -180,6 +182,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_he?: string
+          override_name_he?: string | null
           search_text?: string
           security_id?: string | null
           ticker?: string
