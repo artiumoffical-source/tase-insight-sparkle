@@ -787,18 +787,23 @@ serve(async (req) => {
         const hlMcap = parseFloat(rawData.Highlights?.MarketCapitalization) || 0;
         const hlMcapMln = parseFloat(rawData.Highlights?.MarketCapitalizationMln) || 0;
         const genMcap = parseFloat(rawData.General?.MarketCapitalization) || 0;
-        // If Highlights mcap is significantly different from General mcap, it might be in different currencies
-        // For dual-listed, Highlights is often in reporting currency (USD)
-        if (hlMcapMln > 0 && totalSharesForMcap > 0) {
-          primaryPrice = (hlMcapMln * 1_000_000) / totalSharesForMcap;
-          console.log(`[${ticker}] Derived primaryPrice from Highlights.MarketCapitalizationMln: ${hlMcapMln}M / ${totalSharesForMcap} shares = ${primaryPrice} (assumed ${reportCcy})`);
-        } else if (hlMcap > 0 && genMcap > 0 && totalSharesForMcap > 0) {
-          // If Highlights and General are very different, Highlights might be in USD
+        // Compute shares for this scope
+        const sharesOutstanding = parseFloat(rawData.General?.SharesOutstanding) || 0;
+        const outstandingSharesAnnual = rawData.outstandingShares?.annual || {};
+        let latestShares = sharesOutstanding;
+        for (const entry of Object.values(outstandingSharesAnnual) as any[]) {
+          const s = parseFloat(entry?.shares) || 0;
+          if (s > 0) latestShares = s; // last entry is most recent
+        }
+
+        if (hlMcapMln > 0 && latestShares > 0) {
+          primaryPrice = (hlMcapMln * 1_000_000) / latestShares;
+          console.log(`[${ticker}] Derived primaryPrice from Highlights.MarketCapitalizationMln: ${hlMcapMln}M / ${latestShares} shares = ${primaryPrice} (assumed ${reportCcy})`);
+        } else if (hlMcap > 0 && genMcap > 0 && latestShares > 0) {
           const ratio = genMcap / hlMcap;
           if (ratio > 2 && ratio < 6) {
-            // Looks like genMcap is in ILS and hlMcap is in USD (ratio ~3.5)
-            primaryPrice = hlMcap / totalSharesForMcap;
-            console.log(`[${ticker}] Derived primaryPrice from Highlights mcap (USD): ${hlMcap} / ${totalSharesForMcap} = ${primaryPrice}`);
+            primaryPrice = hlMcap / latestShares;
+            console.log(`[${ticker}] Derived primaryPrice from Highlights mcap (USD): ${hlMcap} / ${latestShares} = ${primaryPrice}`);
           }
         }
       }
