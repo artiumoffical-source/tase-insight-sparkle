@@ -493,16 +493,16 @@ serve(async (req) => {
 
     if (tradingCcy !== reportCcy) {
       // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
-      // e.g. for USD reporting + ILS trading: USDILS.FOREX gives ~3.7
+      // Using free exchangerate API (EODHD forex requires higher plan)
       try {
-        const fxPair = `${reportCcy}${tradingCcy}`;
-        console.log(`[${ticker}] Fetching FX pair: ${fxPair}.FOREX`);
-        const fxResp = await fetch(`https://eodhd.com/api/real-time/${fxPair}.FOREX?api_token=${apiKey}&fmt=json`);
+        const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`);
         if (fxResp.ok) {
           const fxData = await fxResp.json();
-          console.log(`[${ticker}] FX response:`, JSON.stringify(fxData));
-          exchangeRate = parseFloat(fxData.close) || parseFloat(fxData.previousClose) || undefined;
-          console.log(`[${ticker}] FX rate ${fxPair}: ${exchangeRate}`);
+          const rate = fxData?.rates?.[tradingCcy];
+          if (rate && rate > 0) {
+            exchangeRate = rate;
+            console.log(`[${ticker}] FX rate ${reportCcy}→${tradingCcy}: ${exchangeRate}`);
+          }
         } else {
           console.error(`[${ticker}] FX fetch failed: ${fxResp.status}`);
         }
