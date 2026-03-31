@@ -154,6 +154,7 @@ export type Database = {
           logo_url: string | null
           name: string
           name_he: string
+          search_text: string
           security_id: string | null
           ticker: string
           type: string | null
@@ -166,6 +167,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_he?: string
+          search_text?: string
           security_id?: string | null
           ticker: string
           type?: string | null
@@ -178,6 +180,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_he?: string
+          search_text?: string
           security_id?: string | null
           ticker?: string
           type?: string | null
@@ -239,6 +242,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_search_text: { Args: { t: string }; Returns: string }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       app_role: "superadmin" | "admin" | "user"
