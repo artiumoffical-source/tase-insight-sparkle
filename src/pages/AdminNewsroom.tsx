@@ -202,6 +202,7 @@ function NewsTab() {
                   <p className="text-sm text-muted-foreground">{article.ai_summary_he}</p>
                   <p className="text-sm whitespace-pre-line leading-relaxed">{article.ai_body_he}</p>
                   <p className="text-xs text-muted-foreground mt-2">מאת: {article.author}</p>
+                  {renderDataLock(article)}
                 </>
               )}
               {isDraft(article.status) && editingId !== article.id && (
