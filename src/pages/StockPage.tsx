@@ -141,6 +141,7 @@ export default function StockPage() {
       longTermDebt: row.totalDebt,
       otherNonCurrentLiabilities: 0,
       totalEquity: row.totalEquity,
+      minorityInterest: (row as any).minorityInterest || 0,
       commonStock: 0,
       retainedEarnings: 0,
       otherEquity: 0,
