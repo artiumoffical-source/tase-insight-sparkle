@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper } from "lucide-react";
+import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper, Share2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuditTab from "@/components/admin/AuditTab";
