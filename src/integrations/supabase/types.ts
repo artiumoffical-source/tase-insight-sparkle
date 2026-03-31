@@ -71,6 +71,7 @@ export type Database = {
           category: string
           content: string | null
           created_at: string
+          data_lock: Json | null
           id: string
           original_date: string | null
           original_headline: string | null
@@ -91,6 +92,7 @@ export type Database = {
           category?: string
           content?: string | null
           created_at?: string
+          data_lock?: Json | null
           id?: string
           original_date?: string | null
           original_headline?: string | null
@@ -111,6 +113,7 @@ export type Database = {
           category?: string
           content?: string | null
           created_at?: string
+          data_lock?: Json | null
           id?: string
           original_date?: string | null
           original_headline?: string | null

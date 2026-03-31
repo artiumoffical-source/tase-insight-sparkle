@@ -97,6 +97,57 @@ function NewsTab() {
 
   const isDraft = (status: string) => status === "pending" || status === "draft";
 
+  const hasDataMismatch = (article: any) => {
+    const dl = article.data_lock as any;
+    return dl?.validation?.valid === false;
+  };
+
+  const renderDataLock = (article: any) => {
+    const dl = article.data_lock as any;
+    if (!dl?.dbData) return null;
+    const db = dl.dbData;
+    const ai = dl.aiNumbersUsed || {};
+    const validation = dl.validation;
+
+    const rows: Array<{ label: string; dbKey: string; dbVal: number | undefined; aiVal: number | undefined }> = [
+      { label: "צמיחת הכנסות %", dbKey: "revenueGrowthPct", dbVal: db.revenueGrowthPct, aiVal: ai.revenueGrowthPct },
+      { label: "צמיחת רווח נקי %", dbKey: "netIncomeGrowthPct", dbVal: db.netIncomeGrowthPct, aiVal: ai.netIncomeGrowthPct },
+      { label: "צמיחת רווח תפעולי %", dbKey: "opIncomeGrowthPct", dbVal: db.opIncomeGrowthPct, aiVal: ai.opIncomeGrowthPct },
+      { label: "מרווח תפעולי נוכחי %", dbKey: "currentOpMarginPct", dbVal: db.currentOpMarginPct, aiVal: ai.currentOpMarginPct },
+    ];
+
+    return (
+      <div className="mt-2 border rounded-md overflow-hidden">
+        <div className={`px-3 py-1.5 text-xs font-bold flex items-center gap-2 ${validation?.valid ? "bg-green-600/10 text-green-400" : "bg-red-600/10 text-red-400"}`}>
+          {validation?.valid ? "✅ נתונים מאומתים" : "❌ אי-התאמה בנתונים"}
+          <span className="text-muted-foreground font-normal">({db.currentLabel} vs {db.parallelLabel})</span>
+        </div>
+        <table className="w-full text-xs">
+          <thead><tr className="border-b bg-muted/30"><th className="px-3 py-1 text-right">מדד</th><th className="px-3 py-1 text-center">DB (אמת)</th><th className="px-3 py-1 text-center">AI (כתב)</th><th className="px-3 py-1 text-center">סטטוס</th></tr></thead>
+          <tbody>
+            {rows.map(r => {
+              if (r.dbVal == null) return null;
+              const match = r.aiVal == null || Math.abs((r.aiVal - r.dbVal) / (r.dbVal || 1)) * 100 <= 1;
+              return (
+                <tr key={r.dbKey} className={`border-b ${!match ? "bg-red-600/5" : ""}`}>
+                  <td className="px-3 py-1 text-right font-medium">{r.label}</td>
+                  <td className="px-3 py-1 text-center font-mono">{r.dbVal?.toFixed(2)}</td>
+                  <td className="px-3 py-1 text-center font-mono">{r.aiVal != null ? r.aiVal.toFixed(2) : "—"}</td>
+                  <td className="px-3 py-1 text-center">{match ? "✅" : "❌"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {validation?.mismatches?.length > 0 && (
+          <div className="px-3 py-1.5 text-xs text-red-400 bg-red-600/5 border-t">
+            {validation.mismatches.map((m: string, i: number) => <div key={i}>⚠️ {m}</div>)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end gap-2 flex-wrap">
@@ -116,7 +167,7 @@ function NewsTab() {
         <Card><CardContent className="py-12 text-center text-muted-foreground">אין מאמרים עדיין.</CardContent></Card>
       ) : (
         articles.map((article: any) => (
-          <Card key={article.id} className="overflow-hidden">
+          <Card key={article.id} className={`overflow-hidden ${hasDataMismatch(article) ? "border-red-600/50 ring-1 ring-red-600/20" : ""}`}>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
@@ -151,12 +202,16 @@ function NewsTab() {
                   <p className="text-sm text-muted-foreground">{article.ai_summary_he}</p>
                   <p className="text-sm whitespace-pre-line leading-relaxed">{article.ai_body_he}</p>
                   <p className="text-xs text-muted-foreground mt-2">מאת: {article.author}</p>
+                  {renderDataLock(article)}
                 </>
               )}
               {isDraft(article.status) && editingId !== article.id && (
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex gap-2 pt-2 border-t flex-wrap items-center">
                   <Button size="sm" variant="ghost" onClick={() => startEdit(article)} className="gap-1"><Edit2 className="h-3 w-3" /> עריכה</Button>
-                  <Button size="sm" onClick={() => publish(article.id)} className="gap-1"><Check className="h-3 w-3" /> פרסום</Button>
+                  <Button size="sm" onClick={() => publish(article.id)} disabled={hasDataMismatch(article)} className="gap-1" title={hasDataMismatch(article) ? "לא ניתן לפרסם — אי-התאמה בנתונים" : undefined}>
+                    <Check className="h-3 w-3" /> פרסום
+                  </Button>
+                  {hasDataMismatch(article) && <span className="text-xs text-red-400">⚠️ אי-התאמה בנתונים — פרסום חסום</span>}
                   <Button size="sm" variant="destructive" onClick={() => reject(article.id)} className="gap-1"><X className="h-3 w-3" /> דחייה</Button>
                 </div>
               )}
