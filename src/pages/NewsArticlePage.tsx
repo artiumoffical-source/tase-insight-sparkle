@@ -75,7 +75,7 @@ export default function NewsArticlePage() {
       <Helmet>
         <title>{title} | AlphaMap</title>
         <meta name="description" content={summary || title} />
-        <link rel="canonical" href={`https://tase-insight-sparkle.lovable.app/news/${article.id}`} />
+        <link rel="canonical" href={`https://alpha-map.com/news/${article.id}`} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={summary || title} />
         <meta property="og:type" content="article" />
