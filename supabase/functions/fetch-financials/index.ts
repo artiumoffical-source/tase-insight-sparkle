@@ -214,12 +214,22 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   
   console.log(`[${ticker}] SharesMap: ${JSON.stringify(sharesMap)}, fallbackShares: ${fallbackShares}`);
 
+  // Detect REPORTING currency from financial statements (not trading currency)
+  const incomeStatements = data.Financials?.Income_Statement?.yearly || {};
+  const firstIncomeKey = Object.keys(incomeStatements).sort().reverse()[0];
+  const reportingCurrency = firstIncomeKey
+    ? (incomeStatements[firstIncomeKey]?.currency_symbol || general.CurrencyCode || "ILS")
+    : (general.CurrencyCode || "ILS");
+  // Normalize: ILA → ILS (both mean Israeli currency)
+  const normalizedCurrency = reportingCurrency === "ILA" ? "ILS" : reportingCurrency;
+  console.log(`[${ticker}] Reporting currency: ${reportingCurrency} → ${normalizedCurrency} (General.CurrencyCode=${general.CurrencyCode})`);
+
   const meta = {
     name: general.Name || ticker,
     price: eodPrice?.price ?? 0,
     change: eodPrice?.change ?? 0,
     marketCap: formatMarketCap(highlights.MarketCapitalization || 0),
-    currency: general.CurrencyCode || "ILS",
+    currency: normalizedCurrency,
     logoUrl,
     sector,
     gicsSector: general.GicsSector || "",
