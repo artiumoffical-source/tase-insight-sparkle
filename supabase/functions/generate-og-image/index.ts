@@ -1,25 +1,10 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-// @ts-ignore wasm module
-import { Resvg, initWasm } from "https://esm.sh/@aspect-dev/resvg-wasm@0.1.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-let wasmInitialized = false;
-
-async function ensureWasm() {
-  if (!wasmInitialized) {
-    const wasmUrl = "https://unpkg.com/@aspect-dev/resvg-wasm@0.1.0/index_bg.wasm";
-    const wasmResp = await fetch(wasmUrl);
-    const wasmBytes = await wasmResp.arrayBuffer();
-    await initWasm(wasmBytes);
-    wasmInitialized = true;
-  }
-}
 
 // Google Fonts Heebo (Hebrew-supporting) - fetched once and cached
 let fontData: ArrayBuffer | null = null;
