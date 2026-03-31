@@ -593,14 +593,35 @@ serve(async (req) => {
     const stmtCurrency = stmtCurrencyRaw === "ILA" ? "ILS" : stmtCurrencyRaw;
     const generalReportingCurrency = general.ReportingCurrency || general.reporting_currency || null;
 
-    // Also check quarterly statements for currency (sometimes yearly is null but quarterly has it)
-    let quarterlyCurrency: string | null = null;
-    const qIncStmts = rawData.Financials?.Income_Statement?.quarterly || {};
-    const latestQKey = Object.keys(qIncStmts).sort().reverse()[0];
-    if (latestQKey) {
-      const qCcyRaw = qIncStmts[latestQKey]?.currency_symbol;
-      quarterlyCurrency = qCcyRaw === "ILA" ? "ILS" : (qCcyRaw || null);
+    // Scan ALL financial statement types (yearly + quarterly) for any currency_symbol
+    // This catches stocks where only some statements have the field populated
+    function scanForCurrency(data: any): string | null {
+      const paths = [
+        "Financials.Income_Statement.yearly",
+        "Financials.Income_Statement.quarterly",
+        "Financials.Balance_Sheet.yearly",
+        "Financials.Balance_Sheet.quarterly",
+        "Financials.Cash_Flow.yearly",
+        "Financials.Cash_Flow.quarterly",
+      ];
+      for (const path of paths) {
+        const parts = path.split(".");
+        let obj = data;
+        for (const p of parts) { obj = obj?.[p]; if (!obj) break; }
+        if (!obj || typeof obj !== "object") continue;
+        const keys = Object.keys(obj).sort().reverse();
+        for (const k of keys) {
+          const sym = obj[k]?.currency_symbol;
+          if (sym && sym !== "None" && sym !== "null") {
+            const normalized = sym === "ILA" ? "ILS" : sym;
+            if (normalized !== "ILS") return normalized; // non-ILS found
+          }
+        }
+      }
+      return null;
     }
+
+    const deepScanCurrency = scanForCurrency(rawData);
 
     // Signal 1: EODHD General.ReportingCurrency (most reliable when present)
     if (generalReportingCurrency && generalReportingCurrency !== "ILA") {
@@ -610,10 +631,10 @@ serve(async (req) => {
     else if (stmtCurrency && stmtCurrency !== "ILS" && stmtCurrency !== "None") {
       reportCcy = stmtCurrency;
     }
-    // Signal 2b: quarterly statement currency_symbol (fallback if yearly was null)
-    else if (quarterlyCurrency && quarterlyCurrency !== "ILS" && quarterlyCurrency !== "None") {
-      reportCcy = quarterlyCurrency;
-      console.log(`[${ticker}] Currency from quarterly statement: ${reportCcy}`);
+    // Signal 2b: deep scan across all statement types
+    else if (deepScanCurrency) {
+      reportCcy = deepScanCurrency;
+      console.log(`[${ticker}] Currency from deep scan: ${reportCcy}`);
     }
     // Signal 3: stock has a US/non-TASE listing → likely reports in that exchange's currency
     else {
@@ -626,7 +647,13 @@ serve(async (req) => {
       if (hasUSListing || (general.PrimaryTicker && !String(general.PrimaryTicker).endsWith(".TA"))) {
         reportCcy = "USD";
       }
-      // Signal 4: heuristic — if ILS revenue > $500B, it's probably USD values mislabeled
+      // Signal 4: Check ISIN — if starts with "US", the company reports in USD
+      const isin = general.ISIN || "";
+      if (isin.startsWith("US") && reportCcy === "ILS") {
+        reportCcy = "USD";
+        console.log(`[${ticker}] ISIN ${isin} indicates USD reporting`);
+      }
+      // Signal 5: heuristic — if ILS revenue > $500B, it's probably USD values mislabeled
       if (reportCcy === "ILS" && latestKey) {
         const latestRev = parseFloat(incStmts[latestKey]?.totalRevenue) || 0;
         if (latestRev > 500_000_000_000) {
