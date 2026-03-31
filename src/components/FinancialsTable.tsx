@@ -643,19 +643,30 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
 
   const useDetailedBS = detailedBalanceSheet && detailedBalanceSheet.length > 0;
 
+  const currencyLabel = currency && currency !== "ILS" && currency !== "ILA"
+    ? ` (${CURRENCY_SYMBOLS[currency] || currency})`
+    : "";
+
   return (
     <Tabs defaultValue="income" className="w-full">
-      <TabsList className="mb-4">
-        <TabsTrigger value="income">{t("fin.incomeStatement")}</TabsTrigger>
-        <TabsTrigger value="balance">{t("fin.balanceSheet")}</TabsTrigger>
-        <TabsTrigger value="cashflow">{t("fin.cashFlow")}</TabsTrigger>
-      </TabsList>
+      <div className="flex items-center gap-3 mb-4">
+        <TabsList>
+          <TabsTrigger value="income">{t("fin.incomeStatement")}</TabsTrigger>
+          <TabsTrigger value="balance">{t("fin.balanceSheet")}</TabsTrigger>
+          <TabsTrigger value="cashflow">{t("fin.cashFlow")}</TabsTrigger>
+        </TabsList>
+        {currency && (
+          <span className="text-xs font-medium bg-secondary px-2 py-1 rounded-md text-muted-foreground">
+            {CURRENCY_SYMBOLS[currency] || currency} {currency}
+          </span>
+        )}
+      </div>
       <TabsContent value="income">
-        <SimpleMetricTable rows={incomeStatement!} metrics={getIncomeMetrics(sector)} t={t} tabName="income-statement" />
+        <SimpleMetricTable rows={incomeStatement!} metrics={getIncomeMetrics(sector)} t={t} tabName="income-statement" currency={currency} />
       </TabsContent>
       <TabsContent value="balance">
         {useDetailedBS ? (
-          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} />
+          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} currency={currency} />
         ) : (
           <SimpleMetricTable rows={balanceSheet!} metrics={[
             { labelKey: "fin.totalAssets", getValue: (r) => r.totalAssets },
@@ -664,11 +675,11 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
             { labelKey: "fin.cashBs", getValue: (r) => r.cash },
             { labelKey: "fin.totalDebt", getValue: (r) => r.totalDebt, invertColor: true },
             { labelKey: "fin.inventory", getValue: (r) => r.inventory },
-          ]} t={t} tabName="balance-sheet" />
+          ]} t={t} tabName="balance-sheet" currency={currency} />
         )}
       </TabsContent>
       <TabsContent value="cashflow">
-        <SimpleMetricTable rows={cashFlow!} metrics={getCashFlowMetrics(sector)} t={t} tabName="cash-flow" />
+        <SimpleMetricTable rows={cashFlow!} metrics={getCashFlowMetrics(sector)} t={t} tabName="cash-flow" currency={currency} />
       </TabsContent>
     </Tabs>
   );
