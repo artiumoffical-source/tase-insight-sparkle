@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2 } from "lucide-react";
+import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuditTab from "@/components/admin/AuditTab";
@@ -41,7 +41,22 @@ function NewsTab() {
       if (!res.ok) throw new Error(`Error ${res.status}`);
       return res.json();
     },
-    onSuccess: (data) => { toast.success(`נוצרו ${data.generated} ניתוחים חדשים`); queryClient.invalidateQueries({ queryKey: ["admin-news"] }); },
+    onSuccess: (data) => { toast.success(`נוצרו ${data.generated} ניתוחים חדשים (EODHD)`); queryClient.invalidateQueries({ queryKey: ["admin-news"] }); },
+    onError: (err: any) => toast.error(`שגיאה: ${err.message}`),
+  });
+
+  const mayaMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-tase-news`,
+        { method: "POST", headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
+      );
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      return res.json();
+    },
+    onSuccess: (data) => { toast.success(`נוצרו ${data.generated} דיווחים מ-MAYA`); queryClient.invalidateQueries({ queryKey: ["admin-news"] }); },
     onError: (err: any) => toast.error(`שגיאה: ${err.message}`),
   });
 
@@ -60,11 +75,24 @@ function NewsTab() {
   const reject = (id: string) => { updateMutation.mutate({ id, updates: { status: "rejected" } }); };
 
   const statusColor = (s: string) => s === "published" ? "bg-green-600" : s === "rejected" ? "bg-red-600" : "bg-yellow-600";
-  const statusLabel = (s: string) => s === "published" ? "פורסם" : s === "rejected" ? "נדחה" : "ממתין";
+  const statusLabel = (s: string) => s === "published" ? "פורסם" : s === "rejected" ? "נדחה" : s === "draft" ? "טיוטה" : "ממתין";
+
+  const sentimentBadge = (s: string | null) => {
+    if (!s || s === "neutral") return <Badge variant="secondary" className="bg-muted text-muted-foreground">ניטרלי</Badge>;
+    if (s === "positive") return <Badge className="bg-green-600 text-white">חיובי</Badge>;
+    if (s === "negative") return <Badge className="bg-red-600 text-white">שלילי</Badge>;
+    return null;
+  };
+
+  const isDraft = (status: string) => status === "pending" || status === "draft";
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2 flex-wrap">
+        <Button onClick={() => mayaMutation.mutate()} disabled={mayaMutation.isPending} variant="outline" className="flex items-center gap-2">
+          {mayaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Newspaper className="h-4 w-4" />}
+          אסוף דיווחי MAYA
+        </Button>
         <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="flex items-center gap-2">
           {generateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           אסוף וצור ניתוחים
@@ -81,17 +109,21 @@ function NewsTab() {
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Badge className={statusColor(article.status)}>{statusLabel(article.status)}</Badge>
                     <Badge variant="secondary" className={article.category === "macro" ? "bg-blue-600 text-white" : "bg-muted"}>{article.category === "macro" ? "מאקרו וכלכלה" : "מניות"}</Badge>
                     {article.related_ticker && <Badge variant="outline">{article.related_ticker}</Badge>}
+                    {article.sentiment && sentimentBadge(article.sentiment)}
                     <span className="text-xs text-muted-foreground">{new Date(article.created_at).toLocaleDateString("he-IL")}</span>
+                    {article.original_source === "MAYA/TASE" && <Badge variant="outline" className="border-amber-500 text-amber-600">MAYA</Badge>}
                   </div>
                   {editingId === article.id ? <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="text-lg font-bold" /> : <CardTitle className="text-lg">{article.ai_title_he}</CardTitle>}
                 </div>
                 {article.original_url && <a href={article.original_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary"><ExternalLink className="h-4 w-4" /></a>}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">מקור: {article.original_source} | {article.original_title}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                מקור: {article.original_source} | {article.original_headline || article.original_title}
+              </p>
             </CardHeader>
             <CardContent className="space-y-3">
               {editingId === article.id ? (
@@ -110,7 +142,7 @@ function NewsTab() {
                   <p className="text-xs text-muted-foreground mt-2">מאת: {article.author}</p>
                 </>
               )}
-              {article.status === "pending" && editingId !== article.id && (
+              {isDraft(article.status) && editingId !== article.id && (
                 <div className="flex gap-2 pt-2 border-t">
                   <Button size="sm" variant="ghost" onClick={() => startEdit(article)} className="gap-1"><Edit2 className="h-3 w-3" /> עריכה</Button>
                   <Button size="sm" onClick={() => publish(article.id)} className="gap-1"><Check className="h-3 w-3" /> פרסום</Button>

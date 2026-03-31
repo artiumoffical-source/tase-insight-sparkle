@@ -69,14 +69,17 @@ export type Database = {
           ai_title_he: string
           author: string
           category: string
+          content: string | null
           created_at: string
           id: string
           original_date: string | null
+          original_headline: string | null
           original_source: string
           original_title: string
           original_url: string
           published_at: string | null
           related_ticker: string | null
+          sentiment: string | null
           status: string
           updated_at: string
         }
@@ -86,14 +89,17 @@ export type Database = {
           ai_title_he?: string
           author?: string
           category?: string
+          content?: string | null
           created_at?: string
           id?: string
           original_date?: string | null
+          original_headline?: string | null
           original_source?: string
           original_title?: string
           original_url?: string
           published_at?: string | null
           related_ticker?: string | null
+          sentiment?: string | null
           status?: string
           updated_at?: string
         }
@@ -103,14 +109,17 @@ export type Database = {
           ai_title_he?: string
           author?: string
           category?: string
+          content?: string | null
           created_at?: string
           id?: string
           original_date?: string | null
+          original_headline?: string | null
           original_source?: string
           original_title?: string
           original_url?: string
           published_at?: string | null
           related_ticker?: string | null
+          sentiment?: string | null
           status?: string
           updated_at?: string
         }
