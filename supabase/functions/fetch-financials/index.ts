@@ -593,13 +593,27 @@ serve(async (req) => {
     const stmtCurrency = stmtCurrencyRaw === "ILA" ? "ILS" : stmtCurrencyRaw;
     const generalReportingCurrency = general.ReportingCurrency || general.reporting_currency || null;
 
+    // Also check quarterly statements for currency (sometimes yearly is null but quarterly has it)
+    let quarterlyCurrency: string | null = null;
+    const qIncStmts = rawData.Financials?.Income_Statement?.quarterly || {};
+    const latestQKey = Object.keys(qIncStmts).sort().reverse()[0];
+    if (latestQKey) {
+      const qCcyRaw = qIncStmts[latestQKey]?.currency_symbol;
+      quarterlyCurrency = qCcyRaw === "ILA" ? "ILS" : (qCcyRaw || null);
+    }
+
     // Signal 1: EODHD General.ReportingCurrency (most reliable when present)
     if (generalReportingCurrency && generalReportingCurrency !== "ILA") {
       reportCcy = generalReportingCurrency === "ILA" ? "ILS" : generalReportingCurrency;
     }
-    // Signal 2: statement currency_symbol (if not ILS/ILA and not null)
+    // Signal 2: yearly statement currency_symbol (if not ILS/ILA and not null)
     else if (stmtCurrency && stmtCurrency !== "ILS" && stmtCurrency !== "None") {
       reportCcy = stmtCurrency;
+    }
+    // Signal 2b: quarterly statement currency_symbol (fallback if yearly was null)
+    else if (quarterlyCurrency && quarterlyCurrency !== "ILS" && quarterlyCurrency !== "None") {
+      reportCcy = quarterlyCurrency;
+      console.log(`[${ticker}] Currency from quarterly statement: ${reportCcy}`);
     }
     // Signal 3: stock has a US/non-TASE listing → likely reports in that exchange's currency
     else {
@@ -609,9 +623,6 @@ serve(async (req) => {
         const exch = (listing?.Exchange || "").toUpperCase();
         if (["NYSE", "NASDAQ", "US"].includes(exch)) { hasUSListing = true; break; }
       }
-      // Also check PrimaryExchange / HomeCategory from EODHD
-      const primaryExch = (general.Exchange || "").toUpperCase();
-      const countryISO = (general.CountryISO || "").toUpperCase();
       if (hasUSListing || (general.PrimaryTicker && !String(general.PrimaryTicker).endsWith(".TA"))) {
         reportCcy = "USD";
       }
