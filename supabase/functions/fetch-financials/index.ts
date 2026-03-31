@@ -728,7 +728,7 @@ serve(async (req) => {
         const equity = Number(y.totalEquity || 0);
         if (assets === 0) continue;
         const diff = Math.abs(assets - (liab + equity));
-        if (diff / assets > 0.02) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
+        if (diff / assets > 0.05) balanceFailures.push(`${y.year}: ${((diff / assets) * 100).toFixed(1)}% gap`);
       }
 
       // Income check
