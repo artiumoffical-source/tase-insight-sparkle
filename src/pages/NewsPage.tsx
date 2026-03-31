@@ -84,49 +84,43 @@ export default function NewsPage() {
           <div className="space-y-6">
             {articles.map((article: any) => (
               <article key={article.id}>
-                <Card className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="secondary" className={article.category === "macro" ? "bg-blue-600 text-white" : "bg-muted"}>
-                        {article.category === "macro" ? "מאקרו וכלכלה" : "מניות"}
-                      </Badge>
-                      {article.related_ticker && (
-                        <Link to={`/stock/${article.related_ticker}`}>
-                          <Badge
-                            variant="outline"
-                            className="hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
-                          >
+                <Link to={`/news/${article.id}`} className="block">
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className={article.category === "macro" ? "bg-blue-600 text-white" : "bg-muted"}>
+                          {article.category === "macro" ? "מאקרו וכלכלה" : "מניות"}
+                        </Badge>
+                        {article.related_ticker && (
+                          <Badge variant="outline">
                             <TrendingUp className="h-3 w-3 mr-1" />
                             {article.related_ticker}
                           </Badge>
-                        </Link>
-                      )}
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" />
-                        {article.published_at
-                          ? new Date(article.published_at).toLocaleDateString(
-                              isHe ? "he-IL" : "en-US",
-                              { year: "numeric", month: "long", day: "numeric" }
-                            )
-                          : ""}
-                      </span>
-                    </div>
-                    <CardTitle className="text-xl leading-tight">
-                      {article.ai_title_he}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {article.ai_summary_he}
-                    </p>
-                    <div className="text-sm whitespace-pre-line leading-relaxed">
-                      {article.ai_body_he}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-4 pt-3 border-t">
-                      מאת: {article.author}
-                    </p>
-                  </CardContent>
-                </Card>
+                        )}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3" />
+                          {article.published_at
+                            ? new Date(article.published_at).toLocaleDateString(
+                                isHe ? "he-IL" : "en-US",
+                                { year: "numeric", month: "long", day: "numeric" }
+                              )
+                            : ""}
+                        </span>
+                      </div>
+                      <CardTitle className="text-xl leading-tight">
+                        {article.ai_title_he}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        {article.ai_summary_he}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                        מאת: {article.author}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </Link>
               </article>
             ))}
           </div>
