@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper } from "lucide-react";
+import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, Newspaper, Share2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuditTab from "@/components/admin/AuditTab";
@@ -147,6 +147,29 @@ function NewsTab() {
                   <Button size="sm" variant="ghost" onClick={() => startEdit(article)} className="gap-1"><Edit2 className="h-3 w-3" /> עריכה</Button>
                   <Button size="sm" onClick={() => publish(article.id)} className="gap-1"><Check className="h-3 w-3" /> פרסום</Button>
                   <Button size="sm" variant="destructive" onClick={() => reject(article.id)} className="gap-1"><X className="h-3 w-3" /> דחייה</Button>
+                </div>
+              )}
+              {article.status === "published" && (
+                <div className="flex items-center gap-2 pt-2 border-t">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Share2 className="h-3 w-3" /> שתף:</span>
+                  {(() => {
+                    const articleUrl = `https://tase-insight-sparkle.lovable.app/news/${article.id}`;
+                    const title = encodeURIComponent(article.ai_title_he);
+                    return (
+                      <>
+                        <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(articleUrl)}`} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2">LinkedIn</Button>
+                        </a>
+                        <a href={`https://twitter.com/intent/tweet?text=${title}&url=${encodeURIComponent(articleUrl)}`} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2">X</Button>
+                        </a>
+                        <a href={`https://wa.me/?text=${title}%20${encodeURIComponent(articleUrl)}`} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" className="text-xs gap-1 h-7 px-2">WhatsApp</Button>
+                        </a>
+                        <Button size="sm" variant="ghost" className="text-xs h-7 px-2" onClick={() => { navigator.clipboard.writeText(articleUrl); toast.success("הקישור הועתק!"); }}>📋 העתק</Button>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </CardContent>
