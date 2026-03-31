@@ -141,7 +141,7 @@ Return a JSON object with these fields:
 - bodyHe: Full Hebrew analysis (2-3 paragraphs, data-driven, YOY comparison explicit)
 - summaryHe: One sharp, quantitative sentence summary (max 150 chars, must include at least one number)
 - sentiment: one of "positive", "negative", or "neutral" — MUST match Net Income direction from DB
-- category: "stock" if about a specific company, "macro" if about economy/market
+- category: "stock" (always — we only cover specific companies)
 - flagged: boolean — true if headline contradicts DB data OR sentiment doesn't match Net Income direction`;
 }
 
@@ -360,14 +360,36 @@ Deno.serve(async (req) => {
       return { ticker: bestMatch.ticker, companyName: bestMatch.companyName };
     }
 
-    // 4. Process with data injection + AI
+    // 4. Filter: only ticker-matched, recent articles
+    const currentYear = new Date().getFullYear();
     let generated = 0;
     let flagged = 0;
+    let skippedNoTicker = 0;
+    let skippedOutdated = 0;
     const maxItems = 8;
 
     for (const item of newItems.slice(0, maxItems)) {
       const cleanDesc = stripHtml(item.description);
       const { ticker, companyName } = matchTicker(item.title, cleanDesc);
+
+      // FILTER 1: Skip articles without a matched ticker (no macro)
+      if (!ticker) {
+        skippedNoTicker++;
+        console.log(`SKIPPED (no ticker): "${item.title}"`);
+        continue;
+      }
+
+      // FILTER 2: Skip outdated articles referencing years 2+ behind current
+      const combinedText = item.title + " " + cleanDesc;
+      const yearMentions = combinedText.match(/\b(20\d{2})\b/g);
+      if (yearMentions) {
+        const maxYearMentioned = Math.max(...yearMentions.map(Number));
+        if (maxYearMentioned < currentYear - 1) {
+          skippedOutdated++;
+          console.log(`SKIPPED (outdated year ${maxYearMentioned}): "${item.title}"`);
+          continue;
+        }
+      }
 
       try {
         // Fetch real-time data for the ticker
@@ -385,7 +407,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: "You are a professional quantitative financial analyst. Return ONLY valid JSON. Every claim must be backed by a number." },
+              { role: "system", content: `You are a professional quantitative financial analyst. Return ONLY valid JSON. Every claim must be backed by a number. CRITICAL: The current date is ${new Date().toISOString().slice(0, 10)}. The current year is ${currentYear}. Do NOT reference outdated data as current.` },
               { role: "user", content: prompt },
             ],
           }),
@@ -403,19 +425,18 @@ Deno.serve(async (req) => {
         if (!jsonMatch) { console.error(`No JSON in AI response for "${item.title}"`); continue; }
 
         const parsed = JSON.parse(jsonMatch[0]);
-        const category = parsed.category === "macro" ? "macro" : "stock";
         const isFlagged = parsed.flagged === true;
         if (isFlagged) flagged++;
 
         const { error: insertErr } = await adminClient.from("news_articles").insert({
           status: isFlagged ? "draft" : "draft",
-          category,
+          category: "stock",
           original_title: item.title,
           original_headline: item.title,
           original_url: item.link,
           original_source: "AlphaMap",
           original_date: item.pubDate ? new Date(item.pubDate).toISOString() : null,
-          related_ticker: ticker || null,
+          related_ticker: ticker,
           ai_title_he: parsed.titleHe || item.title,
           ai_body_he: parsed.bodyHe || "",
           ai_summary_he: parsed.summaryHe || "",
@@ -427,7 +448,7 @@ Deno.serve(async (req) => {
           console.error("Insert error:", insertErr);
         } else {
           generated++;
-          console.log(`Generated: ${item.title} (${ticker || "macro"}) [${parsed.sentiment}]${isFlagged ? " ⚠️ FLAGGED" : ""}`);
+          console.log(`Generated: ${item.title} (${ticker}) [${parsed.sentiment}]${isFlagged ? " ⚠️ FLAGGED" : ""}`);
         }
       } catch (e) {
         console.error(`Error processing "${item.title}":`, e);
@@ -437,7 +458,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ generated, flagged, total_feed: allItems.length, new_items: newItems.length }),
+      JSON.stringify({ generated, flagged, skippedNoTicker, skippedOutdated, total_feed: allItems.length, new_items: newItems.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
