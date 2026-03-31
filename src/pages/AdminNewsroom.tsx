@@ -8,14 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { RefreshCw, Check, X, Edit2, Save, ExternalLink, Loader2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
+import AuditTab from "@/components/admin/AuditTab";
 
-/* ─── News Tab (extracted) ─── */
+/* ─── News Tab ─── */
 function NewsTab() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -43,7 +42,7 @@ function NewsTab() {
       return res.json();
     },
     onSuccess: (data) => { toast.success(`נוצרו ${data.generated} ניתוחים חדשים`); queryClient.invalidateQueries({ queryKey: ["admin-news"] }); },
-    onError: (err) => toast.error(`שגיאה: ${err.message}`),
+    onError: (err: any) => toast.error(`שגיאה: ${err.message}`),
   });
 
   const updateMutation = useMutation({
@@ -52,7 +51,7 @@ function NewsTab() {
       if (error) throw error;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["admin-news"] }); setEditingId(null); },
-    onError: (err) => toast.error(`שגיאה: ${err.message}`),
+    onError: (err: any) => toast.error(`שגיאה: ${err.message}`),
   });
 
   const startEdit = (article: any) => { setEditingId(article.id); setEditTitle(article.ai_title_he); setEditBody(article.ai_body_he); setEditSummary(article.ai_summary_he); };
@@ -121,131 +120,6 @@ function NewsTab() {
             </CardContent>
           </Card>
         ))
-      )}
-    </div>
-  );
-}
-
-/* ─── Audit Tab ─── */
-function AuditTab() {
-  const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<"all" | "green" | "yellow" | "red">("all");
-
-  const { data: auditResults, isLoading } = useQuery({
-    queryKey: ["audit-results"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("stock_audit_results").select("*").order("health", { ascending: true });
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const { data: issueReports } = useQuery({
-    queryKey: ["issue-reports"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("data_issue_reports").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as any[];
-    },
-  });
-
-  const runAuditMutation = useMutation({
-    mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/audit-financials`,
-        { method: "POST", headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY } }
-      );
-      if (!res.ok) throw new Error(`Error ${res.status}`);
-      return res.json();
-    },
-    onSuccess: (data) => { toast.success(`נבדקו ${data.audited} מניות`); queryClient.invalidateQueries({ queryKey: ["audit-results"] }); },
-    onError: (err) => toast.error(`שגיאה: ${err.message}`),
-  });
-
-  const toggleVerified = async (ticker: string, current: boolean) => {
-    const { error } = await supabase.from("stock_audit_results").update({ verified_by_admin: !current }).eq("ticker", ticker);
-    if (error) { toast.error("שגיאה בעדכון"); return; }
-    queryClient.invalidateQueries({ queryKey: ["audit-results"] });
-  };
-
-  const resolveReport = async (id: string) => {
-    const { error } = await supabase.from("data_issue_reports").update({ resolved: true }).eq("id", id);
-    if (error) { toast.error("שגיאה"); return; }
-    queryClient.invalidateQueries({ queryKey: ["issue-reports"] });
-    toast.success("דיווח סומן כטופל");
-  };
-
-  const filtered = auditResults?.filter((r: any) => filter === "all" || r.health === filter) ?? [];
-  const healthBadge = (h: string) => h === "green" ? "bg-green-600 text-white" : h === "yellow" ? "bg-yellow-500 text-black" : "bg-red-600 text-white";
-  const healthLabel = (h: string) => h === "green" ? "תקין" : h === "yellow" ? "חלקי" : "שגיאה";
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          {(["all", "red", "yellow", "green"] as const).map((f) => (
-            <Button key={f} size="sm" variant={filter === f ? "default" : "outline"} onClick={() => setFilter(f)}>
-              {f === "all" ? "הכל" : f === "red" ? "🔴 שגיאה" : f === "yellow" ? "🟡 חלקי" : "🟢 תקין"}
-            </Button>
-          ))}
-        </div>
-        <Button onClick={() => runAuditMutation.mutate()} disabled={runAuditMutation.isPending} className="gap-2">
-          {runAuditMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-          הרץ ביקורת מלאה
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8" /></div>
-      ) : !filtered.length ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">אין תוצאות ביקורת. הרץ ביקורת מלאה כדי להתחיל.</CardContent></Card>
-      ) : (
-        <div className="rounded-lg border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-right p-3 font-medium">טיקר</th>
-                <th className="text-right p-3 font-medium">בריאות</th>
-                <th className="text-right p-3 font-medium">בדיקה אחרונה</th>
-                <th className="text-center p-3 font-medium">מאומת ✓</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r: any) => (
-                <tr key={r.ticker} className="border-t hover:bg-muted/30 transition-colors">
-                  <td className="p-3 font-mono font-medium">{r.ticker}</td>
-                  <td className="p-3"><Badge className={healthBadge(r.health)}>{healthLabel(r.health)}</Badge></td>
-                  <td className="p-3 text-muted-foreground">{new Date(r.last_audited).toLocaleDateString("he-IL")}</td>
-                  <td className="p-3 text-center">
-                    <Checkbox checked={r.verified_by_admin} onCheckedChange={() => toggleVerified(r.ticker, r.verified_by_admin)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Issue Reports */}
-      {issueReports && issueReports.filter((r: any) => !r.resolved).length > 0 && (
-        <div className="space-y-3">
-          <h3 className="font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-yellow-500" /> דיווחי משתמשים</h3>
-          {issueReports.filter((r: any) => !r.resolved).map((r: any) => (
-            <Card key={r.id}>
-              <CardContent className="py-3 flex items-center justify-between">
-                <div>
-                  <span className="font-mono font-medium">{r.ticker}</span>
-                  <span className="text-muted-foreground mx-2">—</span>
-                  <span className="text-sm">{r.message || "ללא הודעה"}</span>
-                  <span className="text-xs text-muted-foreground mr-2">{new Date(r.created_at).toLocaleDateString("he-IL")}</span>
-                </div>
-                <Button size="sm" variant="outline" onClick={() => resolveReport(r.id)}>טופל</Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
     </div>
   );
