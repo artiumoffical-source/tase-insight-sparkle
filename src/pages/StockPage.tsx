@@ -344,6 +344,7 @@ export default function StockPage() {
               detailedBalanceSheet={period === "annual" ? detailedBalanceSheet : undefined}
               loading={loading}
               sector={sector}
+              currency={currency}
             />
           </div>
 
