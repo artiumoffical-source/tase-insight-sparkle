@@ -79,7 +79,7 @@ export default function NewsArticlePage() {
         <meta property="og:title" content={title} />
         <meta property="og:description" content={summary || title} />
         <meta property="og:type" content="article" />
-        <meta property="og:url" content={`https://tase-insight-sparkle.lovable.app/news/${article.id}`} />
+        <meta property="og:url" content={`https://alpha-map.com/news/${article.id}`} />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={summary || title} />
