@@ -161,7 +161,10 @@ function NewsTab() {
                 </div>
               )}
               {article.status === "published" && (
-                <div className="flex items-center gap-2 pt-2 border-t">
+                <div className="flex items-center gap-2 pt-2 border-t flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => moveToDraft(article.id)} className="gap-1 text-xs h-7 px-2">
+                    <RotateCcw className="h-3 w-3" /> החזר לטיוטה
+                  </Button>
                   <span className="text-xs text-muted-foreground flex items-center gap-1"><Share2 className="h-3 w-3" /> שתף:</span>
                   {(() => {
                     const articleUrl = `https://alpha-map.com/news/${article.id}`;
@@ -183,6 +186,30 @@ function NewsTab() {
                   })()}
                 </div>
               )}
+              {/* Delete button for ALL articles */}
+              <div className="flex justify-end pt-1">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive gap-1 text-xs h-7 px-2">
+                      <Trash2 className="h-3 w-3" /> מחק
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent dir="rtl">
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>מחיקת מאמר</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        האם אתה בטוח שברצונך למחוק את המאמר "{article.ai_title_he}"? פעולה זו אינה ניתנת לביטול.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>ביטול</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMutation.mutate(article.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        מחק לצמיתות
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </CardContent>
           </Card>
         ))
