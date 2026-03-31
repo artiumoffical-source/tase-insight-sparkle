@@ -168,19 +168,14 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
       totalEquity: (() => {
         const te = p("totalStockholderEquity");
-        const mi = p("minorityInterest") || p("nonControllingInterest") || (() => {
-          const ta = p("totalAssets"), tl = p("totalLiab");
-          const gap = ta - tl - te;
-          return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
-        })();
-        return te + mi; // Include MI so Assets = Liabilities + Equity
+        const ta = p("totalAssets"), tl = p("totalLiab");
+        const mi = findEquityGap(b, ta, tl, te);
+        return te + mi;
       })(),
       minorityInterest: (() => {
-        const mi = p("minorityInterest") || p("nonControllingInterest");
-        if (mi !== 0) return mi;
-        const ta = p("totalAssets"), tl = p("totalLiab"), te = p("totalStockholderEquity");
-        const gap = ta - tl - te;
-        return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
+        const te = p("totalStockholderEquity");
+        const ta = p("totalAssets"), tl = p("totalLiab");
+        return findEquityGap(b, ta, tl, te);
       })(),
       commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
       retainedEarnings: p("retainedEarnings"),
