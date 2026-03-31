@@ -268,12 +268,22 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
 
   // Calculate market cap: shares × price (price from eodPrice is already in ILS for TASE)
   let canonicalMarketCap = 0;
-  const priceForMcap = eodPrice?.price || 0;
+  let priceForMcap = eodPrice?.price || 0;
+
+  // If no live price, try Technicals as price proxy
+  if (priceForMcap === 0) {
+    let techPrice = parseFloat(technicals["50DayMA"]) || parseFloat(technicals["200DayMA"]) || 0;
+    // Technicals from EODHD for TASE are in agorot
+    if (techPrice > 500) techPrice = techPrice / 100;
+    priceForMcap = techPrice;
+    if (techPrice > 0) console.log(`[${ticker}] Using Technicals price for mcap: ${techPrice}`);
+  }
+
   if (totalSharesForMcap > 0 && priceForMcap > 0) {
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
     console.log(`[${ticker}] Calculated MarketCap: ${totalSharesForMcap} shares × ${priceForMcap} ${marketCapCurrency} = ${canonicalMarketCap}`);
   } else {
-    // Fallback: use EODHD's value (better than nothing)
+    // Last resort: use EODHD's value (may be wrong for some stocks)
     const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
     canonicalMarketCap = eodhMcap;
     console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
