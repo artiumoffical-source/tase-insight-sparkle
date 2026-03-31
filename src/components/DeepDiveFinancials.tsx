@@ -35,6 +35,7 @@ export interface DetailedBalanceSheetRow {
   totalLiabilities: number;
   // Equity
   totalEquity: number;
+  minorityInterest: number;
   commonStock: number;
   retainedEarnings: number;
   otherEquity: number;
