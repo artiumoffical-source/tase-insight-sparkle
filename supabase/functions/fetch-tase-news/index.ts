@@ -360,6 +360,7 @@ Deno.serve(async (req) => {
     let skippedNoData = 0;
     let skippedStale = 0;
     let dataLockFails = 0;
+    const errors: Array<{ ticker: string; title: string; error: string }> = [];
     const maxItems = 8;
 
     for (const item of newItems.slice(0, maxItems)) {
@@ -463,14 +464,32 @@ Deno.serve(async (req) => {
           console.log(`Generated: "${item.title}" (${ticker}) [${parsed.sentiment}]${isFlagged ? " ⚠️ FLAGGED" : ""}${!validation.valid ? " ❌ DATA MISMATCH" : " ✅ DATA VERIFIED"}`);
         }
       } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        errors.push({ ticker: ticker || "unknown", title: item.title, error: errMsg });
         console.error(`Error processing "${item.title}":`, e);
       }
 
       await new Promise(r => setTimeout(r, 2000));
     }
 
+    const summary = {
+      processed: Math.min(newItems.length, maxItems),
+      skipped_duplicate: allItems.length - newItems.length,
+      skipped_no_ticker: skippedNoTicker,
+      skipped_no_fundamentals: skippedNoData,
+      skipped_stale: skippedStale,
+      skipped_outdated: skippedOutdated,
+      generated,
+      flagged,
+      data_lock_fails: dataLockFails,
+      total_feed: allItems.length,
+      new_items: newItems.length,
+      errors,
+    };
+    console.log("SUMMARY:", JSON.stringify(summary));
+
     return new Response(
-      JSON.stringify({ generated, flagged, dataLockFails, skippedNoTicker, skippedOutdated, skippedNoData, skippedStale, total_feed: allItems.length, new_items: newItems.length }),
+      JSON.stringify(summary),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
