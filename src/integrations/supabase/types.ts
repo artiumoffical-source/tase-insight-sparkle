@@ -160,6 +160,7 @@ export type Database = {
       }
       tase_symbols: {
         Row: {
+          aliases: string[] | null
           currency: string | null
           exchange: string
           id: string
@@ -174,6 +175,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aliases?: string[] | null
           currency?: string | null
           exchange?: string
           id?: string
@@ -188,6 +190,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aliases?: string[] | null
           currency?: string | null
           exchange?: string
           id?: string
