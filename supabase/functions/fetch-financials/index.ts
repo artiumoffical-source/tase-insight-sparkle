@@ -82,6 +82,36 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
   });
 }
 
+// Dynamically search the balance sheet JSON for the equity gap
+function findEquityGap(bal: Record<string, any>, totalAssets: number, totalLiab: number, totalEquity: number): number {
+  // First try known MI fields
+  const knownMIFields = [
+    "minorityInterest", "nonControllingInterest", "noncontrollingInterestInConsolidatedEntity",
+    "minority_interest", "non_controlling_interest"
+  ];
+  for (const field of knownMIFields) {
+    const val = parseFloat(bal[field]);
+    if (val && !isNaN(val) && val > 0) return val;
+  }
+
+  // Try other equity-adjacent fields that EODHD sometimes uses
+  const otherEquityFields = [
+    "preferredStock", "preferredStockTotalEquity", "preferred_stock",
+    "otherEquity", "otherStockholderEquity", "accumulatedOtherComprehensiveIncome",
+    "treasuryStock", "capitalSurplus", "additionalPaidInCapital"
+  ];
+  let candidateSum = 0;
+  for (const field of otherEquityFields) {
+    const val = parseFloat(bal[field]);
+    if (val && !isNaN(val)) candidateSum += val;
+  }
+
+  // If known fields don't help, derive from the gap itself (Assets - Liab - Equity)
+  const gap = totalAssets - totalLiab - totalEquity;
+  if (gap > 0 && gap / totalAssets < 0.5) return gap;
+  return 0;
+}
+
 function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const bal = balanceSheets[dateKey] || {};
@@ -89,17 +119,12 @@ function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]
     const totalAssets = parseFloat(bal.totalAssets) || 0;
     const totalLiab = parseFloat(bal.totalLiab) || 0;
     const totalEquity = parseFloat(bal.totalStockholderEquity) || 0;
-    // Minority Interest: use API field if present, otherwise derive from balance equation gap
-    let mi = parseFloat(bal.minorityInterest) || parseFloat(bal.nonControllingInterest) || 0;
-    if (mi === 0 && totalAssets > 0) {
-      const gap = totalAssets - totalLiab - totalEquity;
-      if (gap > 0 && gap / totalAssets < 0.5) mi = gap; // reasonable MI range
-    }
+    const mi = findEquityGap(bal, totalAssets, totalLiab, totalEquity);
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       totalAssets,
       totalLiabilities: totalLiab,
-      totalEquity: totalEquity + mi, // Include MI so Assets = Liabilities + Equity
+      totalEquity: totalEquity + mi,
       minorityInterest: mi,
       cash: parseFloat(bal.cash) || parseFloat(bal.cashAndShortTermInvestments) || 0,
       totalDebt: totalDebtVal,
@@ -143,19 +168,14 @@ function buildDetailedBalanceRows(balanceSheets: Record<string, any>, dateKeys: 
       otherNonCurrentLiabilities: p("nonCurrentLiabilitiesOther"),
       totalEquity: (() => {
         const te = p("totalStockholderEquity");
-        const mi = p("minorityInterest") || p("nonControllingInterest") || (() => {
-          const ta = p("totalAssets"), tl = p("totalLiab");
-          const gap = ta - tl - te;
-          return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
-        })();
-        return te + mi; // Include MI so Assets = Liabilities + Equity
+        const ta = p("totalAssets"), tl = p("totalLiab");
+        const mi = findEquityGap(b, ta, tl, te);
+        return te + mi;
       })(),
       minorityInterest: (() => {
-        const mi = p("minorityInterest") || p("nonControllingInterest");
-        if (mi !== 0) return mi;
-        const ta = p("totalAssets"), tl = p("totalLiab"), te = p("totalStockholderEquity");
-        const gap = ta - tl - te;
-        return (ta > 0 && gap > 0 && gap / ta < 0.5) ? gap : 0;
+        const te = p("totalStockholderEquity");
+        const ta = p("totalAssets"), tl = p("totalLiab");
+        return findEquityGap(b, ta, tl, te);
       })(),
       commonStock: p("commonStock") || p("commonStockSharesOutstanding"),
       retainedEarnings: p("retainedEarnings"),
@@ -566,10 +586,17 @@ serve(async (req) => {
 
     console.log(`[${ticker}] Currency detection: tradingCcy=${tradingCcy}, stmtCurrency=${stmtCurrency}, reportingCurrency=${generalReportingCurrency}, final=${reportCcy}`);
 
+    // Hardcoded fallback FX rates (last resort if live API fails)
+    const FALLBACK_FX: Record<string, Record<string, number>> = {
+      USD: { ILS: 3.75, EUR: 0.92, GBP: 0.79 },
+      EUR: { ILS: 4.05, USD: 1.09, GBP: 0.86 },
+      GBP: { ILS: 4.70, USD: 1.27, EUR: 1.16 },
+    };
+
     if (tradingCcy !== reportCcy) {
       // Fetch exchange rate: how many units of tradingCcy per 1 unit of reportCcy
       try {
-        const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`);
+        const fxResp = await fetch(`https://open.er-api.com/v6/latest/${reportCcy}`, { signal: AbortSignal.timeout(5000) });
         if (fxResp.ok) {
           const fxData = await fxResp.json();
           const rate = fxData?.rates?.[tradingCcy];
@@ -582,6 +609,15 @@ serve(async (req) => {
         }
       } catch (fxErr) {
         console.error(`[${ticker}] Failed to fetch FX rate:`, fxErr);
+      }
+
+      // Fallback to hardcoded rate if live fetch failed
+      if (!exchangeRate) {
+        const fallback = FALLBACK_FX[reportCcy]?.[tradingCcy];
+        if (fallback) {
+          exchangeRate = fallback;
+          console.log(`[${ticker}] Using FALLBACK FX rate ${reportCcy}→${tradingCcy}: ${exchangeRate}`);
+        }
       }
     }
 

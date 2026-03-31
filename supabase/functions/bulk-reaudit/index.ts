@@ -18,32 +18,32 @@ Deno.serve(async (req) => {
     );
 
     const url = new URL(req.url);
-    const mode = url.searchParams.get("mode") || "unhealthy"; // "unhealthy" or "all"
+    const mode = url.searchParams.get("mode") || "all"; // "unhealthy" or "all"
+    const batchSize = parseInt(url.searchParams.get("batch") || "0"); // 0 = all
+    const offset = parseInt(url.searchParams.get("offset") || "0");
 
     // Get stocks to re-audit
-    let query = supabase.from("cached_fundamentals").select("ticker");
+    let tickers: string[] = [];
+
     if (mode === "unhealthy") {
-      // Get tickers with red/yellow health that are not verified
       const { data: unhealthy } = await supabase
         .from("stock_audit_results")
         .select("ticker")
         .in("health", ["red", "yellow"])
         .eq("verified_by_admin", false);
-      const unhealthyTickers = (unhealthy || []).map((s: any) => s.ticker);
-      
-      if (unhealthyTickers.length === 0) {
-        return new Response(
-          JSON.stringify({ message: "No unhealthy stocks to re-audit", total: 0 }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      query = query.in("ticker", unhealthyTickers);
+      tickers = (unhealthy || []).map((s: any) => s.ticker);
+    } else {
+      const { data: all } = await supabase
+        .from("cached_fundamentals")
+        .select("ticker")
+        .order("ticker");
+      tickers = (all || []).map((s: any) => s.ticker);
     }
 
-    const { data: stocks, error } = await query;
-    if (error) throw error;
+    // Apply offset/batch
+    if (offset > 0) tickers = tickers.slice(offset);
+    if (batchSize > 0) tickers = tickers.slice(0, batchSize);
 
-    const tickers = (stocks || []).map((s: any) => s.ticker);
     console.log(`Bulk re-audit (${mode}): ${tickers.length} stocks to refresh`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -51,6 +51,8 @@ Deno.serve(async (req) => {
 
     let refreshed = 0;
     let failed = 0;
+    const failures: string[] = [];
+    const results: Record<string, string> = {};
 
     for (const ticker of tickers) {
       try {
@@ -60,21 +62,45 @@ Deno.serve(async (req) => {
         );
         if (res.ok) {
           refreshed++;
+          // Read the health from the response
+          try {
+            const data = await res.json();
+            results[ticker] = data?.meta?.currency || "?";
+          } catch { results[ticker] = "ok"; }
           if (refreshed % 10 === 0) console.log(`Progress: ${refreshed}/${tickers.length}`);
         } else {
           failed++;
+          const body = await res.text().catch(() => "");
+          failures.push(`${ticker}: ${res.status} ${body.substring(0, 80)}`);
           console.warn(`✗ ${ticker} failed: ${res.status}`);
         }
       } catch (e) {
         failed++;
+        failures.push(`${ticker}: ${(e as Error).message}`);
         console.error(`✗ ${ticker} error:`, e);
       }
-      // Rate limit: 2s between calls to avoid EODHD 429
-      await new Promise(r => setTimeout(r, 2000));
+      // Rate limit: 1.5s between calls to avoid EODHD 429
+      await new Promise(r => setTimeout(r, 1500));
+    }
+
+    // Fetch final health summary
+    const { data: auditSummary } = await supabase
+      .from("stock_audit_results")
+      .select("health");
+    const summary = { green: 0, yellow: 0, red: 0, total: 0 };
+    for (const row of auditSummary || []) {
+      summary.total++;
+      if (row.health === "green") summary.green++;
+      else if (row.health === "yellow") summary.yellow++;
+      else summary.red++;
     }
 
     return new Response(
-      JSON.stringify({ total: tickers.length, refreshed, failed }),
+      JSON.stringify({ 
+        processed: tickers.length, refreshed, failed, 
+        failures: failures.slice(0, 20),
+        healthSummary: summary 
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
