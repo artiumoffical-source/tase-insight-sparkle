@@ -373,7 +373,8 @@ Deno.serve(async (req) => {
         // Fetch real-time data for the ticker
         const marketData = eodhKey ? await fetchTickerData(ticker, eodhKey) : null;
         if (ticker && marketData) {
-          console.log(`Data for ${ticker}: change=${marketData.priceChange}%, rev=${marketData.revenue}, opInc=${marketData.opIncome}`);
+          const yoy = marketData.yoyComparison;
+          console.log(`Data for ${ticker}: change=${marketData.priceChange}%, YOY=${yoy ? `${yoy.currentLabel} vs ${yoy.parallelLabel}` : "N/A"}`);
         }
 
         const prompt = buildPrompt(item.title, cleanDesc, ticker, companyName || "לא זוהה", marketData);
