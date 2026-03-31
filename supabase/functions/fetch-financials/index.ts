@@ -199,7 +199,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   });
 
   // Annual 3-statement
-  const incomeStatement = buildIncomeRows(incomeStatements, years5);
+  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesOutstanding);
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
   const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
@@ -210,7 +210,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qCashFlowStatements = data.Financials?.Cash_Flow?.quarterly || {};
   const allQuarters = Object.keys(qIncomeStatements).sort((a, b) => a.localeCompare(b)).slice(-8);
 
-  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters);
+  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesOutstanding);
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
