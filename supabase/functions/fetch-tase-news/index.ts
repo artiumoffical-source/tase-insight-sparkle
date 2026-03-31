@@ -384,12 +384,17 @@ Deno.serve(async (req) => {
 
       try {
         // BUILD DATA LOCK from our verified DB
-        const lock = await buildDataLock(ticker, companyName, adminClient, eodhKey);
-        if (!lock) {
+        const lockResult = await buildDataLock(ticker, companyName, adminClient, eodhKey);
+        if (lockResult === "stale") {
+          skippedStale++;
+          continue;
+        }
+        if (!lockResult) {
           skippedNoData++;
           console.log(`SKIPPED (no DB financials): "${item.title}" [${ticker}]`);
           continue;
         }
+        const lock = lockResult;
 
         console.log(`DATA LOCK for ${ticker}: Rev ${formatNum(lock.currentRevenue || 0)} (${lock.revenueGrowthPct}% YOY), NI ${formatNum(lock.currentNetIncome || 0)} (${lock.netIncomeGrowthPct}% YOY)`);
 
