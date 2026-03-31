@@ -10,35 +10,101 @@ const RSS_FEEDS = [
   { url: "https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2", source: "גלובס - כלכלה" },
 ];
 
-// ─── Data-driven AI prompt ───
+interface YoyComparison {
+  currentLabel: string;
+  parallelLabel: string;
+  currentRevenue?: number;
+  parallelRevenue?: number;
+  currentOpIncome?: number;
+  parallelOpIncome?: number;
+  currentNetIncome?: number;
+  parallelNetIncome?: number;
+}
+
+interface TickerData {
+  priceChange?: number;
+  currency?: string;
+  yoyComparison?: YoyComparison;
+}
+
+// ─── Data-driven AI prompt with YOY comparison & fact-check ───
 function buildPrompt(
   headline: string,
   description: string,
   ticker: string,
   companyName: string,
-  marketData: { priceChange?: number; revenue?: number[]; opIncome?: number[]; expenses?: number[]; currency?: string } | null
+  marketData: TickerData | null
 ): string {
-  const dataBlock = marketData
-    ? `
-REAL-TIME MARKET DATA (use these exact numbers in your analysis):
-- Today's price change: ${marketData.priceChange != null ? `${marketData.priceChange > 0 ? "+" : ""}${marketData.priceChange.toFixed(2)}%` : "N/A"}
-${marketData.revenue?.length ? `- Revenue (last 2 quarters, ${marketData.currency || "ILS"}): ${marketData.revenue.map(v => formatNum(v)).join(" → ")}` : ""}
-${marketData.opIncome?.length ? `- Operating Income (last 2 quarters): ${marketData.opIncome.map(v => formatNum(v)).join(" → ")}` : ""}
-${marketData.expenses?.length ? `- Operating Expenses (last 2 quarters): ${marketData.expenses.map(v => formatNum(v)).join(" → ")}` : ""}
-${marketData.opIncome?.length === 2 && marketData.revenue?.length === 2 ? `- Operating Margin: ${((marketData.opIncome[0] / marketData.revenue[0]) * 100).toFixed(1)}% → ${((marketData.opIncome[1] / marketData.revenue[1]) * 100).toFixed(1)}%` : ""}
-`
-    : "";
+  let dataBlock = "";
+  if (marketData) {
+    const lines: string[] = [];
+    if (marketData.priceChange != null) {
+      lines.push(`- Today's price change: ${marketData.priceChange > 0 ? "+" : ""}${marketData.priceChange.toFixed(2)}%`);
+    }
+
+    // YOY quarterly comparison (current quarter vs parallel quarter last year)
+    if (marketData.yoyComparison) {
+      const yoy = marketData.yoyComparison;
+      lines.push(`\n--- YEAR-OVER-YEAR COMPARISON (${yoy.currentLabel} vs ${yoy.parallelLabel}) ---`);
+      if (yoy.currentRevenue != null && yoy.parallelRevenue != null) {
+        const revChange = ((yoy.currentRevenue - yoy.parallelRevenue) / Math.abs(yoy.parallelRevenue)) * 100;
+        lines.push(`- Revenue: ${formatNum(yoy.parallelRevenue)} → ${formatNum(yoy.currentRevenue)} (${revChange > 0 ? "+" : ""}${revChange.toFixed(1)}% YOY)`);
+      }
+      if (yoy.currentOpIncome != null && yoy.parallelOpIncome != null) {
+        const opChange = ((yoy.currentOpIncome - yoy.parallelOpIncome) / Math.abs(yoy.parallelOpIncome || 1)) * 100;
+        lines.push(`- Operating Income: ${formatNum(yoy.parallelOpIncome)} → ${formatNum(yoy.currentOpIncome)} (${opChange > 0 ? "+" : ""}${opChange.toFixed(1)}% YOY)`);
+      }
+      if (yoy.currentNetIncome != null && yoy.parallelNetIncome != null) {
+        const niChange = ((yoy.currentNetIncome - yoy.parallelNetIncome) / Math.abs(yoy.parallelNetIncome || 1)) * 100;
+        lines.push(`- Net Income: ${formatNum(yoy.parallelNetIncome)} → ${formatNum(yoy.currentNetIncome)} (${niChange > 0 ? "+" : ""}${niChange.toFixed(1)}% YOY)`);
+      }
+      // Operating margin calculated from DB
+      if (yoy.currentRevenue && yoy.currentOpIncome != null && yoy.parallelRevenue && yoy.parallelOpIncome != null) {
+        const curMargin = (yoy.currentOpIncome / yoy.currentRevenue * 100).toFixed(1);
+        const parMargin = (yoy.parallelOpIncome / yoy.parallelRevenue * 100).toFixed(1);
+        lines.push(`- Operating Margin: ${parMargin}% → ${curMargin}% (calculated from DB)`);
+      }
+      // Sentiment guide based on net income
+      if (yoy.currentNetIncome != null && yoy.parallelNetIncome != null) {
+        const niGrowth = ((yoy.currentNetIncome - yoy.parallelNetIncome) / Math.abs(yoy.parallelNetIncome || 1)) * 100;
+        lines.push(`\n⚠️ SENTIMENT GUIDE: Net Income ${niGrowth > 0 ? "GREW" : "DECLINED"} by ${Math.abs(niGrowth).toFixed(1)}% YOY. Your sentiment MUST match this direction.`);
+      }
+    }
+
+    dataBlock = `\nREAL-TIME MARKET DATA FROM DATABASE (these are ABSOLUTE TRUTH — override any external source):\n${lines.join("\n")}\n`;
+  }
 
   return `You are "ארטיום מנדבורה", a senior quantitative market analyst covering the Tel Aviv Stock Exchange for AlphaMap.
 
 You are writing an original, data-driven analysis based on Israeli financial market developments.
 
+CRITICAL RULES — DATA SOVEREIGNTY:
+1. The financial numbers provided below come from OFFICIAL FINANCIAL REPORTS in our database. They are ABSOLUTE TRUTH.
+2. If a news headline says "Revenue grew" but the DB shows a decline, you MUST write: "למרות דיווחים על צמיחה, הנתונים הרשמיים מצביעים על ירידה של X% בהכנסות."
+3. NEVER contradict the database numbers. If the headline and data disagree, the DATA wins.
+
+CRITICAL RULES — COMPARISON METHOD:
+1. For ALL stocks: compare the CURRENT QUARTER to the PARALLEL QUARTER LAST YEAR (YOY), NOT the previous quarter (QOQ).
+   - Example: Compare Q4 2025 to Q4 2024, NOT Q3 2025.
+   - This accounts for seasonality (retail, agriculture, tourism, etc.).
+2. State the comparison explicitly: "בהשוואה לרבעון המקביל אשתקד (Q4 2024)..."
+3. NEVER compare Q4 to Q3 or any adjacent quarter without explicitly noting it as sequential (QOQ).
+
+CRITICAL RULES — OPERATING MARGIN:
+- Operating Margin = (Operating Income / Revenue) × 100
+- ALWAYS calculate this from the DB numbers. NEVER guess or estimate.
+- State the margin change: "מרווח תפעולי ירד מ-8.2% ל-5.1%"
+
 CRITICAL RULES — QUANTITATIVE WRITING:
 - NEVER use vague terms like "זינקה", "עלתה", "השתפרה", "ירדה" WITHOUT citing exact numbers.
 - If the stock moved, state the EXACT percentage (e.g., "עלתה ב-14.83%", "ירדה ב-3.2%").
-- If operating margin changed, calculate and state: "מרווח תפעולי השתפר מ-3.2% ל-4.1%".
-- If revenue grew, state the absolute change and percentage: "הכנסות גדלו ב-12% ל-2.4 מיליארד ₪".
 - VERIFY: If the headline implies a "surge" but the actual price change is under 2%, note the discrepancy explicitly.
+
+SELF-AUDIT (you MUST verify before writing):
+1. "Did I compare the current quarter to the PARALLEL quarter last year (YOY)?"
+2. "Does my sentiment (positive/negative/neutral) match the Net Income growth direction from the DB?"
+3. "Did I calculate Operating Margin from the DB numbers, not guess?"
+4. "If the headline contradicts the DB data, did I flag the discrepancy?"
 
 WRITING STYLE:
 - Write in professional, institutional-grade Hebrew for sophisticated investors.
@@ -72,11 +138,11 @@ Then on a new line:
 
 Return a JSON object with these fields:
 - titleHe: Hebrew headline (max 80 chars, data-specific — include a number if possible)
-- bodyHe: Full Hebrew analysis (2-3 paragraphs, data-driven)
+- bodyHe: Full Hebrew analysis (2-3 paragraphs, data-driven, YOY comparison explicit)
 - summaryHe: One sharp, quantitative sentence summary (max 150 chars, must include at least one number)
-- sentiment: one of "positive", "negative", or "neutral"
+- sentiment: one of "positive", "negative", or "neutral" — MUST match Net Income direction from DB
 - category: "stock" if about a specific company, "macro" if about economy/market
-- flagged: boolean — true if the headline implies extreme movement but data shows change < 2%`;
+- flagged: boolean — true if headline contradicts DB data OR sentiment doesn't match Net Income direction`;
 }
 
 function formatNum(n: number): string {
