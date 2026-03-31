@@ -35,6 +35,33 @@ export type Database = {
         }
         Relationships: []
       }
+      data_issue_reports: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          reporter_email: string | null
+          resolved: boolean
+          ticker: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string
+          reporter_email?: string | null
+          resolved?: boolean
+          ticker: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          reporter_email?: string | null
+          resolved?: boolean
+          ticker?: string
+        }
+        Relationships: []
+      }
       news_articles: {
         Row: {
           ai_body_he: string
@@ -86,6 +113,36 @@ export type Database = {
           related_ticker?: string | null
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      stock_audit_results: {
+        Row: {
+          checks: Json
+          created_at: string
+          health: string
+          id: string
+          last_audited: string
+          ticker: string
+          verified_by_admin: boolean
+        }
+        Insert: {
+          checks?: Json
+          created_at?: string
+          health?: string
+          id?: string
+          last_audited?: string
+          ticker: string
+          verified_by_admin?: boolean
+        }
+        Update: {
+          checks?: Json
+          created_at?: string
+          health?: string
+          id?: string
+          last_audited?: string
+          ticker?: string
+          verified_by_admin?: boolean
         }
         Relationships: []
       }
