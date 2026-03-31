@@ -79,8 +79,8 @@ Deno.serve(async (req) => {
         failures.push(`${ticker}: ${(e as Error).message}`);
         console.error(`✗ ${ticker} error:`, e);
       }
-      // Rate limit: 2.5s between calls to avoid EODHD 429
-      await new Promise(r => setTimeout(r, 2500));
+      // Rate limit: 1.5s between calls to avoid EODHD 429
+      await new Promise(r => setTimeout(r, 1500));
     }
 
     // Fetch final health summary
