@@ -14,6 +14,11 @@ interface SymbolRow {
   security_id: string | null;
 }
 
+/** Strip dots, dashes, spaces, parens — mirrors the DB normalize_search_text() */
+function normalize(s: string): string {
+  return s.replace(/[.\-\s()]+/g, "").toLowerCase();
+}
+
 export default function SearchBar() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SymbolRow[]>([]);
@@ -31,11 +36,14 @@ export default function SearchBar() {
 
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      const q = query.toLowerCase();
+      const normalized = normalize(query);
+      if (!normalized) { setResults([]); return; }
+
+      // Use the pre-computed search_text column with trigram similarity
       const { data, error } = await supabase
         .from("tase_symbols")
         .select("ticker, name, name_he, logo_url, security_id")
-        .or(`ticker.ilike.%${q}%,name.ilike.%${q}%,name_he.ilike.%${q}%,security_id.ilike.%${q}%`)
+        .ilike("search_text", `%${normalized}%`)
         .limit(8);
 
       if (error) {
@@ -43,9 +51,9 @@ export default function SearchBar() {
         const TASE_STOCKS = (await import("@/data/tase-stocks")).default;
         const filtered = TASE_STOCKS.filter(
           (s) =>
-            s.ticker.toLowerCase().includes(q) ||
-            s.name.toLowerCase().includes(q) ||
-            s.nameHe.includes(query)
+            normalize(s.ticker).includes(normalized) ||
+            normalize(s.name).includes(normalized) ||
+            normalize(s.nameHe).includes(normalized)
         ).slice(0, 8);
         setResults(filtered.map(s => ({ ticker: s.ticker, name: s.name, name_he: s.nameHe, logo_url: null, security_id: null })));
       } else {
@@ -55,7 +63,6 @@ export default function SearchBar() {
 
     return () => clearTimeout(debounceRef.current);
   }, [query]);
-
   const handleSelect = (ticker: string) => {
     setQuery("");
     setShowSuggestions(false);
