@@ -198,6 +198,8 @@ function verifyChecksum(row: DetailedBalanceSheetRow, parent: keyof DetailedBala
   if (!parentVal) return "unavailable";
   const childSum = children.reduce((s, c) => s + ((row[c] as number) || 0), 0);
   if (childSum === 0 && children.every(c => !(row[c] as number))) return "unavailable";
+  // If children cover less than 50% of parent, data is incomplete — treat as unavailable
+  if (Math.abs(childSum) < Math.abs(parentVal) * 0.5) return "unavailable";
   const tolerance = Math.abs(parentVal) * 0.02;
   return Math.abs(parentVal - childSum) <= tolerance ? "verified" : "mismatch";
 }
