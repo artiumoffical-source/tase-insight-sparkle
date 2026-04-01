@@ -50,7 +50,7 @@ function classifySector(gicsSector: string, industry: string): SectorType {
   return "general";
 }
 
-function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number) {
+function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number, cashFlowStatements?: Record<string, any>, highlightsEBITDA?: number) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const inc = incomeStatements[dateKey] || {};
     const netIncome = parseFloat(inc.netIncome) || 0;
@@ -65,14 +65,31 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
         eps = Math.round((netIncome / shares) * 100) / 100;
       }
     }
+
+    // Calculate EBITDA: operatingIncome + D&A from cash flow statement
+    const operatingIncome = parseFloat(inc.operatingIncome) || 0;
+    let ebitda = 0;
+    const cf = cashFlowStatements?.[dateKey] || {};
+    const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
+    if (operatingIncome !== 0 && da > 0) {
+      // Primary: OpIncome + D&A from cash flow
+      ebitda = operatingIncome + da;
+    } else if (highlightsEBITDA && highlightsEBITDA > 0) {
+      // Secondary: Highlights.EBITDA (adjusted figure) — only for latest period
+      ebitda = highlightsEBITDA;
+    } else {
+      // Final fallback: raw GAAP ebitda from income statement
+      ebitda = parseFloat(inc.ebitda) || 0;
+    }
+
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       revenue: parseFloat(inc.totalRevenue) || 0,
       costOfRevenue: parseFloat(inc.costOfRevenue) || 0,
       grossProfit: parseFloat(inc.grossProfit) || 0,
-      operatingIncome: parseFloat(inc.operatingIncome) || 0,
+      operatingIncome,
       netIncome,
-      ebitda: parseFloat(inc.ebitda) || 0,
+      ebitda,
       eps,
       researchDevelopment: parseFloat(inc.researchDevelopment) || 0,
       interestIncome: parseFloat(inc.interestIncome) || 0,
@@ -371,7 +388,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   });
 
   // Annual 3-statement
-  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesMap, fallbackShares);
+  const highlightsEBITDA = parseFloat(highlights.EBITDA) || 0;
+  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesMap, fallbackShares, cashFlowStatements, highlightsEBITDA);
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
   const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
@@ -382,7 +400,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qCashFlowStatements = data.Financials?.Cash_Flow?.quarterly || {};
   const allQuarters = Object.keys(qIncomeStatements).sort((a, b) => a.localeCompare(b)).slice(-8);
 
-  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesMap, fallbackShares);
+  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesMap, fallbackShares, qCashFlowStatements);
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
