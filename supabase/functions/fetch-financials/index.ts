@@ -355,6 +355,25 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     }
   }
 
+  // Revenue-based sanity check: if mcap/revenue < 0.05, something is very wrong with shares count
+  const incStmtsForSanity = data.Financials?.Income_Statement?.yearly || {};
+  const latestIncKeyForSanity = Object.keys(incStmtsForSanity).sort().reverse()[0];
+  const latestRevForSanity = latestIncKeyForSanity ? (parseFloat(incStmtsForSanity[latestIncKeyForSanity]?.totalRevenue) || 0) : 0;
+  const latestNIForSanity = latestIncKeyForSanity ? (parseFloat(incStmtsForSanity[latestIncKeyForSanity]?.netIncome) || 0) : 0;
+  if (canonicalMarketCap > 0 && latestRevForSanity > 0 && latestNIForSanity > 0) {
+    const psCheck = canonicalMarketCap / latestRevForSanity;
+    if (psCheck < 0.05) {
+      console.warn(`[${ticker}] MCAP SANITY FAIL: P/S=${psCheck.toFixed(4)} (mcap=${canonicalMarketCap}, rev=${latestRevForSanity}). Shares may be wrong.`);
+      // Try Highlights.MarketCapitalizationMln as rescue
+      if (highlightsMcapMln > 0) {
+        const rescueMcap = highlightsMcapMln * 1_000_000;
+        console.log(`[${ticker}] MCAP RESCUE: Using Highlights.MarketCapitalizationMln = ${highlightsMcapMln}M → ${rescueMcap}`);
+        canonicalMarketCap = rescueMcap;
+        marketCapCurrency = normalizedCurrency; // Highlights mcap is typically in reporting currency
+      }
+    }
+  }
+
   const meta = {
     name: general.Name || ticker,
     price: eodPrice?.price ?? 0,
