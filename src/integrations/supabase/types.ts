@@ -198,6 +198,7 @@ export type Database = {
           name: string
           name_he: string
           override_name_he: string | null
+          reporting_currency: string | null
           search_text: string
           security_id: string | null
           ticker: string
@@ -213,6 +214,7 @@ export type Database = {
           name?: string
           name_he?: string
           override_name_he?: string | null
+          reporting_currency?: string | null
           search_text?: string
           security_id?: string | null
           ticker: string
@@ -228,6 +230,7 @@ export type Database = {
           name?: string
           name_he?: string
           override_name_he?: string | null
+          reporting_currency?: string | null
           search_text?: string
           security_id?: string | null
           ticker?: string

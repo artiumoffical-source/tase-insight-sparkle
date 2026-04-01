@@ -78,11 +78,16 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       ebitda = parseFloat(inc.ebitda) || 0;
     }
 
+    // Always recalculate grossProfit from raw components
+    const revenue = parseFloat(inc.totalRevenue) || 0;
+    const costOfRevenue = parseFloat(inc.costOfRevenue) || 0;
+    const grossProfit = revenue > 0 && costOfRevenue > 0 ? revenue - costOfRevenue : (parseFloat(inc.grossProfit) || 0);
+
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
-      revenue: parseFloat(inc.totalRevenue) || 0,
-      costOfRevenue: parseFloat(inc.costOfRevenue) || 0,
-      grossProfit: parseFloat(inc.grossProfit) || 0,
+      revenue,
+      costOfRevenue,
+      grossProfit,
       operatingIncome,
       netIncome,
       ebitda,
@@ -90,7 +95,7 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       researchDevelopment: parseFloat(inc.researchDevelopment) || 0,
       interestIncome: parseFloat(inc.interestIncome) || 0,
       nonInterestIncome: parseFloat(inc.nonRecurring) || parseFloat(inc.otherOperatingExpenses) || 0,
-      netPremiumsEarned: parseFloat(inc.totalRevenue) || 0,
+      netPremiumsEarned: revenue,
     };
   });
 }
@@ -389,16 +394,18 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const years5 = allYears.slice(-5);
   const years10 = allYears.slice(-10);
 
-  // Legacy financials
+  // Legacy financials — recalculate grossProfit
   const financials = years5.slice().reverse().map((dateKey) => {
     const income = incomeStatements[dateKey] || {};
     const balance = balanceSheets[dateKey] || {};
     const totalEquity = parseFloat(balance.totalStockholderEquity) || 1;
     const totalDebt = (parseFloat(balance.shortLongTermDebt) || 0) + (parseFloat(balance.longTermDebt) || 0);
+    const rev = parseFloat(income.totalRevenue) || 0;
+    const cor = parseFloat(income.costOfRevenue) || 0;
     return {
       year: dateKey.substring(0, 4),
-      revenue: parseFloat(income.totalRevenue) || 0,
-      grossProfit: parseFloat(income.grossProfit) || 0,
+      revenue: rev,
+      grossProfit: rev > 0 && cor > 0 ? rev - cor : (parseFloat(income.grossProfit) || 0),
       operatingIncome: parseFloat(income.operatingIncome) || 0,
       netIncome: parseFloat(income.netIncome) || 0,
       debtToEquity: totalEquity !== 0 ? totalDebt / totalEquity : 0,
@@ -408,6 +415,30 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
 
   // Annual 3-statement
   const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesMap, fallbackShares, cashFlowStatements);
+
+  // TTM fallback: for the most recent year, cross-check vs Highlights TTM values
+  // If gap > 12%, use TTM value (EODHD updates Highlights faster than annual statements)
+  if (incomeStatement.length > 0) {
+    const latest = incomeStatement[0]; // reversed, so [0] is most recent
+    const ttmRevenue = parseFloat(highlights.RevenueTTM) || 0;
+    const ttmGrossProfit = parseFloat(highlights.GrossProfitTTM) || 0;
+    const ttmEPS = parseFloat(highlights.EarningsShare) || parseFloat(highlights.EPS) || 0;
+
+    const patchField = (field: "revenue" | "grossProfit" | "eps", ttmVal: number) => {
+      if (ttmVal <= 0) return;
+      const annualVal = latest[field] || 0;
+      if (annualVal === 0) { latest[field] = ttmVal; console.log(`[${ticker}] TTM PATCH ${field}: 0 → ${ttmVal}`); return; }
+      const gap = Math.abs(annualVal - ttmVal) / Math.abs(ttmVal);
+      if (gap > 0.12) {
+        console.log(`[${ticker}] TTM PATCH ${field}: ${annualVal} → ${ttmVal} (gap=${(gap*100).toFixed(1)}%)`);
+        latest[field] = ttmVal;
+      }
+    };
+    patchField("revenue", ttmRevenue);
+    patchField("grossProfit", ttmGrossProfit);
+    patchField("eps", ttmEPS);
+  }
+
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
   const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
