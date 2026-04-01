@@ -289,6 +289,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const latestShareYear = Object.keys(sharesMap).sort().reverse()[0];
   const totalSharesForMcap = sharesMap[latestShareYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
 
+  console.log(`[${ticker}] MCAP DEBUG: totalSharesForMcap=${totalSharesForMcap}, latestShareYear=${latestShareYear}, fallbackShares=${fallbackShares}, General.SharesOutstanding=${general.SharesOutstanding}`);
+
   // Calculate market cap: shares × price
   let canonicalMarketCap = 0;
   let priceForMcap = 0;
@@ -303,6 +305,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     priceForMcap = eodPrice?.price || 0;
   }
 
+  console.log(`[${ticker}] MCAP DEBUG: priceForMcap=${priceForMcap}, marketCapCurrency=${marketCapCurrency}`);
+
   // If no live price, try Technicals as price proxy
   if (priceForMcap === 0) {
     let techPrice = parseFloat(technicals["50DayMA"]) || parseFloat(technicals["200DayMA"]) || 0;
@@ -313,6 +317,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   }
 
   const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
+  const highlightsMcapMln = parseFloat(highlights.MarketCapitalizationMln) || 0;
 
   if (totalSharesForMcap > 0 && priceForMcap > 0) {
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
@@ -347,6 +352,25 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
       console.log(`[${ticker}] Fallback EODHD mcap normalized: ${eodhMcap} ${eodhMcapCcy} / ${exchangeRate} = ${canonicalMarketCap} ${normalizedCurrency}`);
     } else {
       console.log(`[${ticker}] Fallback to EODHD MarketCap: ${canonicalMarketCap} (no shares/price available)`);
+    }
+  }
+
+  // Revenue-based sanity check: if mcap/revenue < 0.05, something is very wrong with shares count
+  const incStmtsForSanity = data.Financials?.Income_Statement?.yearly || {};
+  const latestIncKeyForSanity = Object.keys(incStmtsForSanity).sort().reverse()[0];
+  const latestRevForSanity = latestIncKeyForSanity ? (parseFloat(incStmtsForSanity[latestIncKeyForSanity]?.totalRevenue) || 0) : 0;
+  const latestNIForSanity = latestIncKeyForSanity ? (parseFloat(incStmtsForSanity[latestIncKeyForSanity]?.netIncome) || 0) : 0;
+  if (canonicalMarketCap > 0 && latestRevForSanity > 0 && latestNIForSanity > 0) {
+    const psCheck = canonicalMarketCap / latestRevForSanity;
+    if (psCheck < 0.05) {
+      console.warn(`[${ticker}] MCAP SANITY FAIL: P/S=${psCheck.toFixed(4)} (mcap=${canonicalMarketCap}, rev=${latestRevForSanity}). Shares may be wrong.`);
+      // Try Highlights.MarketCapitalizationMln as rescue
+      if (highlightsMcapMln > 0) {
+        const rescueMcap = highlightsMcapMln * 1_000_000;
+        console.log(`[${ticker}] MCAP RESCUE: Using Highlights.MarketCapitalizationMln = ${highlightsMcapMln}M → ${rescueMcap}`);
+        canonicalMarketCap = rescueMcap;
+        marketCapCurrency = normalizedCurrency; // Highlights mcap is typically in reporting currency
+      }
     }
   }
 
@@ -746,12 +770,21 @@ serve(async (req) => {
         }
         if (usResp.ok) {
           const usData = await usResp.json();
-          // Only replace financial statements — keep .TA General, Highlights, Technicals, outstandingShares
+          // Replace financial statements, outstandingShares, AND Highlights from .US
+          // .TA outstandingShares often only reflects TASE-listed portion, not total global shares
           if (usData.Financials) {
             rawData.Financials = usData.Financials;
             console.log(`[${ticker}] Using US fundamentals source (financial statements replaced)`);
           } else {
             console.log(`[${ticker}] .US response had no Financials block, keeping .TA data`);
+          }
+          if (usData.outstandingShares) {
+            rawData.outstandingShares = usData.outstandingShares;
+            console.log(`[${ticker}] Using US outstandingShares (total global shares)`);
+          }
+          if (usData.Highlights) {
+            rawData.Highlights = usData.Highlights;
+            console.log(`[${ticker}] Using US Highlights (USD market cap & ratios)`);
           }
         } else {
           console.warn(`[${ticker}] .US fundamentals fetch failed (${usResp.status}), falling back to .TA`);
