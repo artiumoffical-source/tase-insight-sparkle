@@ -66,20 +66,22 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       }
     }
 
-    // Calculate EBITDA: operatingIncome + D&A from cash flow statement
+    // Calculate Adjusted EBITDA
     const operatingIncome = parseFloat(inc.operatingIncome) || 0;
     let ebitda = 0;
-    const cf = cashFlowStatements?.[dateKey] || {};
-    const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
-    if (operatingIncome !== 0 && da > 0) {
-      // Primary: OpIncome + D&A from cash flow
-      ebitda = operatingIncome + da;
-    } else if (highlightsEBITDA && highlightsEBITDA > 0) {
-      // Secondary: Highlights.EBITDA (adjusted figure) — only for latest period
+    if (highlightsEBITDA && highlightsEBITDA > 0) {
+      // Primary: Highlights.EBITDA — this is the adjusted figure from EODHD
       ebitda = highlightsEBITDA;
     } else {
-      // Final fallback: raw GAAP ebitda from income statement
-      ebitda = parseFloat(inc.ebitda) || 0;
+      // Fallback: operatingIncome + D&A from cash flow statement
+      const cf = cashFlowStatements?.[dateKey] || {};
+      const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
+      if (operatingIncome !== 0 && da > 0) {
+        ebitda = operatingIncome + da;
+      } else {
+        // Final fallback: raw ebitda from income statement
+        ebitda = parseFloat(inc.ebitda) || 0;
+      }
     }
 
     return {
