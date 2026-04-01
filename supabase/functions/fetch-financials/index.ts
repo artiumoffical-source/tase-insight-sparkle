@@ -50,7 +50,7 @@ function classifySector(gicsSector: string, industry: string): SectorType {
   return "general";
 }
 
-function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number, cashFlowStatements?: Record<string, any>, highlightsEBITDA?: number) {
+function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number, cashFlowStatements?: Record<string, any>) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const inc = incomeStatements[dateKey] || {};
     const netIncome = parseFloat(inc.netIncome) || 0;
@@ -66,22 +66,16 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       }
     }
 
-    // Calculate Adjusted EBITDA
+    // Calculate EBITDA per year: operatingIncome + D&A from cash flow
     const operatingIncome = parseFloat(inc.operatingIncome) || 0;
     let ebitda = 0;
-    if (highlightsEBITDA && highlightsEBITDA > 0) {
-      // Primary: Highlights.EBITDA — this is the adjusted figure from EODHD
-      ebitda = highlightsEBITDA;
+    const cf = cashFlowStatements?.[dateKey] || {};
+    const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
+    if (da > 0) {
+      ebitda = operatingIncome + da;
     } else {
-      // Fallback: operatingIncome + D&A from cash flow statement
-      const cf = cashFlowStatements?.[dateKey] || {};
-      const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
-      if (operatingIncome !== 0 && da > 0) {
-        ebitda = operatingIncome + da;
-      } else {
-        // Final fallback: raw ebitda from income statement
-        ebitda = parseFloat(inc.ebitda) || 0;
-      }
+      // Final fallback: raw ebitda from income statement
+      ebitda = parseFloat(inc.ebitda) || 0;
     }
 
     return {
