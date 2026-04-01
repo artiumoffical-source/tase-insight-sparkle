@@ -707,6 +707,43 @@ serve(async (req) => {
 
     console.log(`[${ticker}] Currency detection: tradingCcy=${tradingCcy}, stmtCurrency=${stmtCurrency}, reportingCurrency=${generalReportingCurrency}, final=${reportCcy}`);
 
+    // ── Dual-listed: re-fetch fundamentals from .US for more accurate SEC-sourced financials ──
+    const DUAL_LISTED_TICKERS = new Set(["TEVA", "ICL", "NICE", "ESLT", "SPNS", "KMDA", "ARBE", "ENLT", "TSEM"]);
+    const listings = rawData.General?.Listings || {};
+    let hasUSListing = false;
+    for (const [, listing] of Object.entries(listings) as [string, any][]) {
+      const exch = (listing?.Exchange || "").toUpperCase();
+      if (["NYSE", "NASDAQ"].includes(exch)) { hasUSListing = true; break; }
+    }
+    const isinUS = (rawData.General?.ISIN || "").startsWith("US");
+    const isDualListed = DUAL_LISTED_TICKERS.has(ticker) || hasUSListing || isinUS;
+
+    if (isDualListed) {
+      try {
+        console.log(`[${ticker}] Dual-listed detected, fetching .US fundamentals for financial statements`);
+        let usResp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.US?api_token=${apiKey}&fmt=json`);
+        if (usResp.status === 429) {
+          await new Promise(r => setTimeout(r, 3000));
+          usResp = await fetch(`https://eodhd.com/api/fundamentals/${ticker}.US?api_token=${apiKey}&fmt=json`);
+        }
+        if (usResp.ok) {
+          const usData = await usResp.json();
+          // Only replace financial statements — keep .TA General, Highlights, Technicals, outstandingShares
+          if (usData.Financials) {
+            rawData.Financials = usData.Financials;
+            console.log(`[${ticker}] Using US fundamentals source (financial statements replaced)`);
+          } else {
+            console.log(`[${ticker}] .US response had no Financials block, keeping .TA data`);
+          }
+        } else {
+          console.warn(`[${ticker}] .US fundamentals fetch failed (${usResp.status}), falling back to .TA`);
+          await usResp.text(); // consume body
+        }
+      } catch (usErr) {
+        console.warn(`[${ticker}] .US fundamentals fetch error, falling back to .TA:`, usErr);
+      }
+    }
+
     // Hardcoded fallback FX rates (last resort if live API fails)
     const FALLBACK_FX: Record<string, Record<string, number>> = {
       USD: { ILS: 3.75, EUR: 0.92, GBP: 0.79 },
