@@ -66,12 +66,12 @@ serve(async (req) => {
     console.log(`Received ${symbols.length} symbols from EODHD`);
 
     // Map to our table format - include ALL securities
+    // name_he intentionally excluded — upsert should never overwrite existing Hebrew names
     const rows = symbols
       .filter((s: any) => s.Code && s.Name)
       .map((s: any) => ({
         ticker: s.Code,
         name: s.Name || s.Code,
-        name_he: "",
         type: s.Type || null,
         currency: s.Currency || "ILS",
         exchange: "TA",
