@@ -50,7 +50,7 @@ function classifySector(gicsSector: string, industry: string): SectorType {
   return "general";
 }
 
-function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number) {
+function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string[], sharesMap: Record<string, number>, fallbackShares: number, cashFlowStatements?: Record<string, any>, highlightsEBITDA?: number) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const inc = incomeStatements[dateKey] || {};
     const netIncome = parseFloat(inc.netIncome) || 0;
@@ -65,14 +65,31 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
         eps = Math.round((netIncome / shares) * 100) / 100;
       }
     }
+
+    // Calculate EBITDA: operatingIncome + D&A from cash flow statement
+    const operatingIncome = parseFloat(inc.operatingIncome) || 0;
+    let ebitda = 0;
+    const cf = cashFlowStatements?.[dateKey] || {};
+    const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
+    if (operatingIncome !== 0 && da > 0) {
+      // Primary: OpIncome + D&A from cash flow
+      ebitda = operatingIncome + da;
+    } else if (highlightsEBITDA && highlightsEBITDA > 0) {
+      // Secondary: Highlights.EBITDA (adjusted figure) — only for latest period
+      ebitda = highlightsEBITDA;
+    } else {
+      // Final fallback: raw GAAP ebitda from income statement
+      ebitda = parseFloat(inc.ebitda) || 0;
+    }
+
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       revenue: parseFloat(inc.totalRevenue) || 0,
       costOfRevenue: parseFloat(inc.costOfRevenue) || 0,
       grossProfit: parseFloat(inc.grossProfit) || 0,
-      operatingIncome: parseFloat(inc.operatingIncome) || 0,
+      operatingIncome,
       netIncome,
-      ebitda: parseFloat(inc.ebitda) || 0,
+      ebitda,
       eps,
       researchDevelopment: parseFloat(inc.researchDevelopment) || 0,
       interestIncome: parseFloat(inc.interestIncome) || 0,
