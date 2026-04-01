@@ -78,11 +78,16 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       ebitda = parseFloat(inc.ebitda) || 0;
     }
 
+    // Always recalculate grossProfit from raw components
+    const revenue = parseFloat(inc.totalRevenue) || 0;
+    const costOfRevenue = parseFloat(inc.costOfRevenue) || 0;
+    const grossProfit = revenue > 0 && costOfRevenue > 0 ? revenue - costOfRevenue : (parseFloat(inc.grossProfit) || 0);
+
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
-      revenue: parseFloat(inc.totalRevenue) || 0,
-      costOfRevenue: parseFloat(inc.costOfRevenue) || 0,
-      grossProfit: parseFloat(inc.grossProfit) || 0,
+      revenue,
+      costOfRevenue,
+      grossProfit,
       operatingIncome,
       netIncome,
       ebitda,
@@ -90,7 +95,7 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       researchDevelopment: parseFloat(inc.researchDevelopment) || 0,
       interestIncome: parseFloat(inc.interestIncome) || 0,
       nonInterestIncome: parseFloat(inc.nonRecurring) || parseFloat(inc.otherOperatingExpenses) || 0,
-      netPremiumsEarned: parseFloat(inc.totalRevenue) || 0,
+      netPremiumsEarned: revenue,
     };
   });
 }
