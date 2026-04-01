@@ -770,12 +770,21 @@ serve(async (req) => {
         }
         if (usResp.ok) {
           const usData = await usResp.json();
-          // Only replace financial statements — keep .TA General, Highlights, Technicals, outstandingShares
+          // Replace financial statements, outstandingShares, AND Highlights from .US
+          // .TA outstandingShares often only reflects TASE-listed portion, not total global shares
           if (usData.Financials) {
             rawData.Financials = usData.Financials;
             console.log(`[${ticker}] Using US fundamentals source (financial statements replaced)`);
           } else {
             console.log(`[${ticker}] .US response had no Financials block, keeping .TA data`);
+          }
+          if (usData.outstandingShares) {
+            rawData.outstandingShares = usData.outstandingShares;
+            console.log(`[${ticker}] Using US outstandingShares (total global shares)`);
+          }
+          if (usData.Highlights) {
+            rawData.Highlights = usData.Highlights;
+            console.log(`[${ticker}] Using US Highlights (USD market cap & ratios)`);
           }
         } else {
           console.warn(`[${ticker}] .US fundamentals fetch failed (${usResp.status}), falling back to .TA`);
