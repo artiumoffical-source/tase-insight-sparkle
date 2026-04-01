@@ -289,6 +289,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const latestShareYear = Object.keys(sharesMap).sort().reverse()[0];
   const totalSharesForMcap = sharesMap[latestShareYear] || fallbackShares || parseFloat(general.SharesOutstanding) || 0;
 
+  console.log(`[${ticker}] MCAP DEBUG: totalSharesForMcap=${totalSharesForMcap}, latestShareYear=${latestShareYear}, fallbackShares=${fallbackShares}, General.SharesOutstanding=${general.SharesOutstanding}`);
+
   // Calculate market cap: shares × price
   let canonicalMarketCap = 0;
   let priceForMcap = 0;
@@ -303,6 +305,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     priceForMcap = eodPrice?.price || 0;
   }
 
+  console.log(`[${ticker}] MCAP DEBUG: priceForMcap=${priceForMcap}, marketCapCurrency=${marketCapCurrency}`);
+
   // If no live price, try Technicals as price proxy
   if (priceForMcap === 0) {
     let techPrice = parseFloat(technicals["50DayMA"]) || parseFloat(technicals["200DayMA"]) || 0;
@@ -313,6 +317,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   }
 
   const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
+  const highlightsMcapMln = parseFloat(highlights.MarketCapitalizationMln) || 0;
 
   if (totalSharesForMcap > 0 && priceForMcap > 0) {
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
