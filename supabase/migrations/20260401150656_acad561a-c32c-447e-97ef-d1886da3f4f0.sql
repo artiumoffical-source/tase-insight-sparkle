@@ -1,0 +1,1 @@
+DELETE FROM cached_fundamentals WHERE ticker IN ('NICE', 'ESLT', 'SPNS', 'KMDA', 'ARBE', 'ENLT', 'TSEM');
