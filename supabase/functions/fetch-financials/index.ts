@@ -388,7 +388,8 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   });
 
   // Annual 3-statement
-  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesMap, fallbackShares);
+  const highlightsEBITDA = parseFloat(highlights.EBITDA) || 0;
+  const incomeStatement = buildIncomeRows(incomeStatements, years5, sharesMap, fallbackShares, cashFlowStatements, highlightsEBITDA);
   const balanceSheet = buildBalanceRows(balanceSheets, years5);
   const cashFlow = buildCashFlowRows(cashFlowStatements, incomeStatements, years5);
   const detailedBalanceSheet = buildDetailedBalanceRows(balanceSheets, years5);
