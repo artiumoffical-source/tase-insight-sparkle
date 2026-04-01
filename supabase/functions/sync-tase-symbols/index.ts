@@ -66,12 +66,12 @@ serve(async (req) => {
     console.log(`Received ${symbols.length} symbols from EODHD`);
 
     // Map to our table format - include ALL securities
+    // name_he intentionally excluded — upsert should never overwrite existing Hebrew names
     const rows = symbols
       .filter((s: any) => s.Code && s.Name)
       .map((s: any) => ({
         ticker: s.Code,
         name: s.Name || s.Code,
-        name_he: "",
         type: s.Type || null,
         currency: s.Currency || "ILS",
         exchange: "TA",
@@ -140,10 +140,12 @@ serve(async (req) => {
     };
 
     for (const [ticker, nameHe] of Object.entries(hebrewMap)) {
+      // Only write if name_he is currently empty — never overwrite manual edits
       await supabase
         .from("tase_symbols")
         .update({ name_he: nameHe })
-        .eq("ticker", ticker);
+        .eq("ticker", ticker)
+        .eq("name_he", "");
     }
 
     console.log(`Sync complete: ${upserted} upserted, ${errors} batch errors, ${Object.keys(hebrewMap).length} Hebrew names applied`);

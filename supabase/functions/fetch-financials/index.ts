@@ -851,6 +851,42 @@ serve(async (req) => {
 
     const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy);
 
+    // --- Apply financial_overrides (patch exact fields only) ---
+    try {
+      const { data: overrides } = await supabase
+        .from("financial_overrides")
+        .select("year, field, value")
+        .eq("ticker", ticker);
+
+      if (overrides && overrides.length > 0) {
+        console.log(`[${ticker}] Applying ${overrides.length} financial override(s)`);
+
+        const arrayKeys = ["incomeStatement", "qIncomeStatement", "balanceSheet", "financials"] as const;
+
+        for (const ov of overrides) {
+          let applied = false;
+          for (const key of arrayKeys) {
+            const arr = (result as any)[key];
+            if (!Array.isArray(arr)) continue;
+            for (const entry of arr) {
+              // Match by year prefix (e.g. "2025" matches "2025-12-31", "2025-06" matches "2025-06-30")
+              const entryYear = String(entry.year || entry.date || "");
+              if (entryYear.startsWith(ov.year) && entry[ov.field] !== undefined) {
+                console.log(`[${ticker}] Override ${key}.${ov.field} for ${ov.year}: ${entry[ov.field]} → ${ov.value}`);
+                entry[ov.field] = Number(ov.value);
+                applied = true;
+              }
+            }
+          }
+          if (!applied) {
+            console.warn(`[${ticker}] Override not applied: ${ov.field} for year ${ov.year} — field or year not found in data`);
+          }
+        }
+      }
+    } catch (ovErr) {
+      console.error(`[${ticker}] Error applying overrides:`, ovErr);
+    }
+
     // Upsert cache
     const { error: upsertError } = await supabase
       .from("cached_fundamentals")

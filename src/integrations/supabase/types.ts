@@ -62,6 +62,36 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_overrides: {
+        Row: {
+          created_at: string
+          field: string
+          id: string
+          note: string | null
+          ticker: string
+          value: number
+          year: string
+        }
+        Insert: {
+          created_at?: string
+          field: string
+          id?: string
+          note?: string | null
+          ticker: string
+          value: number
+          year: string
+        }
+        Update: {
+          created_at?: string
+          field?: string
+          id?: string
+          note?: string | null
+          ticker?: string
+          value?: number
+          year?: string
+        }
+        Relationships: []
+      }
       news_articles: {
         Row: {
           ai_body_he: string
