@@ -140,10 +140,12 @@ serve(async (req) => {
     };
 
     for (const [ticker, nameHe] of Object.entries(hebrewMap)) {
+      // Only write if name_he is currently empty — never overwrite manual edits
       await supabase
         .from("tase_symbols")
         .update({ name_he: nameHe })
-        .eq("ticker", ticker);
+        .eq("ticker", ticker)
+        .eq("name_he", "");
     }
 
     console.log(`Sync complete: ${upserted} upserted, ${errors} batch errors, ${Object.keys(hebrewMap).length} Hebrew names applied`);
