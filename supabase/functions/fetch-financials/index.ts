@@ -938,7 +938,7 @@ serve(async (req) => {
       }
     }
 
-    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy);
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy, isDualListed);
 
     // --- Apply financial_overrides (patch exact fields only) ---
     try {
