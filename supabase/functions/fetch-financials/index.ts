@@ -400,7 +400,7 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const qCashFlowStatements = data.Financials?.Cash_Flow?.quarterly || {};
   const allQuarters = Object.keys(qIncomeStatements).sort((a, b) => a.localeCompare(b)).slice(-8);
 
-  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesMap, fallbackShares);
+  const qIncomeStatement = buildIncomeRows(qIncomeStatements, allQuarters, sharesMap, fallbackShares, qCashFlowStatements);
   const qBalanceSheet = buildBalanceRows(qBalanceSheets, allQuarters);
   const qCashFlow = buildCashFlowRows(qCashFlowStatements, qIncomeStatements, allQuarters);
 
