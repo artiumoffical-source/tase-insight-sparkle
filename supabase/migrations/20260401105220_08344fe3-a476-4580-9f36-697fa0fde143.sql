@@ -1,0 +1,1 @@
+DELETE FROM cached_fundamentals WHERE ticker IN ('ICL', 'TEVA');

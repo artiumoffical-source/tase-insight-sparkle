@@ -222,7 +222,7 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
   });
 }
 
-function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number, overrideCurrency?: string) {
+function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number; change: number }, exchangeRate?: number, primaryPrice?: number, overrideCurrency?: string, isDualListed?: boolean) {
   const general = data.General || {};
   const highlights = data.Highlights || {};
   const valuation = data.Valuation || {};
@@ -321,27 +321,27 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
   const eodhMcap = parseFloat(general.MarketCapitalization) || parseFloat(highlights.MarketCapitalization) || 0;
   const highlightsMcapMln = parseFloat(highlights.MarketCapitalizationMln) || 0;
 
-  if (totalSharesForMcap > 0 && priceForMcap > 0) {
+  // For dual-listed companies: Highlights.MarketCapitalizationMln is the most reliable source
+  // It represents the FULL global market cap regardless of exchange
+  if (isDualListed && highlightsMcapMln > 0) {
+    canonicalMarketCap = highlightsMcapMln * 1_000_000;
+    marketCapCurrency = normalizedCurrency; // Highlights mcap is in reporting currency
+    console.log(`[${ticker}] DUAL-LISTED: Using Highlights.MarketCapitalizationMln = ${highlightsMcapMln}M → ${canonicalMarketCap} ${marketCapCurrency}`);
+  } else if (totalSharesForMcap > 0 && priceForMcap > 0) {
     canonicalMarketCap = totalSharesForMcap * priceForMcap;
     console.log(`[${ticker}] Calculated MarketCap: ${totalSharesForMcap} shares × ${priceForMcap} ${marketCapCurrency} = ${canonicalMarketCap}`);
 
     // Sanity check: compare calculated mcap against EODHD value
-    // IMPORTANT: EODHD MarketCap for TASE stocks is in TRADING currency (ILS/ILA),
-    // but our calculated mcap may be in REPORTING currency (USD) when primaryPrice was used.
-    // Normalize EODHD mcap to the same currency as our calculated mcap before comparing.
     if (eodhMcap > 0) {
       let eodhMcapNormalized = eodhMcap;
       const eodhMcapCcy = tradingCcy === "ILA" ? "ILS" : (tradingCcy || "ILS");
       if (eodhMcapCcy !== marketCapCurrency && exchangeRate && exchangeRate > 0) {
-        // EODHD is in trading ccy (e.g. ILS), our mcap is in reporting ccy (e.g. USD)
-        // exchangeRate = how many tradingCcy per 1 reportingCcy (e.g. 3.17 ILS per 1 USD)
         eodhMcapNormalized = eodhMcap / exchangeRate;
         console.log(`[${ticker}] Normalized EODHD mcap: ${eodhMcap} ${eodhMcapCcy} / ${exchangeRate} = ${eodhMcapNormalized} ${marketCapCurrency}`);
       }
       if (canonicalMarketCap > eodhMcapNormalized * 3 || canonicalMarketCap < eodhMcapNormalized * 0.3) {
         console.warn(`[${ticker}] MarketCap sanity failed: calculated=${canonicalMarketCap} vs EODHD(normalized)=${eodhMcapNormalized} (ratio=${(canonicalMarketCap/eodhMcapNormalized).toFixed(2)}). Using EODHD value.`);
         canonicalMarketCap = eodhMcapNormalized;
-        marketCapCurrency = marketCapCurrency; // keep the current currency context
       }
     }
   } else {
@@ -357,21 +357,20 @@ function parseFundamentals(data: any, ticker: string, eodPrice?: { price: number
     }
   }
 
-  // Revenue-based sanity check: if mcap/revenue < 0.05, something is very wrong with shares count
+  // Revenue-based sanity check (still applies for non-dual-listed)
   const incStmtsForSanity = data.Financials?.Income_Statement?.yearly || {};
   const latestIncKeyForSanity = Object.keys(incStmtsForSanity).sort().reverse()[0];
   const latestRevForSanity = latestIncKeyForSanity ? (parseFloat(incStmtsForSanity[latestIncKeyForSanity]?.totalRevenue) || 0) : 0;
   const latestNIForSanity = latestIncKeyForSanity ? (parseFloat(incStmtsForSanity[latestIncKeyForSanity]?.netIncome) || 0) : 0;
-  if (canonicalMarketCap > 0 && latestRevForSanity > 0 && latestNIForSanity > 0) {
+  if (!isDualListed && canonicalMarketCap > 0 && latestRevForSanity > 0 && latestNIForSanity > 0) {
     const psCheck = canonicalMarketCap / latestRevForSanity;
     if (psCheck < 0.05) {
       console.warn(`[${ticker}] MCAP SANITY FAIL: P/S=${psCheck.toFixed(4)} (mcap=${canonicalMarketCap}, rev=${latestRevForSanity}). Shares may be wrong.`);
-      // Try Highlights.MarketCapitalizationMln as rescue
       if (highlightsMcapMln > 0) {
         const rescueMcap = highlightsMcapMln * 1_000_000;
         console.log(`[${ticker}] MCAP RESCUE: Using Highlights.MarketCapitalizationMln = ${highlightsMcapMln}M → ${rescueMcap}`);
         canonicalMarketCap = rescueMcap;
-        marketCapCurrency = normalizedCurrency; // Highlights mcap is typically in reporting currency
+        marketCapCurrency = normalizedCurrency;
       }
     }
   }
@@ -939,7 +938,7 @@ serve(async (req) => {
       }
     }
 
-    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy);
+    const result = parseFundamentals(rawData, ticker, eodPrice, exchangeRate, primaryPrice, reportCcy, isDualListed);
 
     // --- Apply financial_overrides (patch exact fields only) ---
     try {
