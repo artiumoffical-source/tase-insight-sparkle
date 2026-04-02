@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             model: "google/gemini-2.5-pro",
             messages: [
-              { role: "system", content: "You are a data-checking financial analyst. Return ONLY valid JSON. You MUST use ONLY the numbers from the provided DATABASE JSON. Include a \"numbersUsed\" field showing every financial figure you cited." },
+              { role: "system", content: "You are a Hebrew financial journalist. Return ONLY valid JSON. Use ONLY facts from the Maya filing text and the AlphaMap financial data provided. Never add information from your training data. Include a \"numbersUsed\" field showing every financial figure you cited." },
               { role: "user", content: prompt },
             ],
           }),
