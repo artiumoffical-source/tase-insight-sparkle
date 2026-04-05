@@ -1,12 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/hooks/useLanguage";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { CalendarDays, TrendingUp } from "lucide-react";
+import StockLogo from "@/components/StockLogo";
+
+function timeAgo(dateStr: string, isHe: boolean): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return isHe ? `לפני ${mins} דקות` : `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return isHe ? `לפני ${hours} שעות` : `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return isHe ? `לפני ${days} ימים` : `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString(isHe ? "he-IL" : "en-US", {
+    year: "numeric", month: "short", day: "numeric",
+  });
+}
 
 export default function NewsPage() {
   const { lang } = useLanguage();
@@ -25,6 +38,34 @@ export default function NewsPage() {
       return data;
     },
   });
+
+  // Batch-fetch company logos for all related tickers
+  const tickers = [...new Set((articles || []).map((a: any) => a.related_ticker).filter(Boolean))];
+  const { data: companies } = useQuery({
+    queryKey: ["news-logos", tickers.join(",")],
+    queryFn: async () => {
+      if (!tickers.length) return [];
+      const { data } = await supabase
+        .from("tase_symbols")
+        .select("ticker, name, name_he, override_name_he, logo_url")
+        .in("ticker", tickers);
+      return data || [];
+    },
+    enabled: tickers.length > 0,
+  });
+
+  const companyMap = new Map(
+    (companies || []).map((c: any) => [c.ticker, c])
+  );
+
+  const hero = articles?.[0];
+  const rest = articles?.slice(1) || [];
+
+  const sentimentBadge = (sentiment: string | null) => {
+    if (sentiment === "positive") return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+    if (sentiment === "negative") return "bg-red-500/15 text-red-400 border-red-500/30";
+    return "bg-muted text-muted-foreground border-border";
+  };
 
   return (
     <>
@@ -82,47 +123,97 @@ export default function NewsPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {articles.map((article: any) => (
-              <article key={article.id}>
-                <Link to={`/news/${article.id}`} className="block">
-                  <Card className="hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="secondary" className={article.category === "macro" ? "bg-blue-600 text-white" : "bg-muted"}>
-                          {article.category === "macro" ? "מאקרו וכלכלה" : "מניות"}
+            {/* Hero article */}
+            {hero && (
+              <Link to={`/news/${hero.id}`} className="block">
+                <Card className="rounded-2xl border-2 border-border/60 hover:border-primary/40 transition-all hover:shadow-lg">
+                  <CardContent className="p-6 sm:p-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      {hero.related_ticker && (() => {
+                        const c = companyMap.get(hero.related_ticker);
+                        return (
+                          <StockLogo
+                            name={c?.override_name_he || c?.name_he || c?.name || hero.related_ticker}
+                            logoUrl={c?.logo_url}
+                            size="md"
+                          />
+                        );
+                      })()}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className={`text-xs ${sentimentBadge(hero.sentiment)}`}>
+                          {hero.sentiment === "positive" ? (isHe ? "חיובי" : "Positive")
+                            : hero.sentiment === "negative" ? (isHe ? "שלילי" : "Negative")
+                            : (isHe ? "ניטרלי" : "Neutral")}
                         </Badge>
-                        {article.related_ticker && (
-                          <Badge variant="outline">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            {article.related_ticker}
-                          </Badge>
+                        {hero.related_ticker && (
+                          <Badge variant="outline" className="text-xs">{hero.related_ticker}.TA</Badge>
                         )}
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          {article.published_at
-                            ? new Date(article.published_at).toLocaleDateString(
-                                isHe ? "he-IL" : "en-US",
-                                { year: "numeric", month: "long", day: "numeric" }
-                              )
-                            : ""}
-                        </span>
+                        {hero.published_at && (
+                          <span className="text-xs text-muted-foreground">
+                            {timeAgo(hero.published_at, isHe)}
+                          </span>
+                        )}
                       </div>
-                      <CardTitle className="text-xl leading-tight">
-                        {article.ai_title_he}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">
-                        {article.ai_summary_he}
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-3">
+                      {hero.ai_title_he}
+                    </h2>
+                    {hero.ai_summary_he && (
+                      <p className="text-muted-foreground leading-relaxed">
+                        {hero.ai_summary_he}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
-                        מאת: {article.author}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </article>
-            ))}
+                    )}
+                    <p className="text-xs text-muted-foreground mt-4">
+                      {hero.author}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
+
+            {/* Article list */}
+            <div className="space-y-2">
+              {rest.map((article: any) => {
+                const c = article.related_ticker ? companyMap.get(article.related_ticker) : null;
+                const displayName = c?.override_name_he || c?.name_he || c?.name || article.related_ticker || "";
+
+                return (
+                  <Link key={article.id} to={`/news/${article.id}`} className="block">
+                    <Card className="hover:bg-secondary/40 transition-colors">
+                      <CardContent className="flex items-center gap-3 py-3 px-4">
+                        {article.related_ticker && (
+                          <StockLogo
+                            name={displayName}
+                            logoUrl={c?.logo_url}
+                            size="sm"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium leading-snug line-clamp-1">
+                            {article.ai_title_he}
+                          </p>
+                          {article.ai_summary_he && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                              {article.ai_summary_he}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Badge variant="outline" className={`text-[10px] ${sentimentBadge(article.sentiment)}`}>
+                            {article.sentiment === "positive" ? "+" : article.sentiment === "negative" ? "−" : "~"}
+                          </Badge>
+                          {article.published_at && (
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              {timeAgo(article.published_at, isHe)}
+                            </span>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
