@@ -132,6 +132,44 @@ async function buildDataLock(
   return lock;
 }
 
+// ─── Relevance filter ───
+const SECTOR_KEYWORDS: Record<string, string[]> = {
+  realEstate: ["נדל\"ן", "דירות", "קבלנים", "שוק הדיור", "בנייה למגורים", "פרויקט מגורים"],
+  airline: ["תעופה", "טיסות", "נוסעים", "מטוס"],
+  defense: ["ביטחוני", "מערכות נשק", "טילים"],
+};
+
+function isArticleRelevant(title: string, content: string, ticker: string, _companyName: string): boolean {
+  const text = `${title} ${content}`.toLowerCase();
+  const hasRealEstate = SECTOR_KEYWORDS.realEstate.some(kw => text.includes(kw));
+  const hasAirline = SECTOR_KEYWORDS.airline.some(kw => text.includes(kw));
+
+  // Airline ticker but real estate content, or vice versa
+  if (ticker === "ELAL" && hasRealEstate && !hasAirline) return false;
+  if (["AZRG", "AFI", "MGDL", "ISTA"].includes(ticker) && hasAirline && !hasRealEstate) return false;
+
+  return true;
+}
+
+function sanitizeBody(body: string): string {
+  // Remove everything after \n---
+  const dashIdx = body.indexOf("\n---");
+  if (dashIdx !== -1) body = body.slice(0, dashIdx);
+
+  // Filter out source/link lines
+  return body
+    .split("\n")
+    .filter(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("מקור:") || trimmed.startsWith("Source:")) return false;
+      if (/https?:\/\//.test(trimmed)) return false;
+      if (trimmed.startsWith("📋") || trimmed.startsWith("📊")) return false;
+      return true;
+    })
+    .join("\n")
+    .trim();
+}
+
 function buildLockedPrompt(title: string, content: string, lock: DataLock, source: string, date: string | null): string {
   const lockJson = JSON.stringify(lock, null, 2);
 
@@ -179,6 +217,9 @@ WRITING RULES:
 - Do NOT start paragraphs with "במקביל", "בנוסף", "יתרה מכך".
 - Be objective. NO financial advice.
 - FORBIDDEN: Adding real estate, politics, or unrelated sector commentary unless it appears in the Maya filing.
+- You ARE the primary source. NEVER mention Globes, Reuters, Bloomberg or any publication name.
+- NEVER include '---', 'מקור:', 'Source:', URLs or links anywhere in bodyHe.
+- Never repeat words in the title. Read the title once before finalizing.
 
 SIGN-OFF:
 "הניתוח מבוסס על דוחות כספיים רשמיים ונתוני שוק מהבורסה לניירות ערך בתל אביב."
@@ -348,6 +389,12 @@ Deno.serve(async (req) => {
 
       const companyName = symbolMap.get(relatedTicker) || relatedTicker;
 
+      // RELEVANCE CHECK
+      if (!isArticleRelevant(title, content, relatedTicker, companyName)) {
+        console.log(`SKIPPED not relevant: "${title}" [${relatedTicker}]`);
+        continue;
+      }
+
       // BUILD DATA LOCK
       const lockResult = await buildDataLock(relatedTicker, companyName, adminClient, eodhd);
       if (lockResult === "stale") {
@@ -393,6 +440,11 @@ Deno.serve(async (req) => {
         if (!jsonMatch) { console.error(`No JSON in AI response for "${title}"`); continue; }
 
         const parsed = JSON.parse(jsonMatch[0]);
+
+        // SANITIZE body — remove source footers, URLs, etc.
+        if (parsed.bodyHe) {
+          parsed.bodyHe = sanitizeBody(parsed.bodyHe);
+        }
 
         // POST-GENERATION VALIDATION
         const validation = validateNumbers(lock, parsed.numbersUsed);
