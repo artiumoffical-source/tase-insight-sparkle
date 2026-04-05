@@ -278,13 +278,14 @@ WRITING RULES:
 - BANNED: "סולל את הדרך", "קפיצת מדרגה", "חשוב לזכור", "מהווה אבן דרך", "בשורה משמעותית", "נדבך מרכזי", "שינוי פרדיגמה", "פורץ דרך"
 - No double dashes (--). No unnecessary English.
 - Do NOT start paragraphs with "במקביל", "בנוסף", "יתרה מכך".
+- NEVER repeat words in the title. Read the title once before finalizing — every word must appear only once.
 
 SIGN-OFF:
 "הניתוח מבוסס על דוחות כספיים רשמיים ונתוני שוק מהבורסה לניירות ערך בתל אביב."
 "מאת: ארטיום מנדבורה, אנליסט שוק ההון | alpha-map.com"
 
 Return a JSON with:
-- titleHe: Hebrew headline (max 80 chars, include a number)
+- titleHe: Hebrew headline (max 80 chars, include a number, no repeated words)
 - subtitleHe: one sentence subtitle
 - bodyHe: Full Hebrew article (3 paragraphs as specified)
 - summaryHe: One quantitative sentence (max 150 chars, must include a number)
