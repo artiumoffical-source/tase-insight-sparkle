@@ -650,7 +650,13 @@ Deno.serve(async (req) => {
         } else {
           generated++;
           const tierLabel = `Tier ${tierResult.tier}`;
-          console.log(`✅ Generated [${tierLabel}]: "${item.title}" (${ticker}) [${parsed.sentiment}]${isFlagged ? " ⚠️ FLAGGED" : ""}`);
+          const imgSource = logoUrl ? "logo" : "og-only";
+          // Generate OG image URL for social sharing (stored as og_image, displayed via generate-og-image function)
+          if (inserted?.id) {
+            const ogUrl = `${supabaseUrl}/functions/v1/generate-og-image?id=${inserted.id}`;
+            console.log(`📸 OG image URL: ${ogUrl}`);
+          }
+          console.log(`✅ Generated [${tierLabel}]: "${item.title}" (${ticker}) [${parsed.sentiment}] [img: ${imgSource}]${isFlagged ? " ⚠️ FLAGGED" : ""}`);
         }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
