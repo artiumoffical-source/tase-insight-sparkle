@@ -600,6 +600,10 @@ Deno.serve(async (req) => {
 
         const parsed = JSON.parse(jsonMatch[0]);
 
+        // Append footer to body
+        const footer = `\n\n---\n📋 מקור: ${item.title} | ${item.link}\n📊 לנתוני ${companyName} באלפא-מאפ: https://alpha-map.com/stock/${ticker}`;
+        const bodyWithFooter = (parsed.bodyHe || "") + footer;
+
         // Validation — only for Tier 3
         let validation = { valid: true, mismatches: [] as string[] };
         let isFlagged = parsed.flagged === true;
@@ -629,9 +633,9 @@ Deno.serve(async (req) => {
           original_date: item.pubDate ? new Date(item.pubDate).toISOString() : null,
           related_ticker: ticker,
           ai_title_he: parsed.titleHe || item.title,
-          ai_body_he: parsed.bodyHe || "",
+          ai_body_he: bodyWithFooter,
           ai_summary_he: parsed.summaryHe || "",
-          content: parsed.bodyHe || "",
+          content: bodyWithFooter,
           sentiment: parsed.sentiment || "neutral",
           data_lock: dataLockPayload,
         });
