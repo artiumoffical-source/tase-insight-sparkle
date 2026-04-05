@@ -206,9 +206,12 @@ REQUIRED STRUCTURE:
   - פסקה 1: מה קרה (מהמאיה/הדיווח בלבד)
   - פסקה 2: הקשר — השוואה לרבעון/שנה קודמת (מAlphaMap בלבד, YOY explicit)
   - פסקה 3: מה לעקוב אחריו
-**מקור:** [שם הדיווח] | [תאריך] | alpha-map.com
 
 WRITING RULES:
+- You are writing an ORIGINAL article for AlphaMap. The news source is only a trigger — rewrite everything in your own words as a primary journalist.
+- NEVER copy sentences from the source. NEVER mention Globes, Reuters, Bloomberg or any publication name.
+- NEVER include "---", "מקור:", "📋", "📊", "Source:", URLs, or links anywhere in bodyHe.
+- The bodyHe field ends after the last paragraph. Nothing else after it.
 - Professional institutional-grade Hebrew.
 - Mix sentence lengths. Short punchy lines for impact.
 - Use: "המלצת קנייה", "תשואת יתר", "מרווח תפעולי", "תזרים מזומנים חופשי"
@@ -217,8 +220,6 @@ WRITING RULES:
 - Do NOT start paragraphs with "במקביל", "בנוסף", "יתרה מכך".
 - Be objective. NO financial advice.
 - FORBIDDEN: Adding real estate, politics, or unrelated sector commentary unless it appears in the Maya filing.
-- You ARE the primary source. NEVER mention Globes, Reuters, Bloomberg or any publication name.
-- NEVER include '---', 'מקור:', 'Source:', URLs or links anywhere in bodyHe.
 - Never repeat words in the title. Read the title once before finalizing.
 
 SIGN-OFF:
@@ -443,7 +444,13 @@ Deno.serve(async (req) => {
 
         // SANITIZE body — remove source footers, URLs, etc.
         if (parsed.bodyHe) {
-          parsed.bodyHe = sanitizeBody(parsed.bodyHe);
+          const sepIdx = parsed.bodyHe.indexOf('\n---');
+          if (sepIdx !== -1) parsed.bodyHe = parsed.bodyHe.slice(0, sepIdx).trim();
+          parsed.bodyHe = parsed.bodyHe
+            .split('\n')
+            .filter((line: string) => !line.trim().startsWith('מקור:') && !line.trim().startsWith('📋') && !line.trim().startsWith('📊') && !line.trim().startsWith('Source:') && !line.includes('http'))
+            .join('\n')
+            .trim();
         }
 
         // POST-GENERATION VALIDATION
@@ -488,8 +495,116 @@ Deno.serve(async (req) => {
       await new Promise(r => setTimeout(r, 2000));
     }
 
+    // ─── Process pending MAYA articles from fetch-tase-news ───
+    const { data: pendingMaya } = await adminClient
+      .from("news_articles")
+      .select("*")
+      .eq("original_source", "MAYA/TASE")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    let mayaGenerated = 0;
+    for (const row of (pendingMaya || [])) {
+      const relatedTicker = row.related_ticker || "";
+      if (!relatedTicker) continue;
+
+      const companyName = symbolMap.get(relatedTicker) || relatedTicker;
+      if (!isArticleRelevant(row.original_title, row.content || "", relatedTicker, companyName)) {
+        console.log(`MAYA SKIPPED not relevant: "${row.original_title}" [${relatedTicker}]`);
+        await adminClient.from("news_articles").update({ status: "rejected" }).eq("id", row.id);
+        continue;
+      }
+
+      const lockResult = await buildDataLock(relatedTicker, companyName, adminClient, eodhd);
+      if (lockResult === "stale") { skippedStale++; continue; }
+      if (!lockResult) {
+        console.log(`MAYA SKIPPED (no DB financials): "${row.original_title}" [${relatedTicker}]`);
+        skippedNoData++;
+        continue;
+      }
+      const lock = lockResult;
+
+      const prompt = buildLockedPrompt(row.original_title, row.content || "", lock, "MAYA/TASE", row.original_date);
+
+      try {
+        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-pro",
+            messages: [
+              { role: "system", content: "You are a Hebrew financial journalist. Return ONLY valid JSON. Use ONLY facts from the Maya filing text and the AlphaMap financial data provided. Never add information from your training data. Include a \"numbersUsed\" field showing every financial figure you cited." },
+              { role: "user", content: prompt },
+            ],
+          }),
+        });
+
+        if (!aiRes.ok) {
+          console.error("MAYA AI error:", aiRes.status);
+          if (aiRes.status === 429) break;
+          continue;
+        }
+
+        const aiData = await aiRes.json();
+        const raw = aiData.choices?.[0]?.message?.content ?? "";
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) { console.error(`No JSON in MAYA AI response for "${row.original_title}"`); continue; }
+
+        const parsed = JSON.parse(jsonMatch[0]);
+
+        // Sanitize body
+        if (parsed.bodyHe) {
+          const sepIdx = parsed.bodyHe.indexOf('\n---');
+          if (sepIdx !== -1) parsed.bodyHe = parsed.bodyHe.slice(0, sepIdx).trim();
+          parsed.bodyHe = parsed.bodyHe
+            .split('\n')
+            .filter((line: string) => !line.trim().startsWith('מקור:') && !line.trim().startsWith('📋') && !line.trim().startsWith('📊') && !line.trim().startsWith('Source:') && !line.includes('http'))
+            .join('\n')
+            .trim();
+        }
+
+        const validation = validateNumbers(lock, parsed.numbersUsed);
+        const isFlagged = parsed.flagged === true || !validation.valid;
+        if (!validation.valid) dataLockFails++;
+        if (isFlagged) flagged++;
+
+        // Update the existing pending row with AI content
+        const { error: updateErr } = await adminClient.from("news_articles").update({
+          status: "draft",
+          ai_title_he: parsed.titleHe || row.original_title,
+          ai_body_he: parsed.bodyHe || "",
+          ai_summary_he: parsed.summaryHe || "",
+          content: parsed.bodyHe || "",
+          sentiment: parsed.sentiment || "neutral",
+          data_lock: {
+            dbData: lock,
+            aiNumbersUsed: parsed.numbersUsed || {},
+            validation: { valid: validation.valid, mismatches: validation.mismatches },
+          },
+        }).eq("id", row.id);
+
+        if (updateErr) {
+          console.error("MAYA update error:", updateErr);
+        } else {
+          mayaGenerated++;
+          generated++;
+          console.log(`MAYA Generated: "${row.original_title}" (${relatedTicker}) [${parsed.sentiment}]`);
+        }
+      } catch (e) {
+        console.error("MAYA AI generation error:", e);
+      }
+
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    console.log(`MAYA processing done: ${mayaGenerated} generated from ${(pendingMaya || []).length} pending`);
+
     return new Response(
-      JSON.stringify({ generated, flagged, dataLockFails, skippedNoData, skippedStale, total_fetched: allArticles.length, new_articles: newArticles.length }),
+      JSON.stringify({ generated, flagged, dataLockFails, skippedNoData, skippedStale, total_fetched: allArticles.length, new_articles: newArticles.length, mayaGenerated }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
