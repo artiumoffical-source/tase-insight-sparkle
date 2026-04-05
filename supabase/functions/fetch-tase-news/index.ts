@@ -530,7 +530,7 @@ Deno.serve(async (req) => {
     let dataLockFails = 0;
     const tierCounts = { 1: 0, 2: 0, 3: 0 };
     const errors: Array<{ ticker: string; title: string; error: string }> = [];
-    const maxItems = 8;
+    const maxItems = 25;
 
     for (const item of newItems.slice(0, maxItems)) {
       const cleanDesc = stripHtml(item.description);
