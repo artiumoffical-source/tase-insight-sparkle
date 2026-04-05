@@ -534,7 +534,7 @@ Deno.serve(async (req) => {
 
     for (const item of newItems.slice(0, maxItems)) {
       const cleanDesc = stripHtml(item.description);
-      const { ticker, companyName } = matchTicker(item.title, cleanDesc);
+      const { ticker, companyName, logoUrl } = matchTicker(item.title, cleanDesc);
 
       if (!ticker) {
         skippedNoTicker++;
