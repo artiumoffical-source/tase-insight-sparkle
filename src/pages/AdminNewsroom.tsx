@@ -153,7 +153,7 @@ function NewsTab() {
       <div className="flex justify-end gap-2 flex-wrap">
         <Button onClick={() => mayaMutation.mutate()} disabled={mayaMutation.isPending} variant="outline" className="flex items-center gap-2">
           {mayaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Newspaper className="h-4 w-4" />}
-          אסוף דיווחי MAYA
+          {mayaMutation.isPending ? "אוסף ומייצר כתבות..." : "אסוף דיווחי MAYA"}
         </Button>
         <Button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="flex items-center gap-2">
           {generateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
