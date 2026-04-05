@@ -494,31 +494,31 @@ Deno.serve(async (req) => {
     const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text, aliases, logo_url");
     const symbolList = symbols || [];
 
-    function matchTicker(headline: string, description: string): { ticker: string; companyName: string } {
+    function matchTicker(headline: string, description: string): { ticker: string; companyName: string; logoUrl: string | null } {
       const searchText = (headline + " " + description).toLowerCase();
-      let bestMatch = { ticker: "", companyName: "", score: 0 };
+      let bestMatch = { ticker: "", companyName: "", logoUrl: null as string | null, score: 0 };
       for (const sym of symbolList) {
         const displayName = sym.override_name_he || sym.name_he || sym.name;
         const aliases: string[] = sym.aliases || [];
         for (const alias of aliases) {
           if (alias && alias.length > 1 && searchText.includes(alias.toLowerCase())) {
             const score = alias.length + 10;
-            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, logoUrl: sym.logo_url || null, score };
           }
         }
         const names = [sym.override_name_he, sym.name_he, sym.name].filter(Boolean);
         for (const name of names) {
           if (name && name.length > 2 && searchText.includes(name.toLowerCase())) {
             const score = name.length;
-            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, logoUrl: sym.logo_url || null, score };
           }
         }
         if (sym.ticker && searchText.includes(sym.ticker.toLowerCase())) {
           const score = sym.ticker.length + 5;
-          if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+          if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, logoUrl: sym.logo_url || null, score };
         }
       }
-      return { ticker: bestMatch.ticker, companyName: bestMatch.companyName };
+      return { ticker: bestMatch.ticker, companyName: bestMatch.companyName, logoUrl: bestMatch.logoUrl };
     }
 
     // 4. Process with TIERED generation
