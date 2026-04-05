@@ -389,6 +389,12 @@ Deno.serve(async (req) => {
 
       const companyName = symbolMap.get(relatedTicker) || relatedTicker;
 
+      // RELEVANCE CHECK
+      if (!isArticleRelevant(title, content, relatedTicker, companyName)) {
+        console.log(`SKIPPED not relevant: "${title}" [${relatedTicker}]`);
+        continue;
+      }
+
       // BUILD DATA LOCK
       const lockResult = await buildDataLock(relatedTicker, companyName, adminClient, eodhd);
       if (lockResult === "stale") {
