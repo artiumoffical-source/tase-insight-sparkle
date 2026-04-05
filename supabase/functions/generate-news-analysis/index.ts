@@ -217,6 +217,9 @@ WRITING RULES:
 - Do NOT start paragraphs with "במקביל", "בנוסף", "יתרה מכך".
 - Be objective. NO financial advice.
 - FORBIDDEN: Adding real estate, politics, or unrelated sector commentary unless it appears in the Maya filing.
+- You ARE the primary source. NEVER mention Globes, Reuters, Bloomberg or any publication name.
+- NEVER include '---', 'מקור:', 'Source:', URLs or links anywhere in bodyHe.
+- Never repeat words in the title. Read the title once before finalizing.
 
 SIGN-OFF:
 "הניתוח מבוסס על דוחות כספיים רשמיים ונתוני שוק מהבורסה לניירות ערך בתל אביב."
