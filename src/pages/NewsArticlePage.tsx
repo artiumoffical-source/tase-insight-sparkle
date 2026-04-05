@@ -70,6 +70,7 @@ export default function NewsArticlePage() {
     ? (isHe ? "שלילי" : "Negative")
     : (isHe ? "ניטרלי" : "Neutral");
 
+  const articleImageUrl = (article as any).image_url as string | null;
   const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-og-image?id=${article.id}`;
 
   return (
