@@ -9,12 +9,8 @@ export default function Footer() {
       <div className="container flex flex-col sm:flex-row items-center justify-between gap-3 py-6 text-xs text-muted-foreground">
         <span>© {new Date().getFullYear()} AlphaMap. {t("footer.rights")}</span>
         <div className="flex items-center gap-4">
-          <Link to="/privacy" className="hover:text-foreground transition-colors">
-            {t("footer.privacy")}
-          </Link>
-          <span className="text-border">|</span>
           <Link to="/terms" className="hover:text-foreground transition-colors">
-            {t("footer.terms")}
+            {lang === "he" ? "תנאי שימוש ופרטיות" : "Terms & Privacy"}
           </Link>
         </div>
       </div>
