@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useLanguage } from "@/hooks/useLanguage";
 
 export default function Footer() {
-  const { t, isRtl } = useLanguage();
+  const { t, isRtl, lang } = useLanguage();
 
   return (
     <footer className="border-t bg-card/50 mt-16" dir={isRtl ? "rtl" : "ltr"}>
