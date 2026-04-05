@@ -491,34 +491,34 @@ Deno.serve(async (req) => {
     }
 
     // 3. Load symbols
-    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text, aliases");
+    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text, aliases, logo_url");
     const symbolList = symbols || [];
 
-    function matchTicker(headline: string, description: string): { ticker: string; companyName: string } {
+    function matchTicker(headline: string, description: string): { ticker: string; companyName: string; logoUrl: string | null } {
       const searchText = (headline + " " + description).toLowerCase();
-      let bestMatch = { ticker: "", companyName: "", score: 0 };
+      let bestMatch = { ticker: "", companyName: "", logoUrl: null as string | null, score: 0 };
       for (const sym of symbolList) {
         const displayName = sym.override_name_he || sym.name_he || sym.name;
         const aliases: string[] = sym.aliases || [];
         for (const alias of aliases) {
           if (alias && alias.length > 1 && searchText.includes(alias.toLowerCase())) {
             const score = alias.length + 10;
-            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, logoUrl: sym.logo_url || null, score };
           }
         }
         const names = [sym.override_name_he, sym.name_he, sym.name].filter(Boolean);
         for (const name of names) {
           if (name && name.length > 2 && searchText.includes(name.toLowerCase())) {
             const score = name.length;
-            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+            if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, logoUrl: sym.logo_url || null, score };
           }
         }
         if (sym.ticker && searchText.includes(sym.ticker.toLowerCase())) {
           const score = sym.ticker.length + 5;
-          if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, score };
+          if (score > bestMatch.score) bestMatch = { ticker: sym.ticker, companyName: displayName, logoUrl: sym.logo_url || null, score };
         }
       }
-      return { ticker: bestMatch.ticker, companyName: bestMatch.companyName };
+      return { ticker: bestMatch.ticker, companyName: bestMatch.companyName, logoUrl: bestMatch.logoUrl };
     }
 
     // 4. Process with TIERED generation
@@ -534,7 +534,7 @@ Deno.serve(async (req) => {
 
     for (const item of newItems.slice(0, maxItems)) {
       const cleanDesc = stripHtml(item.description);
-      const { ticker, companyName } = matchTicker(item.title, cleanDesc);
+      const { ticker, companyName, logoUrl } = matchTicker(item.title, cleanDesc);
 
       if (!ticker) {
         skippedNoTicker++;
@@ -623,7 +623,11 @@ Deno.serve(async (req) => {
           ? { tier: 2, annualData: tierResult.annual, aiNumbersUsed: parsed.numbersUsed || {} }
           : { tier: 1 };
 
-        const { error: insertErr } = await adminClient.from("news_articles").insert({
+        // Build image URL: use company logo from tase_symbols, fallback to OG image
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const articleImageUrl = logoUrl || null;
+
+        const { data: inserted, error: insertErr } = await adminClient.from("news_articles").insert({
           status: "draft",
           category: "stock",
           original_title: item.title,
@@ -638,14 +642,21 @@ Deno.serve(async (req) => {
           content: bodyWithFooter,
           sentiment: parsed.sentiment || "neutral",
           data_lock: dataLockPayload,
-        });
+          image_url: articleImageUrl,
+        }).select("id").single();
 
         if (insertErr) {
           console.error("Insert error:", insertErr);
         } else {
           generated++;
           const tierLabel = `Tier ${tierResult.tier}`;
-          console.log(`✅ Generated [${tierLabel}]: "${item.title}" (${ticker}) [${parsed.sentiment}]${isFlagged ? " ⚠️ FLAGGED" : ""}`);
+          const imgSource = logoUrl ? "logo" : "og-only";
+          // Generate OG image URL for social sharing (stored as og_image, displayed via generate-og-image function)
+          if (inserted?.id) {
+            const ogUrl = `${supabaseUrl}/functions/v1/generate-og-image?id=${inserted.id}`;
+            console.log(`📸 OG image URL: ${ogUrl}`);
+          }
+          console.log(`✅ Generated [${tierLabel}]: "${item.title}" (${ticker}) [${parsed.sentiment}] [img: ${imgSource}]${isFlagged ? " ⚠️ FLAGGED" : ""}`);
         }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);

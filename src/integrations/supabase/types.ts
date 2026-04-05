@@ -103,6 +103,7 @@ export type Database = {
           created_at: string
           data_lock: Json | null
           id: string
+          image_url: string | null
           original_date: string | null
           original_headline: string | null
           original_source: string
@@ -124,6 +125,7 @@ export type Database = {
           created_at?: string
           data_lock?: Json | null
           id?: string
+          image_url?: string | null
           original_date?: string | null
           original_headline?: string | null
           original_source?: string
@@ -145,6 +147,7 @@ export type Database = {
           created_at?: string
           data_lock?: Json | null
           id?: string
+          image_url?: string | null
           original_date?: string | null
           original_headline?: string | null
           original_source?: string

@@ -70,6 +70,7 @@ export default function NewsArticlePage() {
     ? (isHe ? "שלילי" : "Negative")
     : (isHe ? "ניטרלי" : "Neutral");
 
+  const articleImageUrl = (article as any).image_url as string | null;
   const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-og-image?id=${article.id}`;
 
   return (
@@ -110,6 +111,17 @@ export default function NewsArticlePage() {
         </Link>
 
         <article>
+          {articleImageUrl && (
+            <div className="mb-6 flex justify-center">
+              <img
+                src={articleImageUrl}
+                alt={title}
+                className="h-16 w-16 rounded-xl object-contain bg-muted p-2 ring-1 ring-border/20"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                loading="lazy"
+              />
+            </div>
+          )}
           <h1 className="font-display text-2xl sm:text-3xl font-bold leading-tight mb-4">
             {title}
           </h1>
