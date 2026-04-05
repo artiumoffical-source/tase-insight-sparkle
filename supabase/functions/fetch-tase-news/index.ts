@@ -491,7 +491,7 @@ Deno.serve(async (req) => {
     }
 
     // 3. Load symbols
-    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text, aliases");
+    const { data: symbols } = await adminClient.from("tase_symbols").select("ticker, name, name_he, override_name_he, search_text, aliases, logo_url");
     const symbolList = symbols || [];
 
     function matchTicker(headline: string, description: string): { ticker: string; companyName: string } {
