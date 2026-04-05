@@ -299,20 +299,28 @@ Deno.serve(async (req) => {
     }
 
     // 1. Fetch RSS
+    console.log(`=== FETCH-TASE-NEWS DEBUG START ===`);
+    console.log(`RSS_FEEDS config: ${JSON.stringify(RSS_FEEDS.map(f => ({ url: f.url, source: f.source })))}`);
     const allItems: Array<{ title: string; link: string; pubDate: string; description: string; source: string }> = [];
     for (const feed of RSS_FEEDS) {
       try {
-        console.log(`Fetching RSS: ${feed.source}...`);
+        console.log(`[RSS] Fetching: ${feed.url}`);
         const rssRes = await fetch(feed.url, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; AlphaMapBot/1.0)", "Accept": "application/rss+xml, application/xml, text/xml, */*" },
         });
-        if (!rssRes.ok) { console.error(`RSS fetch failed for ${feed.source}: ${rssRes.status}`); continue; }
+        console.log(`[RSS] ${feed.source}: status=${rssRes.status}, content-type=${rssRes.headers.get("content-type")}`);
+        if (!rssRes.ok) { console.error(`[RSS] FAILED for ${feed.source}: ${rssRes.status}`); continue; }
         const rssXml = await rssRes.text();
+        console.log(`[RSS] ${feed.source}: response length=${rssXml.length}, first 500 chars: ${rssXml.substring(0, 500)}`);
         const items = parseRssItems(rssXml);
-        console.log(`Parsed ${items.length} items from ${feed.source}`);
+        console.log(`[RSS] ${feed.source}: parsed ${items.length} items`);
+        if (items.length > 0) {
+          console.log(`[RSS] First item: title="${items[0].title}", link="${items[0].link}", pubDate="${items[0].pubDate}"`);
+        }
         for (const item of items) allItems.push({ ...item, source: feed.source });
-      } catch (e) { console.error(`Error fetching ${feed.source}:`, e); }
+      } catch (e) { console.error(`[RSS] Error fetching ${feed.source}:`, e); }
     }
+    console.log(`[TOTAL] ${allItems.length} items fetched from all feeds`);
 
     if (allItems.length === 0) {
       return new Response(JSON.stringify({ generated: 0, message: "No items from RSS feeds" }), {
@@ -322,10 +330,12 @@ Deno.serve(async (req) => {
 
     // 2. Dedup
     const urls = allItems.map(i => i.link).filter(Boolean);
+    console.log(`[DEDUP] Checking ${urls.length} URLs against DB`);
     const { data: existing } = await adminClient.from("news_articles").select("original_url").in("original_url", urls);
     const existingUrls = new Set((existing || []).map((e: any) => e.original_url));
+    console.log(`[DEDUP] ${existingUrls.size} already in DB, ${urls.length - existingUrls.size} are new`);
     const newItems = allItems.filter(i => i.link && !existingUrls.has(i.link));
-    console.log(`${newItems.length} new items after dedup (total: ${allItems.length})`);
+    console.log(`[DEDUP] ${newItems.length} new items after dedup`);
 
     if (newItems.length === 0) {
       return new Response(JSON.stringify({ generated: 0, total: allItems.length, message: "All items already exist" }), {
