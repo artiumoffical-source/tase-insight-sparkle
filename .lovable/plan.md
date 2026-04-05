@@ -1,48 +1,71 @@
 
 
-## Plan: Financial Overrides System
+# Plan: News Pipeline Cleanup + Article & List Page Redesign
 
-### Overview
-Create a system to manually correct EODHD financial data errors per ticker/year/field, and fix `sync-tase-symbols` to stop overwriting Hebrew names.
+## Overview
+Three interconnected changes: (1) edge function quality improvements, (2) professional article page redesign, (3) news list page redesign.
 
-### Step 1: Database Migration — Create `financial_overrides` table
+---
 
-Create table with columns:
-- `id` (uuid, PK)
-- `ticker` (text, not null)
-- `year` (text, not null) — e.g. "2025" or "2025-06"
-- `field` (text, not null) — e.g. "revenue", "netIncome", "operatingIncome"
-- `value` (numeric, not null) — the corrected number
-- `note` (text) — reason for override
-- `created_at` (timestamptz, default now())
-- Unique constraint on `(ticker, year, field)`
+## Part 1: Edge Function — `generate-news-analysis/index.ts`
 
-RLS: service role access only (edge functions use service role key).
+### 1A. Relevance Filter
+Add `isArticleRelevant(title, content, ticker, companyName)` before processing each article:
+- Define sector keyword maps (real estate: נדל"ן, דירות, קבלנים, שוק הדיור; airline: ELAL, תעופה)
+- If article content is about real estate but ticker is an airline (or vice versa), return false
+- Log `"SKIPPED not relevant"` and `continue`
 
-### Step 2: Fix `sync-tase-symbols/index.ts`
+### 1B. Prompt Improvement
+In `buildLockedPrompt`, add to WRITING RULES section:
+- `"You ARE the primary source. NEVER mention Globes, Reuters, Bloomberg or any publication. NEVER include '---', 'מקור:', 'Source:', URLs or links anywhere in bodyHe."`
 
-Two changes:
-1. Remove `name_he: ""` from the upsert row mapping — prevents overwriting existing Hebrew names
-2. Hebrew map loop: only write when `name_he` is currently empty, using `.eq("name_he", "")`
+### 1C. Post-generation Sanitization
+After parsing AI JSON response, sanitize `parsed.bodyHe`:
+- Remove everything after `\n---`
+- Filter out lines starting with `מקור:`, `Source:`, or containing `http`
 
-### Step 3: Apply overrides in `fetch-financials/index.ts`
+---
 
-After `parseFundamentals()` returns and before the cache upsert:
+## Part 2: Article Page Redesign — `NewsArticlePage.tsx`
 
-1. Query `financial_overrides` for the current ticker
-2. If overrides exist, walk through the income statement arrays (`incomeStatement`, `qIncomeStatement`) and `financials`/`balanceSheet`
-3. For each override row, find the matching year/quarter entry and replace **only that exact field** with the override value
-4. Do **NOT** recalculate any derived fields (grossProfit, margins, etc.) — leave everything else untouched
-5. Log which overrides were applied
+Full rewrite to professional Hebrew news layout:
 
-### Files Changed
-- `supabase/migrations/...` — new migration for `financial_overrides` table
-- `supabase/functions/sync-tase-symbols/index.ts` — remove `name_he` from upsert, conditional Hebrew map
-- `supabase/functions/fetch-financials/index.ts` — apply overrides after `parseFundamentals()`
+### Layout Structure
+1. **Sticky breadcrumb nav** — `חדשות שוק ההון ←` link + share button (top bar)
+2. **Title** — `text-3xl sm:text-4xl font-bold`
+3. **Summary lead** — styled with `border-r-4 border-primary pr-4` accent
+4. **Author bar** — avatar circle with "א", name "ארטיום מנדבורה", role "אנליסט שוק ההון, AlphaMap", date+time
+5. **Company hero card** — uses `StockLogo` (lg), company name from `tase_symbols`, ticker.TA badge, link "לדף המניה →"
+6. **Body** — split on `\n` into separate `<p>` tags with proper spacing
+7. **Share buttons** — WhatsApp, LinkedIn, X, copy link (using native share URLs)
+8. **Related articles** — "כתבות נוספות" section, fetch 3 articles with same `related_ticker`
+9. **No source URL references** anywhere
 
-### Technical Notes
-- Override field names map directly to EODHD keys: `totalRevenue`, `netIncome`, `operatingIncome`, etc.
-- Only the exact field specified in the override row is patched; no derived recalculations
-- Runs server-side so cached data also contains corrected values
-- No UI changes in this step
+### Data Fetching
+- Fetch company info from `tase_symbols` by `related_ticker` (name, name_he, logo_url)
+- Fetch 3 related articles from `news_articles` where `related_ticker` matches and `status = 'published'`
+
+---
+
+## Part 3: News List Page Redesign — `NewsPage.tsx`
+
+### Layout Structure
+1. **Hero article** — first article displayed as large featured card (`rounded-2xl`, full headline + summary, company logo)
+2. **Article list** — remaining articles as compact rows with:
+   - `StockLogo` (sm), headline, truncated summary (line-clamp-2), timeAgo, author
+3. **No external source links**
+
+### Data
+- Fetch all unique `related_ticker` values from results
+- Batch-fetch company logos from `tase_symbols` for those tickers
+- `timeAgo` helper function (e.g. "לפני 3 שעות", "לפני יומיים")
+
+---
+
+## Files Changed
+| File | Action |
+|------|--------|
+| `supabase/functions/generate-news-analysis/index.ts` | Add relevance filter, prompt rules, body sanitization |
+| `src/pages/NewsArticlePage.tsx` | Full redesign with hero card, author bar, share, related articles |
+| `src/pages/NewsPage.tsx` | Redesign with hero card + list layout, company logos |
 
