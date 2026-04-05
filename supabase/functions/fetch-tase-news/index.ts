@@ -623,7 +623,11 @@ Deno.serve(async (req) => {
           ? { tier: 2, annualData: tierResult.annual, aiNumbersUsed: parsed.numbersUsed || {} }
           : { tier: 1 };
 
-        const { error: insertErr } = await adminClient.from("news_articles").insert({
+        // Build image URL: use company logo from tase_symbols, fallback to OG image
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const articleImageUrl = logoUrl || null;
+
+        const { data: inserted, error: insertErr } = await adminClient.from("news_articles").insert({
           status: "draft",
           category: "stock",
           original_title: item.title,
@@ -638,7 +642,8 @@ Deno.serve(async (req) => {
           content: bodyWithFooter,
           sentiment: parsed.sentiment || "neutral",
           data_lock: dataLockPayload,
-        });
+          image_url: articleImageUrl,
+        }).select("id").single();
 
         if (insertErr) {
           console.error("Insert error:", insertErr);
