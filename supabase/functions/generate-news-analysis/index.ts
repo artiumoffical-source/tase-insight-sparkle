@@ -444,7 +444,13 @@ Deno.serve(async (req) => {
 
         // SANITIZE body — remove source footers, URLs, etc.
         if (parsed.bodyHe) {
-          parsed.bodyHe = sanitizeBody(parsed.bodyHe);
+          const sepIdx = parsed.bodyHe.indexOf('\n---');
+          if (sepIdx !== -1) parsed.bodyHe = parsed.bodyHe.slice(0, sepIdx).trim();
+          parsed.bodyHe = parsed.bodyHe
+            .split('\n')
+            .filter((line: string) => !line.trim().startsWith('מקור:') && !line.trim().startsWith('📋') && !line.trim().startsWith('📊') && !line.trim().startsWith('Source:') && !line.includes('http'))
+            .join('\n')
+            .trim();
         }
 
         // POST-GENERATION VALIDATION
