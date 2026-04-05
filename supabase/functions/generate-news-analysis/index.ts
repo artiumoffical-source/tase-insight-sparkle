@@ -206,9 +206,12 @@ REQUIRED STRUCTURE:
   - פסקה 1: מה קרה (מהמאיה/הדיווח בלבד)
   - פסקה 2: הקשר — השוואה לרבעון/שנה קודמת (מAlphaMap בלבד, YOY explicit)
   - פסקה 3: מה לעקוב אחריו
-**מקור:** [שם הדיווח] | [תאריך] | alpha-map.com
 
 WRITING RULES:
+- You are writing an ORIGINAL article for AlphaMap. The news source is only a trigger — rewrite everything in your own words as a primary journalist.
+- NEVER copy sentences from the source. NEVER mention Globes, Reuters, Bloomberg or any publication name.
+- NEVER include "---", "מקור:", "📋", "📊", "Source:", URLs, or links anywhere in bodyHe.
+- The bodyHe field ends after the last paragraph. Nothing else after it.
 - Professional institutional-grade Hebrew.
 - Mix sentence lengths. Short punchy lines for impact.
 - Use: "המלצת קנייה", "תשואת יתר", "מרווח תפעולי", "תזרים מזומנים חופשי"
@@ -217,8 +220,6 @@ WRITING RULES:
 - Do NOT start paragraphs with "במקביל", "בנוסף", "יתרה מכך".
 - Be objective. NO financial advice.
 - FORBIDDEN: Adding real estate, politics, or unrelated sector commentary unless it appears in the Maya filing.
-- You ARE the primary source. NEVER mention Globes, Reuters, Bloomberg or any publication name.
-- NEVER include '---', 'מקור:', 'Source:', URLs or links anywhere in bodyHe.
 - Never repeat words in the title. Read the title once before finalizing.
 
 SIGN-OFF:
