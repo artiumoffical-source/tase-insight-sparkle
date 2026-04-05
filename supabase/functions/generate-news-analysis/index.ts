@@ -441,6 +441,11 @@ Deno.serve(async (req) => {
 
         const parsed = JSON.parse(jsonMatch[0]);
 
+        // SANITIZE body — remove source footers, URLs, etc.
+        if (parsed.bodyHe) {
+          parsed.bodyHe = sanitizeBody(parsed.bodyHe);
+        }
+
         // POST-GENERATION VALIDATION
         const validation = validateNumbers(lock, parsed.numbersUsed);
         const isFlagged = parsed.flagged === true || !validation.valid;
