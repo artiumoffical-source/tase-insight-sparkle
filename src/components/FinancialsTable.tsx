@@ -690,7 +690,7 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
       </TabsContent>
       <TabsContent value="balance">
         {useDetailedBS ? (
-          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} currency={currency} />
+          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} currency={currency} sector={sector} />
         ) : (
           <SimpleMetricTable rows={balanceSheet!} metrics={[
             { labelKey: "fin.totalAssets", getValue: (r) => r.totalAssets },
