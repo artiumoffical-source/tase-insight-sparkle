@@ -3,7 +3,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronRight, CheckCircle2, AlertCircle, Download } from "lucide-react";
+import { ChevronRight, CheckCircle2, AlertCircle, Download, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { DetailedBalanceSheetRow } from "@/components/DeepDiveFinancials";
@@ -310,7 +310,7 @@ function SimpleMetricTable({ rows, metrics, t, tabName, currency }: { rows: any[
 }
 
 // --- Expandable Balance Sheet Table ---
-function ExpandableBalanceTable({ rows, t, detailedBS, currency }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[]; currency?: string }) {
+function ExpandableBalanceTable({ rows, t, detailedBS, currency, sector = "general" }: { rows: DetailedBalanceSheetRow[]; t: (k: string) => string; detailedBS?: DetailedBalanceSheetRow[]; currency?: string; sector?: SectorType }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [hoveredParent, setHoveredParent] = useState<string | null>(null);
 
@@ -535,7 +535,17 @@ function ExpandableBalanceTable({ rows, t, detailedBS, currency }: { rows: Detai
                   { labelKey: "fin.quickRatio", getValue: (r: any) => r.quickRatio },
                 ].map((ratio, idx) => (
                   <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
-                    <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
+                    <td className="py-2.5 px-4 font-display font-semibold text-sm">
+                      {t(ratio.labelKey)}
+                      {ratio.labelKey === "fin.deRatio" && sector === "general" && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex ms-1 cursor-help text-muted-foreground"><Info className="h-3.5 w-3.5" /></span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px] text-xs">כולל אג״ח, הלוואות ל״ט והתחייבויות חכירה</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </td>
                     {solvencyRatios.map((r) => (
                       <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
                         {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
@@ -680,7 +690,7 @@ export default function FinancialsTable({ data, incomeStatement, balanceSheet, c
       </TabsContent>
       <TabsContent value="balance">
         {useDetailedBS ? (
-          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} currency={currency} />
+          <ExpandableBalanceTable rows={detailedBalanceSheet!} t={t} currency={currency} sector={sector} />
         ) : (
           <SimpleMetricTable rows={balanceSheet!} metrics={[
             { labelKey: "fin.totalAssets", getValue: (r) => r.totalAssets },

@@ -70,12 +70,18 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
     const operatingIncome = parseFloat(inc.operatingIncome) || 0;
     let ebitda = 0;
     const cf = cashFlowStatements?.[dateKey] || {};
-    const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
+    const da = Math.abs(parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0);
+    const apiEbitda = parseFloat(inc.ebitda) || 0;
     if (da > 0) {
-      ebitda = operatingIncome + da;
+      const calcEbitda = operatingIncome + da;
+      // Use API value if within 10% of calculated, otherwise use calculated
+      if (apiEbitda !== 0 && Math.abs(calcEbitda - apiEbitda) / Math.abs(apiEbitda) < 0.10) {
+        ebitda = apiEbitda;
+      } else {
+        ebitda = calcEbitda > 0 ? calcEbitda : apiEbitda;
+      }
     } else {
-      // Final fallback: raw ebitda from income statement
-      ebitda = parseFloat(inc.ebitda) || 0;
+      ebitda = apiEbitda;
     }
 
     const baseRevenue = parseFloat(inc.totalRevenue) || 0;
@@ -228,7 +234,7 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       netIncome: parseFloat(inc.netIncome) || 0,
-      depreciation: parseFloat(cf.depreciation) || 0,
+      depreciation: Math.abs(parseFloat(cf.depreciation) || 0),
       capex,
       freeCashFlow: calculatedFCF,
       cashFromOperations: opsFlow,

@@ -1,6 +1,7 @@
 import { useLanguage } from "@/hooks/useLanguage";
-import { Lock } from "lucide-react";
+import { Lock, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { SectorType } from "@/components/FinancialsTable";
 
 export interface KeyMetricsData {
