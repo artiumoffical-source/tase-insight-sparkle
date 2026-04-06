@@ -228,7 +228,7 @@ function buildCashFlowRows(cashFlowStatements: Record<string, any>, incomeStatem
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
       netIncome: parseFloat(inc.netIncome) || 0,
-      depreciation: parseFloat(cf.depreciation) || 0,
+      depreciation: Math.abs(parseFloat(cf.depreciation) || 0),
       capex,
       freeCashFlow: calculatedFCF,
       cashFromOperations: opsFlow,
