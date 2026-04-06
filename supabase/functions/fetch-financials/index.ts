@@ -78,10 +78,15 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       ebitda = parseFloat(inc.ebitda) || 0;
     }
 
-    // Always recalculate grossProfit from raw components
     const revenue = parseFloat(inc.totalRevenue) || 0;
     const costOfRevenue = parseFloat(inc.costOfRevenue) || 0;
-    const grossProfit = revenue > 0 && costOfRevenue > 0 ? revenue - costOfRevenue : (parseFloat(inc.grossProfit) || 0);
+    const grossProfit = (() => {
+      const rev = parseFloat(inc.totalRevenue) || 0;
+      const cogs = parseFloat(inc.costOfRevenue) || 0;
+      const apiGP = parseFloat(inc.grossProfit) || 0;
+      if (cogs > 0 && rev > 0) return rev - cogs;
+      return apiGP;
+    })();
 
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
