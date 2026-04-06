@@ -71,27 +71,17 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
     let ebitda = 0;
     const cf = cashFlowStatements?.[dateKey] || {};
     const da = parseFloat(cf.depreciationAndAmortization) || parseFloat(cf.depreciation) || 0;
-    const apiEbitda = parseFloat(inc.ebitda) || 0;
     if (da > 0) {
-      const calcEbitda = operatingIncome + da;
-      ebitda = calcEbitda;
-      // Cross-validate against API EBITDA
-      if (apiEbitda !== 0 && Math.abs(apiEbitda - calcEbitda) / Math.max(Math.abs(calcEbitda), 1) > 0.05) {
-        console.warn(`EBITDA mismatch for ${ticker} ${dateKey}: API=${apiEbitda}, calc=${calcEbitda}`);
-      }
+      ebitda = operatingIncome + da;
     } else {
       // Final fallback: raw ebitda from income statement
-      ebitda = apiEbitda;
+      ebitda = parseFloat(inc.ebitda) || 0;
     }
 
-    // Cross-validate grossProfit: prefer API value if within 5% of calculated, otherwise use calculated
+    // Always recalculate grossProfit from raw components
     const revenue = parseFloat(inc.totalRevenue) || 0;
     const costOfRevenue = parseFloat(inc.costOfRevenue) || 0;
-    const apiGrossProfit = parseFloat(inc.grossProfit) || 0;
-    const calcGrossProfit = revenue - costOfRevenue;
-    const grossProfit = (apiGrossProfit !== 0 && costOfRevenue !== 0 && Math.abs(apiGrossProfit - calcGrossProfit) / Math.max(Math.abs(calcGrossProfit), 1) < 0.05)
-      ? apiGrossProfit
-      : calcGrossProfit;
+    const grossProfit = revenue > 0 && costOfRevenue > 0 ? revenue - costOfRevenue : (parseFloat(inc.grossProfit) || 0);
 
     return {
       year: dateKey.length >= 7 ? dateKey.substring(0, 7) : dateKey.substring(0, 4),
