@@ -78,7 +78,12 @@ function buildIncomeRows(incomeStatements: Record<string, any>, dateKeys: string
       ebitda = parseFloat(inc.ebitda) || 0;
     }
 
-    const revenue = parseFloat(inc.totalRevenue) || 0;
+    const baseRevenue = parseFloat(inc.totalRevenue) || 0;
+    const fairValueAdj = parseFloat(inc.nonRecurring) || 0;
+    const revenue = (fairValueAdj > 0 && baseRevenue > 0 && fairValueAdj / baseRevenue > 0.05)
+      ? baseRevenue + fairValueAdj
+      : baseRevenue;
+    console.log(`Revenue: base=${baseRevenue}, fairValueAdj=${fairValueAdj}, final=${revenue}`);
     const costOfRevenue = parseFloat(inc.costOfRevenue) || 0;
     const grossProfit = (() => {
       const rev = parseFloat(inc.totalRevenue) || 0;
@@ -138,7 +143,12 @@ function findEquityGap(bal: Record<string, any>, totalAssets: number, totalLiab:
 function buildBalanceRows(balanceSheets: Record<string, any>, dateKeys: string[]) {
   return dateKeys.slice().reverse().map((dateKey) => {
     const bal = balanceSheets[dateKey] || {};
-    const totalDebtVal = (parseFloat(bal.shortLongTermDebt) || 0) + (parseFloat(bal.longTermDebt) || 0);
+    const totalDebtVal = 
+      (parseFloat(bal.shortLongTermDebt) || 0) +
+      (parseFloat(bal.longTermDebt) || parseFloat(bal.longTermDebtTotal) || 0) +
+      (parseFloat(bal.shortTermDebt) || 0) +
+      (parseFloat(bal.capitalLeaseObligations) || 0) +
+      (parseFloat(bal.notesPayable) || 0);
     const totalAssets = parseFloat(bal.totalAssets) || 0;
     const totalLiab = parseFloat(bal.totalLiab) || 0;
     const totalEquity = parseFloat(bal.totalStockholderEquity) || 0;
