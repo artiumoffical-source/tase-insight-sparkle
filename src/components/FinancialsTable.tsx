@@ -3,7 +3,7 @@ import { useLanguage } from "@/hooks/useLanguage";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ChevronRight, CheckCircle2, AlertCircle, Download } from "lucide-react";
+import { ChevronRight, CheckCircle2, AlertCircle, Download, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import type { DetailedBalanceSheetRow } from "@/components/DeepDiveFinancials";
