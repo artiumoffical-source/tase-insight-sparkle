@@ -535,7 +535,17 @@ function ExpandableBalanceTable({ rows, t, detailedBS, currency }: { rows: Detai
                   { labelKey: "fin.quickRatio", getValue: (r: any) => r.quickRatio },
                 ].map((ratio, idx) => (
                   <tr key={ratio.labelKey} className={cn("border-b border-border/20", idx % 2 === 0 ? "bg-muted/20" : "")}>
-                    <td className="py-2.5 px-4 font-display font-semibold text-sm">{t(ratio.labelKey)}</td>
+                    <td className="py-2.5 px-4 font-display font-semibold text-sm">
+                      {t(ratio.labelKey)}
+                      {ratio.labelKey === "fin.deRatio" && sector === "general" && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex ms-1 cursor-help text-muted-foreground"><Info className="h-3.5 w-3.5" /></span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px] text-xs">כולל אג״ח, הלוואות ל״ט והתחייבויות חכירה</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </td>
                     {solvencyRatios.map((r) => (
                       <td key={r.year} className="text-end py-2.5 px-3 font-mono text-sm">
                         {ratio.getValue(r) ? ratio.getValue(r).toFixed(2) : "—"}
